@@ -1,0 +1,6 @@
+prepare\_patches
+================
+
+.. currentmodule:: local2global_embedding.run
+
+.. autofunction:: prepare_patches

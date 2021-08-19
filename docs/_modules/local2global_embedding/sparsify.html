@@ -1,0 +1,440 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>local2global_embedding.sparsify &mdash; local2global_embedding 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> local2global_embedding
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+    
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../reference.html">Reference</a></li>
+</ul>
+
+            
+          
+<p class="caption" role="heading"><span class="caption-text">Index</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../genindex.html">Index</a></li>
+</ul>
+  
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">local2global_embedding</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>local2global_embedding.sparsify</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for local2global_embedding.sparsify</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Graph sparsification&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span> <span class="k">as</span> <span class="nn">sc</span>
+<span class="kn">import</span> <span class="nn">scipy.sparse</span>
+<span class="kn">import</span> <span class="nn">scipy.sparse.linalg</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">local2global_embedding.network</span> <span class="kn">import</span> <span class="n">TGraph</span><span class="p">,</span> <span class="n">spanning_tree_mask</span><span class="p">,</span> <span class="n">spanning_tree</span>
+
+
+<div class="viewcode-block" id="resistance_sparsify"><a class="viewcode-back" href="../../reference/local2global_embedding.sparsify.resistance_sparsify.html#local2global_embedding.sparsify.resistance_sparsify">[docs]</a><span class="k">def</span> <span class="nf">resistance_sparsify</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">TGraph</span><span class="p">,</span> <span class="n">target_mean_degree</span><span class="p">,</span> <span class="n">ensure_connected</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sparsify a graph to have a target mean degree using effective resistance based sampling</span>
+
+
+<span class="sd">    Args:</span>
+<span class="sd">        graph: input graph</span>
+<span class="sd">        target_mean_degree: desired mean degree after sparsification</span>
+<span class="sd">        ensure_connected: if ``True``, first add edges of a maximum spanning tree based on the resistance weights</span>
+<span class="sd">                          to ensure that the sparsified graph remains connected if the input graph is connected</span>
+<span class="sd">        epsilon: tolerance for effective resistance computation</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        sparsified graph</span>
+
+<span class="sd">    This algorithm is based on the method of</span>
+
+<span class="sd">        D. A. Spielman and N. Srivastava.</span>
+<span class="sd">        “Graph sparsification by effective resistances”. SIAM Journal on Computing 40.6 (2011), pp. 1913–1926.</span>
+
+<span class="sd">    However, a fixed number of edges are sampled without replacement, and optionally a maximum spanning tree is kept</span>
+<span class="sd">    to ensure the connectedness of the sparsified graph.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_desired_edges</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">target_mean_degree</span> <span class="o">*</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>  <span class="c1"># round down to an even number of edges</span>
+    <span class="k">if</span> <span class="n">n_desired_edges</span> <span class="o">&gt;=</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span><span class="p">:</span>
+        <span class="c1"># graph is already sufficiently sparse</span>
+        <span class="k">return</span> <span class="n">graph</span>
+
+    <span class="n">rgraph</span> <span class="o">=</span> <span class="n">resistance_weighted_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=</span><span class="n">epsilon</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ensure_connected</span><span class="p">:</span>
+        <span class="n">edge_mask</span> <span class="o">=</span> <span class="n">spanning_tree_mask</span><span class="p">(</span><span class="n">rgraph</span><span class="p">,</span> <span class="n">maximise</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">n_desired_edges</span> <span class="o">-=</span> <span class="n">edge_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">unselected_edges</span> <span class="o">=</span> <span class="n">edge_mask</span><span class="o">.</span><span class="n">logical_not</span><span class="p">()</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">edge_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">unselected_edges</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_desired_edges</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># check whether we have sufficiently many edges already</span>
+        <span class="n">unselected_edge_index</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">[:,</span> <span class="n">unselected_edges</span><span class="p">]</span>
+        <span class="n">reversed_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">unselected_edge_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span> <span class="o">+</span> <span class="n">unselected_edge_index</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">forward_unselected</span> <span class="o">=</span> <span class="n">unselected_edges</span><span class="p">[</span><span class="n">unselected_edge_index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">&lt;</span><span class="n">unselected_edge_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">reverse_unselected</span> <span class="o">=</span> <span class="n">unselected_edges</span><span class="p">[</span><span class="n">reversed_index</span><span class="p">[</span><span class="n">unselected_edge_index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">&lt;</span><span class="n">unselected_edge_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]]]</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">multinomial</span><span class="p">(</span><span class="n">rgraph</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">forward_unselected</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">n_desired_edges</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="n">replacement</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="c1"># index = torch.argsort(rgraph.edge_attr[unselected_edges], descending=True)</span>
+        <span class="n">edge_mask</span><span class="p">[</span><span class="n">forward_unselected</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">edge_mask</span><span class="p">[</span><span class="n">reverse_unselected</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">edge_index</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">[:,</span> <span class="n">edge_mask</span><span class="p">]</span>
+    <span class="n">edge_attr</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span><span class="p">[</span><span class="n">edge_mask</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">TGraph</span><span class="p">(</span><span class="n">edge_index</span><span class="o">=</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="n">edge_attr</span><span class="p">,</span> <span class="n">num_nodes</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">ensure_sorted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                  <span class="n">undir</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">undir</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="resistance_weighted_graph"><a class="viewcode-back" href="../../reference/local2global_embedding.sparsify.resistance_weighted_graph.html#local2global_embedding.sparsify.resistance_weighted_graph">[docs]</a><span class="k">def</span> <span class="nf">resistance_weighted_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">TGraph</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    modify the edge weights of a graph by multiplying by their effective resistance</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        graph: input graph</span>
+<span class="sd">        epsilon: tolerance for effective resistance computation (default: ``1e-2``)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        copy of input graph with reweighted edges</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">resistances</span> <span class="o">=</span> <span class="n">effective_resistances</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">edge_attr</span> <span class="o">=</span> <span class="n">resistances</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">edge_attr</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span> <span class="o">*</span> <span class="n">resistances</span>
+    <span class="k">return</span> <span class="n">TGraph</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">,</span> <span class="n">num_nodes</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">ensure_sorted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">undir</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">undir</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="effective_resistances"><a class="viewcode-back" href="../../reference/local2global_embedding.sparsify.effective_resistances.html#local2global_embedding.sparsify.effective_resistances">[docs]</a><span class="k">def</span> <span class="nf">effective_resistances</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">TGraph</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    compute effective resistances</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        graph: input graph</span>
+<span class="sd">        epsilon: tolerance for effective resistance computation (default: ``1e-2``)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        effective resistance for each edge</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">_compute_Z</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
+    <span class="n">resistances</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">pairwise_distance</span><span class="p">(</span><span class="n">Z</span><span class="p">[</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">:],</span> <span class="n">Z</span><span class="p">[</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">:])</span> <span class="o">**</span> <span class="mi">2</span>
+    <span class="k">return</span> <span class="n">resistances</span></div>
+
+
+<span class="k">def</span> <span class="nf">_edge_node_incidence_matrix</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">TGraph</span><span class="p">):</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">indptr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">edges</span><span class="p">()):</span>
+        <span class="n">indptr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">i</span>
+        <span class="n">indices</span><span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">values</span><span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">indices</span><span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">values</span><span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="n">indptr</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span>
+
+    <span class="k">return</span> <span class="n">sc</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">values</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">indptr</span><span class="p">),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span><span class="p">,</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_edge_weight_matrix</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">TGraph</span><span class="p">):</span>
+    <span class="n">weight</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">W</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">dia_matrix</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">weight</span><span class="p">),</span> <span class="mi">0</span><span class="p">),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">weight</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">weight</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">W</span>
+
+
+<span class="k">def</span> <span class="nf">_compute_Z</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">TGraph</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=</span><span class="mf">10.0</span> <span class="o">**</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">):</span>
+    <span class="n">W</span> <span class="o">=</span> <span class="n">_edge_weight_matrix</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="n">_edge_node_incidence_matrix</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">W</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+
+    <span class="n">n</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_edges</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="mf">24.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">epsilon</span> <span class="o">**</span> <span class="mf">2.0</span><span class="p">))</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">epsilon</span><span class="o">/</span><span class="mf">3.0</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mf">2.0</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">epsilon</span><span class="p">)</span><span class="o">*</span><span class="nb">min</span><span class="p">(</span><span class="n">W</span><span class="o">.</span><span class="n">diagonal</span><span class="p">()))</span> <span class="o">/</span> <span class="p">((</span><span class="mf">1.0</span><span class="o">+</span><span class="n">epsilon</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">n</span><span class="o">**</span><span class="mf">3.0</span><span class="p">)</span><span class="o">*</span><span class="nb">max</span><span class="p">(</span><span class="n">W</span><span class="o">.</span><span class="n">diagonal</span><span class="p">())))</span>
+
+    <span class="n">LU</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">spilu</span><span class="p">(</span><span class="n">L</span><span class="o">+</span><span class="n">epsilon</span><span class="o">*</span><span class="n">sc</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinearOperator</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">matvec</span><span class="o">=</span><span class="n">LU</span><span class="o">.</span><span class="n">solve</span><span class="p">)</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">k</span><span class="p">)))</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="n">m</span><span class="p">:</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">m</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">B</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">getrow</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+
+        <span class="n">Z</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">flag</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lgmres</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">M</span><span class="o">=</span><span class="n">P</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">delta</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">flag</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;BiCGstab not converged after </span><span class="si">{0}</span><span class="s2"> iterations&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">Z</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">flag</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;BiCGstab error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">Z</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">Z</span>
+
+
+<div class="viewcode-block" id="relaxed_spanning_tree"><a class="viewcode-back" href="../../reference/local2global_embedding.sparsify.relaxed_spanning_tree.html#local2global_embedding.sparsify.relaxed_spanning_tree">[docs]</a><span class="k">def</span> <span class="nf">relaxed_spanning_tree</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">TGraph</span><span class="p">,</span> <span class="n">maximise</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;compute relaxed minimum or maximum spanning tree</span>
+
+<span class="sd">    This implements the relaxed minimum spanning tree algorithm of</span>
+
+<span class="sd">        M. Beguerisse-Díaz, B. Vangelov, and M. Barahona.</span>
+<span class="sd">        “Finding role communities in directed networks using Role-Based Similarity, Markov Stability and the Relaxed Minimum Spanning Tree”.</span>
+<span class="sd">        In: 2013 IEEE Global Conference on Signal and Information Processing (GlobalSIP).</span>
+<span class="sd">        IEEE, 2013, pp. 937–940. isbn: 978-1-4799-0248-4.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        graph: input graph</span>
+<span class="sd">        maximise: if ``True`` start with maximum spanning tree</span>
+<span class="sd">        gamma: :math:`\gamma` value for adding edges</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mst</span> <span class="o">=</span> <span class="n">spanning_tree</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">maximise</span><span class="o">=</span><span class="n">maximise</span><span class="p">)</span>
+    <span class="n">rmst_edges</span> <span class="o">=</span> <span class="p">[</span><span class="n">mst</span><span class="o">.</span><span class="n">edge_index</span><span class="p">]</span>
+    <span class="n">rmst_weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">mst</span><span class="o">.</span><span class="n">edge_attr</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">maximise</span><span class="p">:</span>
+        <span class="n">reduce_fun</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">minimum</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">adj_weighted</span><span class="p">(</span><span class="n">node</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">)],</span>
+                         <span class="n">device</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">reduce_fun</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">maximum</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">adj_weighted</span><span class="p">(</span><span class="n">node</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">)],</span>
+                         <span class="n">device</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">target_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">):</span>
+        <span class="n">neighbours</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">adj_weighted</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="c1"># provide indices into neighbours so we can look up weights easily</span>
+        <span class="n">target_mask</span><span class="p">[</span><span class="n">neighbours</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">neighbours</span><span class="o">.</span><span class="n">numel</span><span class="p">())</span>
+        <span class="c1"># breadth-first search over mst to find mst path weights (note mst-edges are already added)</span>
+        <span class="n">mst_neighbours</span><span class="p">,</span> <span class="n">mst_weights</span> <span class="o">=</span> <span class="n">mst</span><span class="o">.</span><span class="n">adj_weighted</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">target_mask</span><span class="p">[</span><span class="n">mst_neighbours</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">not_visited</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">not_visited</span><span class="p">[</span><span class="n">mst_neighbours</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">not_visited</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">target_mask</span><span class="p">[</span><span class="n">neighbours</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="n">next_neighbours</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">next_weights</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">node</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mst_neighbours</span><span class="p">,</span> <span class="n">mst_weights</span><span class="p">):</span>
+                <span class="n">n</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">mst</span><span class="o">.</span><span class="n">adj_weighted</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+                <span class="n">new</span> <span class="o">=</span> <span class="n">not_visited</span><span class="p">[</span><span class="n">n</span><span class="p">]</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="n">n</span><span class="p">[</span><span class="n">new</span><span class="p">]</span>
+                <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="p">[</span><span class="n">new</span><span class="p">]</span>
+                <span class="n">not_visited</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">next_neighbours</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+                <span class="n">next_weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reduce_fun</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">w</span><span class="p">))</span>
+            <span class="n">mst_neighbours</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">next_neighbours</span><span class="p">)</span>
+            <span class="n">mst_weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">next_weights</span><span class="p">)</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">target_mask</span><span class="p">[</span><span class="n">mst_neighbours</span><span class="p">]</span>
+            <span class="n">selected</span> <span class="o">=</span> <span class="n">mst_neighbours</span><span class="p">[</span><span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">target_mask</span><span class="p">[</span><span class="n">selected</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="n">selected_w</span> <span class="o">=</span> <span class="n">mst_weights</span><span class="p">[</span><span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="n">index</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">maximise</span><span class="p">:</span>
+                <span class="n">add</span> <span class="o">=</span> <span class="n">selected_w</span><span class="o">-</span><span class="n">gamma</span><span class="o">*</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="n">d</span><span class="p">[</span><span class="n">selected</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">weights</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">add</span> <span class="o">=</span> <span class="n">selected_w</span><span class="o">+</span><span class="n">gamma</span><span class="o">*</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="n">d</span><span class="p">[</span><span class="n">selected</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">weights</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+            <span class="n">rmst_edges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">torch</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">add</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),),</span> <span class="n">i</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span> <span class="n">selected</span><span class="p">[</span><span class="n">add</span><span class="p">]),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+            <span class="n">rmst_weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">weights</span><span class="p">[</span><span class="n">index</span><span class="p">[</span><span class="n">add</span><span class="p">]])</span>
+    <span class="n">edge_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">rmst_edges</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">edge_attr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">rmst_weights</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">TGraph</span><span class="p">(</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">,</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">ensure_sorted</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">undir</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">undir</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Lucas G. S. Jeub.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

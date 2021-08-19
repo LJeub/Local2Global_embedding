@@ -1,0 +1,770 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>local2global_embedding.run &mdash; local2global_embedding 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> local2global_embedding
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+    
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../reference.html">Reference</a></li>
+</ul>
+
+            
+          
+<p class="caption" role="heading"><span class="caption-text">Index</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../genindex.html">Index</a></li>
+</ul>
+  
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">local2global_embedding</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>local2global_embedding.run</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for local2global_embedding.run</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Training run script&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">bisect</span> <span class="kn">import</span> <span class="n">bisect_left</span>
+<span class="kn">from</span> <span class="nn">statistics</span> <span class="kn">import</span> <span class="n">mean</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Sized</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch_geometric</span> <span class="k">as</span> <span class="nn">tg</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">local2global</span> <span class="k">as</span> <span class="nn">l2g</span>
+
+<span class="kn">from</span> <span class="nn">local2global_embedding.embedding</span> <span class="kn">import</span> <span class="n">speye</span><span class="p">,</span> <span class="n">train</span><span class="p">,</span> <span class="n">embedding</span><span class="p">,</span> <span class="n">VGAE_model</span><span class="p">,</span> <span class="n">VGAE_loss</span><span class="p">,</span> <span class="n">reconstruction_auc</span>
+<span class="kn">from</span> <span class="nn">local2global_embedding.network</span> <span class="kn">import</span> <span class="n">largest_connected_component</span><span class="p">,</span> <span class="n">TGraph</span>
+<span class="kn">from</span> <span class="nn">local2global_embedding.patches</span> <span class="kn">import</span> <span class="n">create_patch_data</span>
+<span class="kn">from</span> <span class="nn">local2global_embedding.clustering</span> <span class="kn">import</span> <span class="n">distributed_clustering</span><span class="p">,</span> <span class="n">fennel_clustering</span><span class="p">,</span> <span class="n">louvain_clustering</span><span class="p">,</span> <span class="n">metis_clustering</span>
+
+
+<div class="viewcode-block" id="ResultsDict"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict">[docs]</a><span class="k">class</span> <span class="nc">ResultsDict</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for keeping track of results</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="ResultsDict.load"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.load">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        restore results from file</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename: input json file</span>
+<span class="sd">            replace: set the replace attribute</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            populated ResultsDict</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">replace</span><span class="o">=</span><span class="n">replace</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="ResultsDict.save"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        dump contents to json file</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename: output file path</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ResultsDict.__init__"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        initialise empty ResultsDict</span>
+<span class="sd">        Args:</span>
+<span class="sd">            replace: set the replace attribute (default: ``False``)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;dims&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;auc&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replace</span> <span class="o">=</span> <span class="n">replace</span>  <span class="c1">#: if ``True``, updates replace existing data, if ``False``, updates append data</span></div>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">item</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_update_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">aucs</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update data for a given index</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index: integer index into data lists</span>
+<span class="sd">            aucs: new auc values (should be a list)</span>
+<span class="sd">            args: new args data (optional)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">replace</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">aucs</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">aucs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">args</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">aucs</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_insert_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">aucs</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        insert new data at index</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index: integer index into data lists</span>
+<span class="sd">            dim: data dimension for index</span>
+<span class="sd">            aucs: new auc values</span>
+<span class="sd">            args: new args data (optional)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">aucs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="p">[</span><span class="n">args</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">aucs</span><span class="p">))</span>
+
+<div class="viewcode-block" id="ResultsDict.update_dim"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.update_dim">[docs]</a>    <span class="k">def</span> <span class="nf">update_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">aucs</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update data for given dimension</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dim: dimension to update</span>
+<span class="sd">            aucs: new auc values</span>
+<span class="sd">            args: new args data (optional)</span>
+
+<span class="sd">        if ``self.contains_dim(dim) == True``, behaviour depends on the value of</span>
+<span class="sd">        ``self.replace``</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">bisect_left</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">],</span> <span class="n">dim</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">])</span> <span class="ow">and</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">==</span> <span class="n">dim</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_index</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">aucs</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_insert_index</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">aucs</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ResultsDict.max_auc"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.max_auc">[docs]</a>    <span class="k">def</span> <span class="nf">max_auc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        return maximum auc values</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dim: if ``dim=None``, return list of values for all dimension, else only return maximum value for ``dim``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">aucs</span><span class="p">)</span> <span class="k">for</span> <span class="n">aucs</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">]]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">bisect_left</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">],</span> <span class="n">dim</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">])</span> <span class="ow">and</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">==</span> <span class="n">dim</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mf">0.</span></div>
+
+<div class="viewcode-block" id="ResultsDict.contains_dim"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.contains_dim">[docs]</a>    <span class="k">def</span> <span class="nf">contains_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        equivalent to ``dim in self[&#39;dims&#39;]``</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">bisect_left</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">],</span> <span class="n">dim</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">])</span> <span class="ow">and</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">==</span> <span class="n">dim</span></div>
+
+<div class="viewcode-block" id="ResultsDict.reduce_to_dims"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.reduce_to_dims">[docs]</a>    <span class="k">def</span> <span class="nf">reduce_to_dims</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dims</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        remove all data for dimensions not in ``dims``</span>
+<span class="sd">        Args:</span>
+<span class="sd">            dims: list of dimensions to keep</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">contains_dim</span><span class="p">(</span><span class="n">d</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="n">key1</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key1</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">key1</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="p">[</span><span class="n">key1</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">index</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="ResultsDict.runs"><a class="viewcode-back" href="../../reference/local2global_embedding.run.ResultsDict.html#local2global_embedding.run.ResultsDict.runs">[docs]</a>    <span class="k">def</span> <span class="nf">runs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        return the number of runs</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dim: if ``dim is None``, return list of number of runs for all dimension, else return number of</span>
+<span class="sd">                 runs for dimension ``dim``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">]]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">bisect_left</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">],</span> <span class="n">dim</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">])</span> <span class="ow">and</span> <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;dims&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">]</span> <span class="o">==</span> <span class="n">dim</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">][</span><span class="n">index</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span></div></div>
+
+
+<span class="n">_dataloaders</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1">#: dataloaders</span>
+
+
+<div class="viewcode-block" id="dataloader"><a class="viewcode-back" href="../../reference/local2global_embedding.run.dataloader.html#local2global_embedding.run.dataloader">[docs]</a><span class="k">def</span> <span class="nf">dataloader</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    decorator for registering dataloader functions</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: data set name</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">loader</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="n">_dataloaders</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="k">return</span> <span class="n">func</span>
+    <span class="k">return</span> <span class="n">loader</span></div>
+
+
+<span class="nd">@dataloader</span><span class="p">(</span><span class="s1">&#39;Cora&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_load_cora</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">tg</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Planetoid</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Cora&#39;</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="s1">&#39;/tmp/cora&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="nd">@dataloader</span><span class="p">(</span><span class="s1">&#39;PubMed&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_load_pubmed</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">tg</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Planetoid</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;PubMed&#39;</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="s1">&#39;/tmp/pubmed&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="nd">@dataloader</span><span class="p">(</span><span class="s1">&#39;AMZ_computers&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_load_amazon_computers</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">tg</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Amazon</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s1">&#39;/tmp/amazon&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Computers&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="nd">@dataloader</span><span class="p">(</span><span class="s1">&#39;AMZ_photo&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_load_amazon_photos</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">tg</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">Amazon</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s1">&#39;/tmp/amazon&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;photo&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="load_data"><a class="viewcode-back" href="../../reference/local2global_embedding.run.load_data.html#local2global_embedding.run.load_data">[docs]</a><span class="k">def</span> <span class="nf">load_data</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    load data set</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: name of data set (one of {names})</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        largest connected component of data set</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">_dataloaders</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">largest_connected_component</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">num_nodes</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+<span class="n">load_data</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="n">load_data</span><span class="o">.</span><span class="vm">__doc__</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">names</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">_dataloaders</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+
+<div class="viewcode-block" id="prepare_patches"><a class="viewcode-back" href="../../reference/local2global_embedding.run.prepare_patches.html#local2global_embedding.run.prepare_patches">[docs]</a><span class="k">def</span> <span class="nf">prepare_patches</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    initialise patch data if ``output_folder`` does not exist, else load existing patch data</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        output_folder: folder for storing patch data</span>
+<span class="sd">        **kwargs: arguments passed to :py:func:`~local2global_embedding.patches.create_patch_data`</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        patch_data, patch_graph</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">output_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">output_folder</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+        <span class="n">patch_graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">output_folder</span> <span class="o">/</span> <span class="s1">&#39;patch_graph.pt&#39;</span><span class="p">)</span>
+        <span class="n">patch_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;patch</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.pt&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">patch_graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">patch_data</span><span class="p">,</span> <span class="n">patch_graph</span> <span class="o">=</span> <span class="n">create_patch_data</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">output_folder</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">patch_graph</span><span class="p">,</span> <span class="n">output_folder</span> <span class="o">/</span> <span class="s1">&#39;patch_graph.pt&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">patch_data</span><span class="p">):</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;patch</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">.pt&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">patch_data</span><span class="p">,</span> <span class="n">patch_graph</span></div>
+
+
+<div class="viewcode-block" id="csvlist"><a class="viewcode-back" href="../../reference/local2global_embedding.run.csvlist.html#local2global_embedding.run.csvlist">[docs]</a><span class="k">def</span> <span class="nf">csvlist</span><span class="p">(</span><span class="n">input_type</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create an argparse type that parses comma separated lists of type ``input_type``</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        input_type: type of list elements</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        list parser</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">make_list</span><span class="p">(</span><span class="n">input_str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">input_type</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">input_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)]</span>
+    <span class="n">make_list</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    argparse type that parses comma separated list of type </span><span class="si">{</span><span class="n">input_type</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">    </span>
+<span class="s2">    Args:</span>
+<span class="s2">        input_str: string to be parsed</span>
+<span class="s2">        </span>
+<span class="s2">    Returns:</span>
+<span class="s2">        list of elements of type </span><span class="si">{</span><span class="n">input_type</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">make_list</span></div>
+
+
+<span class="n">_parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Run training example.&quot;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--data&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;Cora&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="n">_dataloaders</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Dataset to load&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--no_features&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Discard features and use node identity.&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--num_epochs&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Number of training epochs&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--runs&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Number of training runs (keep best result)&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--dims&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">csvlist</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Embedding dimensions (comma-separated)&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--hidden_multiplier&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Hidden dim is `hidden_multiplier` * `dim`&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--target_patch_degree&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Target patch degree for sparsification.&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--min_overlap&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Minimum target patch overlap (defaults to `max(dims) + 1`)&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--target_overlap&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Target patch overlap (defaults to twice `min_overlap`)&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--gamma&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Value of &#39;gamma&#39; for RMST sparsification.&quot;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--sparsify&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;resistance&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Sparsification method to use.&quot;</span><span class="p">,</span>
+                     <span class="n">choices</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;resistance&#39;</span><span class="p">,</span> <span class="s1">&#39;rmst&#39;</span><span class="p">,</span> <span class="s1">&#39;none&#39;</span><span class="p">})</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--cluster&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;metis&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;louvain&#39;</span><span class="p">,</span> <span class="s1">&#39;distributed&#39;</span><span class="p">,</span> <span class="s1">&#39;fennel&#39;</span><span class="p">,</span> <span class="s1">&#39;metis&#39;</span><span class="p">},</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Clustering method to use&quot;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--num_clusters&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Target number of clusters for fennel, or metis.&quot;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--beta&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Beta value for distributed&quot;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--num_iters&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum iterations for distributed or fennel (default depends on method choice)&quot;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--lr&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Learning rate&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--dist&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;use distance decoder instead of inner product decoder&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                     <span class="n">default</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span>
+                     <span class="n">help</span><span class="o">=</span><span class="s1">&#39;output folder&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--device&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Device used for training e.g., &#39;cpu&#39;, &#39;cuda&#39;&quot;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Plot embedding performance&#39;</span><span class="p">)</span>
+<span class="n">_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--verbose&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Show progress info&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../reference/local2global_embedding.run.run.html#local2global_embedding.run.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Run training example.</span>
+
+<span class="sd">    By default this function writes results to the current working directory. To override this use the ``output``</span>
+<span class="sd">    keyword argument.</span>
+
+<span class="sd">    This function reproduces figure 1(a) of [#l2g]_ if called as ``run(dims=[2**i for i in range(1, 8)], plot=True)``.</span>
+
+
+<span class="sd">    Keyword Args:</span>
+<span class="sd">        data: Name of data set to load (one of {``&#39;Cora&#39;``, ``&#39;PubMed&#39;``, ``&#39;AMZ_computers&#39;``, ``&#39;AMZ_photo&#39;``}) (default: ``&#39;Cora&#39;``)</span>
+<span class="sd">        no_features: If ``True``, discard features and use node identity. (default: ``False``)</span>
+<span class="sd">        num_epochs: Number of training epochs (default: ``200``)</span>
+<span class="sd">        runs: Number of training runs (keep best result) (default: ``1``)</span>
+<span class="sd">        dims: list of embedding dimensions (default: ``[2]``)</span>
+<span class="sd">        hidden_multiplier: Hidden dimension is ``hidden_multiplier * dim``</span>
+<span class="sd">        target_patch_degree: Target patch degree for resistance sparsification. (default: ``4``)</span>
+<span class="sd">        min_overlap: Minimum target patch overlap (default: ``max(dims) + 1``)</span>
+<span class="sd">        target_overlap: Target patch overlap (default: ``2 * max(dims)``)</span>
+<span class="sd">        gamma: Value of &#39;gamma&#39; for RMST sparsification (default: ``0``)</span>
+<span class="sd">        sparsify: Sparsification method to use (one of {``&#39;resistance&#39;``, ``&#39;none&#39;``, ``&#39;rmst&#39;``})</span>
+<span class="sd">                  (default: ``&#39;resistance&#39;``)</span>
+<span class="sd">        cluster: Clustering method to use (one of {``&#39;louvain&#39;``, ``&#39;fennel&#39;`` , ``&#39;distributed&#39;``, ``&#39;metis&#39;``})</span>
+<span class="sd">                 (default: ``&#39;metis&#39;``)</span>
+<span class="sd">        num_clusters: Target number of clusters for distributed, fennel, or metis.</span>
+<span class="sd">        num_iters: Maximum iterations for distributed or fennel</span>
+<span class="sd">        lr: Learning rate</span>
+<span class="sd">        dist: If ``True``, use distance decoder instead of inner product decoder (default: ``False``)</span>
+<span class="sd">        output: output folder (default: ``&#39;.&#39;``)</span>
+<span class="sd">        device: Device used for training e.g., &#39;cpu&#39;, &#39;cuda&#39; (defaults to ``&#39;cuda&#39;`` if available else ``&#39;cpu&#39;``)</span>
+<span class="sd">        plot: If ``True``, plot embedding performance (default: ``False``)</span>
+<span class="sd">        verbose: If ``True``, show progress info (default: ``False``)</span>
+
+<span class="sd">    This function only accepts keyword arguments and is also exposed as a command-line interface.</span>
+
+<span class="sd">    .. rubric:: References</span>
+
+<span class="sd">    .. [#l2g] L. G. S. Jeub et al.</span>
+<span class="sd">              “Local2Global: Scaling global representation learning on graphs via local training”.</span>
+<span class="sd">              DLG-KDD’21. 2021. `arXiv:2107.12224 [cs.LG] &lt;https://arxiv.org/abs/2107.12224&gt;`_.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># support calling this as a python function with keyword arguments</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">_parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([])</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown argument </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="n">output_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">neg_edges</span> <span class="o">=</span> <span class="n">tg</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">negative_sampling</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">)</span>
+    <span class="n">graph</span> <span class="o">=</span> <span class="n">TGraph</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">edge_attr</span><span class="p">)</span>
+    <span class="n">basename</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">data</span>
+    <span class="n">dims</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">dims</span>
+    <span class="n">num_epochs</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">num_epochs</span>
+    <span class="n">runs</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">runs</span>
+    <span class="n">min_overlap</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">min_overlap</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">min_overlap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">max</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">target_overlap</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">target_overlap</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">target_overlap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">no_features</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># remove node features (trained with identity)</span>
+        <span class="n">basename</span> <span class="o">+=</span> <span class="s1">&#39;_no_features&#39;</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">dist</span><span class="p">:</span>
+        <span class="n">basename</span> <span class="o">+=</span> <span class="s1">&#39;_dist&#39;</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">sparsify</span> <span class="o">==</span> <span class="s1">&#39;resistance&#39;</span><span class="p">:</span>
+        <span class="n">sp_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;resistance_deg</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">target_patch_degree</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">sparsify</span> <span class="o">==</span> <span class="s1">&#39;rmst&#39;</span><span class="p">:</span>
+        <span class="n">sp_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rmst_gamma</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">gamma</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">sparsify</span> <span class="o">==</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
+        <span class="n">sp_string</span> <span class="o">=</span> <span class="s2">&quot;no_sparsify&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown sparsification method &#39;</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">sparsify</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">cluster</span> <span class="o">==</span> <span class="s1">&#39;louvain&#39;</span><span class="p">:</span>
+        <span class="n">cluster_fun</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">louvain_clustering</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">cluster_string</span> <span class="o">=</span> <span class="s1">&#39;louvain&#39;</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">cluster</span> <span class="o">==</span> <span class="s1">&#39;distributed&#39;</span><span class="p">:</span>
+        <span class="n">cluster_fun</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">distributed_clustering</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span> <span class="n">rounds</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">num_iters</span><span class="p">)</span>
+        <span class="n">cluster_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;distributed_beta</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">beta</span><span class="si">}</span><span class="s1">_it</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">num_iters</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">cluster</span> <span class="o">==</span> <span class="s1">&#39;fennel&#39;</span><span class="p">:</span>
+        <span class="n">cluster_fun</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">fennel_clustering</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">num_clusters</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">num_clusters</span><span class="p">,</span> <span class="n">randomise_order</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                <span class="n">num_iters</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">num_iters</span><span class="p">)</span>
+        <span class="n">cluster_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;fennel_n</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">num_clusters</span><span class="si">}</span><span class="s2">_it</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">num_iters</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">cluster</span> <span class="o">==</span> <span class="s1">&#39;metis&#39;</span><span class="p">:</span>
+        <span class="n">cluster_fun</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">metis_clustering</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">num_clusters</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">num_clusters</span><span class="p">)</span>
+        <span class="n">cluster_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;metis_n</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">num_clusters</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown cluster method &#39;</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">cluster</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+
+    <span class="n">cluster_file</span> <span class="o">=</span> <span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">cluster_string</span><span class="si">}</span><span class="s2">_clusters.pt&quot;</span>
+    <span class="k">if</span> <span class="n">cluster_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="n">clusters</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">cluster_file</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">clusters</span> <span class="o">=</span> <span class="n">cluster_fun</span><span class="p">()</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">clusters</span><span class="p">,</span> <span class="n">cluster_file</span><span class="p">)</span>
+
+    <span class="n">patch_folder</span> <span class="o">=</span> <span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">cluster_string</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">sp_string</span><span class="si">}</span><span class="s1">_mo</span><span class="si">{</span><span class="n">min_overlap</span><span class="si">}</span><span class="s1">_to</span><span class="si">{</span><span class="n">target_overlap</span><span class="si">}</span><span class="s1">_patches&#39;</span>
+    <span class="n">patch_data</span><span class="p">,</span> <span class="n">patch_graph</span> <span class="o">=</span> <span class="n">prepare_patches</span><span class="p">(</span>
+        <span class="n">output_folder</span><span class="o">=</span><span class="n">patch_folder</span><span class="p">,</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+        <span class="n">partition_tensor</span><span class="o">=</span><span class="n">clusters</span><span class="p">,</span>
+        <span class="n">min_overlap</span><span class="o">=</span><span class="n">min_overlap</span><span class="p">,</span>
+        <span class="n">target_overlap</span><span class="o">=</span><span class="n">target_overlap</span><span class="p">,</span>
+        <span class="n">sparsify_method</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">sparsify</span><span class="p">,</span>
+        <span class="n">gamma</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">gamma</span><span class="p">,</span>
+        <span class="n">target_patch_degree</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">target_patch_degree</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;total edges: </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">num_edges</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;total patch edges: </span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">num_edges</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">patch_data</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">no_features</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">speye</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">)</span>  <span class="c1"># add identity as node features for training full model</span>
+
+    <span class="c1"># compute baseline full model if necessary</span>
+    <span class="n">baseline_file</span> <span class="o">=</span> <span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_full_info.json&#39;</span>
+    <span class="n">training_args</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;lr&#39;</span><span class="p">:</span> <span class="n">args</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span> <span class="s1">&#39;num_epochs&#39;</span><span class="p">:</span> <span class="n">args</span><span class="o">.</span><span class="n">num_epochs</span><span class="p">,</span> <span class="s1">&#39;hidden_multiplier&#39;</span><span class="p">:</span> <span class="n">args</span><span class="o">.</span><span class="n">hidden_multiplier</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">baseline_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="n">baseline_data</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">baseline_file</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">baseline_data</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">baseline_data</span><span class="o">.</span><span class="n">runs</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="o">&lt;</span> <span class="n">runs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;training full model for </span><span class="si">{</span><span class="n">runs</span><span class="o">-</span><span class="n">r</span><span class="si">}</span><span class="s1"> runs and d=</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r_it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">runs</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;full model (d=</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">) run </span><span class="si">{</span><span class="n">r_it</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">runs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">train</span><span class="p">(</span><span class="n">data</span><span class="p">,</span>
+                              <span class="n">VGAE_model</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span> <span class="o">*</span> <span class="n">args</span><span class="o">.</span><span class="n">hidden_multiplier</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">num_features</span><span class="p">,</span> <span class="n">dist</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dist</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">device</span><span class="p">),</span>
+                              <span class="n">loss_fun</span><span class="o">=</span><span class="n">VGAE_loss</span><span class="p">,</span>
+                              <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+                              <span class="n">lr</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span>
+                              <span class="n">verbose</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+                              <span class="p">)</span>
+                <span class="n">coords</span> <span class="o">=</span> <span class="n">embedding</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+                <span class="n">auc</span> <span class="o">=</span> <span class="n">reconstruction_auc</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">dist</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dist</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">auc</span> <span class="o">&gt;</span> <span class="n">baseline_data</span><span class="o">.</span><span class="n">max_auc</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;new best (auc=</span><span class="si">{</span><span class="n">auc</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_full_d</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">_best_model.pt&#39;</span><span class="p">)</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_full_d</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">_best_coords.pt&#39;</span><span class="p">)</span>
+                <span class="n">baseline_data</span><span class="o">.</span><span class="n">update_dim</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="p">[</span><span class="n">auc</span><span class="p">],</span> <span class="n">training_args</span><span class="p">)</span>
+                <span class="n">baseline_data</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">baseline_file</span><span class="p">)</span>
+
+    <span class="n">results_file</span> <span class="o">=</span> <span class="n">patch_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_l2g_info.json&#39;</span>
+    <span class="n">nt_results_file</span> <span class="o">=</span> <span class="n">patch_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_nt_info.json&#39;</span>
+    <span class="k">if</span> <span class="n">results_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">results_file</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="p">(</span><span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nt_results_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="n">nt_results</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">nt_results_file</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">nt_results</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="p">(</span><span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">:</span>
+        <span class="n">patch_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">update_aligned_embedding</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">p_ind</span><span class="p">,</span> <span class="n">patch</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">patch_data</span><span class="p">):</span>
+            <span class="n">patch_result_file</span> <span class="o">=</span> <span class="n">patch_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_patch</span><span class="si">{</span><span class="n">p_ind</span><span class="si">}</span><span class="s1">_info.json&#39;</span>
+            <span class="k">if</span> <span class="n">patch_result_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+                <span class="n">patch_results</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">patch_result_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">patch_results</span> <span class="o">=</span> <span class="n">ResultsDict</span><span class="p">()</span>
+            <span class="n">coords_file</span> <span class="o">=</span> <span class="n">patch_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_patch</span><span class="si">{</span><span class="n">p_ind</span><span class="si">}</span><span class="s1">_d</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">_best_coords.pt&#39;</span>
+            <span class="k">if</span> <span class="n">coords_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+                <span class="n">best_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">coords_file</span><span class="p">)</span>
+
+            <span class="n">r</span> <span class="o">=</span> <span class="n">patch_results</span><span class="o">.</span><span class="n">runs</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">no_features</span><span class="p">:</span>
+                <span class="n">patch</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">speye</span><span class="p">(</span><span class="n">patch</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">&lt;</span> <span class="n">runs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;training patch</span><span class="si">{</span><span class="n">p_ind</span><span class="si">}</span><span class="s1"> for </span><span class="si">{</span><span class="n">runs</span><span class="o">-</span><span class="n">r</span><span class="si">}</span><span class="s1"> runs and d=</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">patch</span> <span class="o">=</span> <span class="n">patch</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">r_it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">runs</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;patch</span><span class="si">{</span><span class="n">p_ind</span><span class="si">}</span><span class="s2"> (d=</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">) run </span><span class="si">{</span><span class="n">r_it</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">runs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">model</span> <span class="o">=</span> <span class="n">train</span><span class="p">(</span><span class="n">patch</span><span class="p">,</span>
+                                  <span class="n">VGAE_model</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span> <span class="o">*</span> <span class="n">args</span><span class="o">.</span><span class="n">hidden_multiplier</span><span class="p">,</span> <span class="n">patch</span><span class="o">.</span><span class="n">num_features</span><span class="p">,</span> <span class="n">dist</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dist</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">device</span><span class="p">),</span>
+                                  <span class="n">loss_fun</span><span class="o">=</span><span class="n">VGAE_loss</span><span class="p">,</span>
+                                  <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+                                  <span class="n">lr</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span>
+                                  <span class="p">)</span>
+                    <span class="n">coords</span> <span class="o">=</span> <span class="n">embedding</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">patch</span><span class="p">)</span>
+                    <span class="n">auc</span> <span class="o">=</span> <span class="n">reconstruction_auc</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">patch</span><span class="p">,</span> <span class="n">dist</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dist</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">auc</span> <span class="o">&gt;</span> <span class="n">patch_results</span><span class="o">.</span><span class="n">max_auc</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;new best (auc=</span><span class="si">{</span><span class="n">auc</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                        <span class="n">best_coords</span> <span class="o">=</span> <span class="n">coords</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="n">patch_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_patch</span><span class="si">{</span><span class="n">p_ind</span><span class="si">}</span><span class="s1">_d</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">_best_model.pt&#39;</span><span class="p">)</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">best_coords</span><span class="p">,</span> <span class="n">coords_file</span><span class="p">)</span>
+                        <span class="n">update_aligned_embedding</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">patch_results</span><span class="o">.</span><span class="n">update_dim</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="p">[</span><span class="n">auc</span><span class="p">],</span> <span class="n">training_args</span><span class="p">)</span>
+                    <span class="n">patch_results</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">patch_result_file</span><span class="p">)</span>
+            <span class="n">patch_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l2g</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">patch</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">best_coords</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()))</span>
+
+
+        <span class="n">patched_embedding_file</span> <span class="o">=</span> <span class="n">patch_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_d</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">_coords.pt&#39;</span>
+        <span class="n">patched_embedding_file_nt</span> <span class="o">=</span> <span class="n">patch_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_d</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s1">_ntcoords.pt&#39;</span>
+        <span class="k">if</span> <span class="n">update_aligned_embedding</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">patched_embedding_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+            <span class="n">prob</span> <span class="o">=</span> <span class="n">l2g</span><span class="o">.</span><span class="n">WeightedAlignmentProblem</span><span class="p">(</span><span class="n">patch_list</span><span class="p">,</span> <span class="n">patch_edges</span><span class="o">=</span><span class="n">patch_graph</span><span class="o">.</span><span class="n">edges</span><span class="p">())</span>
+            <span class="n">ntcoords</span> <span class="o">=</span> <span class="n">prob</span><span class="o">.</span><span class="n">mean_embedding</span><span class="p">()</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">prob</span><span class="o">.</span><span class="n">get_aligned_embedding</span><span class="p">()</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">patched_embedding_file</span><span class="p">)</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">ntcoords</span><span class="p">,</span> <span class="n">patched_embedding_file_nt</span><span class="p">)</span>
+
+            <span class="n">results</span><span class="o">.</span><span class="n">update_dim</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="p">[</span><span class="n">reconstruction_auc</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">(</span><span class="n">coords</span><span class="p">),</span> <span class="n">data</span><span class="p">,</span> <span class="n">neg_edges</span><span class="p">,</span> <span class="n">dist</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dist</span><span class="p">)])</span>
+            <span class="n">nt_results</span><span class="o">.</span><span class="n">update_dim</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="p">[</span><span class="n">reconstruction_auc</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">(</span><span class="n">ntcoords</span><span class="p">),</span> <span class="n">data</span><span class="p">,</span> <span class="n">neg_edges</span><span class="p">,</span> <span class="n">dist</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">dist</span><span class="p">)])</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">results_file</span><span class="p">)</span>
+            <span class="n">nt_results</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">nt_results_file</span><span class="p">)</span>
+
+    <span class="n">baseline_data</span> <span class="o">=</span> <span class="n">baseline_data</span><span class="o">.</span><span class="n">reduce_to_dims</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">reduce_to_dims</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span>
+    <span class="n">nt_results</span> <span class="o">=</span> <span class="n">nt_results</span><span class="o">.</span><span class="n">reduce_to_dims</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">plot</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dims</span><span class="p">,</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">baseline_data</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">]],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;full, inner product&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span>
+                 <span class="n">color</span><span class="o">=</span><span class="s1">&#39;tab:blue&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dims</span><span class="p">,</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">],</span> <span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;l2g, inner product&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;&gt;&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;tab:blue&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dims</span><span class="p">,</span> <span class="n">nt_results</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">],</span> <span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;no-trans, inner product&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;tab:blue&#39;</span><span class="p">,</span>
+                 <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">dims</span><span class="p">,</span> <span class="n">dims</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">minorticks_off</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;embedding dimension&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;AUC&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="n">oversampling_ratio</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">num_edges</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">patch_data</span><span class="p">)</span> <span class="o">/</span> <span class="n">data</span><span class="o">.</span><span class="n">num_edges</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;oversampling ratio: </span><span class="si">{</span><span class="n">oversampling_ratio</span><span class="si">:</span><span class="s2">.2</span><span class="si">}</span><span class="s2">, #patches: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">patch_data</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">output_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">cluster_string</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">sp_string</span><span class="si">}</span><span class="s2">_mo</span><span class="si">{</span><span class="n">min_overlap</span><span class="si">}</span><span class="s2">_to</span><span class="si">{</span><span class="n">target_overlap</span><span class="si">}</span><span class="s2">.pdf&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="c1"># run main script</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">_parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Lucas G. S. Jeub.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

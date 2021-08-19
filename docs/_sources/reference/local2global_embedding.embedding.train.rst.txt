@@ -1,0 +1,6 @@
+train
+=====
+
+.. currentmodule:: local2global_embedding.embedding
+
+.. autofunction:: train

@@ -1,0 +1,462 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>TGraph &mdash; local2global_embedding 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="patches" href="local2global_embedding.patches.html" />
+    <link rel="prev" title="spanning_tree_mask" href="local2global_embedding.network.spanning_tree_mask.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> local2global_embedding
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+    
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="local2global_embedding.html">local2global_embedding</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.clustering.html">clustering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.embedding.html">embedding</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="local2global_embedding.network.html">network</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.network.conductance.html">conductance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.network.connected_components.html">connected_components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.network.induced_subgraph.html">induced_subgraph</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.network.largest_connected_component.html">largest_connected_component</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.network.spanning_tree.html">spanning_tree</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.network.spanning_tree_mask.html">spanning_tree_mask</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">TGraph</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.patches.html">patches</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.run.html">run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.sparsify.html">sparsify</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+<p class="caption" role="heading"><span class="caption-text">Index</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+  
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">local2global_embedding</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../reference.html">Reference</a> &raquo;</li>
+        
+          <li><a href="local2global_embedding.html">local2global_embedding</a> &raquo;</li>
+        
+          <li><a href="local2global_embedding.network.html">network</a> &raquo;</li>
+        
+      <li>TGraph</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/reference/local2global_embedding.network.TGraph.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="tgraph">
+<h1>TGraph<a class="headerlink" href="#tgraph" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">TGraph</span></span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Wrapper class for pytorch-geometric edge_index providing fast adjacency look-up.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_attr</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_nodes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_sorted</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">undir</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialise graph</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>edge_index</strong> – edge index such that <code class="docutils literal notranslate"><span class="pre">edge_index[0]</span></code> lists the source and <code class="docutils literal notranslate"><span class="pre">edge_index[1]</span></code> the target node for each edge</p></li>
+<li><p><strong>edge_attr</strong> – optionally provide edge weights</p></li>
+<li><p><strong>num_nodes</strong> – specify number of nodes (default: <code class="docutils literal notranslate"><span class="pre">max(edge_index)+1</span></code>)</p></li>
+<li><p><strong>ensure_sorted</strong> – if <code class="docutils literal notranslate"><span class="pre">False</span></code>, assume that the <code class="docutils literal notranslate"><span class="pre">edge_index</span></code> input is already sorted</p></li>
+<li><p><strong>undir</strong> – boolean indicating if graph is directed. If not provided, the <code class="docutils literal notranslate"><span class="pre">edge_index</span></code> is checked to determine this value.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.__init__" title="local2global_embedding.network.TGraph.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a></p></td>
+<td><p>Initialise graph</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.adj" title="local2global_embedding.network.TGraph.adj"><code class="xref py py-obj docutils literal notranslate"><span class="pre">adj</span></code></a></p></td>
+<td><p>list neighbours of node</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.adj_weighted" title="local2global_embedding.network.TGraph.adj_weighted"><code class="xref py py-obj docutils literal notranslate"><span class="pre">adj_weighted</span></code></a></p></td>
+<td><p>list neighbours of node and corresponding edge weight :param node: source node</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.bfs_order" title="local2global_embedding.network.TGraph.bfs_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bfs_order</span></code></a></p></td>
+<td><p>return nodes in breadth-first-search order</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.connected_component_ids" title="local2global_embedding.network.TGraph.connected_component_ids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">connected_component_ids</span></code></a></p></td>
+<td><p>Find the (weakly)-connected components.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.edges" title="local2global_embedding.network.TGraph.edges"><code class="xref py py-obj docutils literal notranslate"><span class="pre">edges</span></code></a></p></td>
+<td><p>return list of edges where each edge is a tuple <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.edges_weighted" title="local2global_embedding.network.TGraph.edges_weighted"><code class="xref py py-obj docutils literal notranslate"><span class="pre">edges_weighted</span></code></a></p></td>
+<td><p>return list of edges where each edge is a tuple <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target,</span> <span class="pre">weight)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.neighbourhood" title="local2global_embedding.network.TGraph.neighbourhood"><code class="xref py py-obj docutils literal notranslate"><span class="pre">neighbourhood</span></code></a></p></td>
+<td><p>find the neighbourhood of a set of source nodes</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.nodes_in_lcc" title="local2global_embedding.network.TGraph.nodes_in_lcc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nodes_in_lcc</span></code></a></p></td>
+<td><p>List all nodes in the largest connected component</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.subgraph" title="local2global_embedding.network.TGraph.subgraph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subgraph</span></code></a></p></td>
+<td><p>find induced subgraph for a set of nodes</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.network.TGraph.to_networkx" title="local2global_embedding.network.TGraph.to_networkx"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_networkx</span></code></a></p></td>
+<td><p>convert graph to NetworkX format</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">device</span></code></p></td>
+<td><p>device holding graph data</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">weighted</span></code></p></td>
+<td><p>boolean indicating if graph is weighted</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_nodes</span></code></p></td>
+<td><p>number of nodes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_edges</span></code></p></td>
+<td><p>number of edges</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">edge_index</span></code></p></td>
+<td><p>edge list (note <code class="docutils literal notranslate"><span class="pre">edge_index[0]</span></code> lists the source nodes and <code class="docutils literal notranslate"><span class="pre">edge_index[1]</span></code> lists the target nodes)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">edge_attr</span></code></p></td>
+<td><p>edge weights if weighted, otherwise <code class="docutils literal notranslate"><span class="pre">None</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">degree</span></code></p></td>
+<td><p>tensor of node degrees</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">adj_index</span></code></p></td>
+<td><p>adjacency index such that edges starting at node <code class="docutils literal notranslate"><span class="pre">i</span></code> are given by <code class="docutils literal notranslate"><span class="pre">edge_index[:,</span> <span class="pre">adj_index[i]:adj_index[i+1]]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">weights</span></code></p></td>
+<td><p>edge weights</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">strength</span></code></p></td>
+<td><p>tensor of node strength</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">undir</span></code></p></td>
+<td><p>boolean indicating if graph is undirected</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.adj">
+<span class="sig-name descname"><span class="pre">adj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.adj"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.adj" title="Permalink to this definition">¶</a></dt>
+<dd><p>list neighbours of node</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>node</strong> – source node</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>neighbours</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.adj_weighted">
+<span class="sig-name descname"><span class="pre">adj_weighted</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.adj_weighted"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.adj_weighted" title="Permalink to this definition">¶</a></dt>
+<dd><p>list neighbours of node and corresponding edge weight
+:param node: source node</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>neighbours, weights</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.edges">
+<span class="sig-name descname"><span class="pre">edges</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.edges" title="Permalink to this definition">¶</a></dt>
+<dd><p>return list of edges where each edge is a tuple <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target)</span></code></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.edges_weighted">
+<span class="sig-name descname"><span class="pre">edges_weighted</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.edges_weighted"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.edges_weighted" title="Permalink to this definition">¶</a></dt>
+<dd><p>return list of edges where each edge is a tuple <code class="docutils literal notranslate"><span class="pre">(source,</span> <span class="pre">target,</span> <span class="pre">weight)</span></code></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.neighbourhood">
+<span class="sig-name descname"><span class="pre">neighbourhood</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nodes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hops</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.neighbourhood"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.neighbourhood" title="Permalink to this definition">¶</a></dt>
+<dd><p>find the neighbourhood of a set of source nodes</p>
+<p>note that the neighbourhood includes the source nodes themselves</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nodes</strong> – indices of source nodes</p></li>
+<li><p><strong>hops</strong> – number of hops for neighbourhood</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>neighbourhood</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.subgraph">
+<span class="sig-name descname"><span class="pre">subgraph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nodes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">torch.Tensor</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.subgraph"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.subgraph" title="Permalink to this definition">¶</a></dt>
+<dd><p>find induced subgraph for a set of nodes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>nodes</strong> – node indeces</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>subgraph</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.connected_component_ids">
+<span class="sig-name descname"><span class="pre">connected_component_ids</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.connected_component_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.connected_component_ids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the (weakly)-connected components. Component ids are sorted by size, such that id=0 corresponds
+to the largest connected component</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.nodes_in_lcc">
+<span class="sig-name descname"><span class="pre">nodes_in_lcc</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.nodes_in_lcc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.nodes_in_lcc" title="Permalink to this definition">¶</a></dt>
+<dd><p>List all nodes in the largest connected component</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.to_networkx">
+<span class="sig-name descname"><span class="pre">to_networkx</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.to_networkx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.to_networkx" title="Permalink to this definition">¶</a></dt>
+<dd><p>convert graph to NetworkX format</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.network.TGraph.bfs_order">
+<span class="sig-name descname"><span class="pre">bfs_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/network.html#TGraph.bfs_order"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.network.TGraph.bfs_order" title="Permalink to this definition">¶</a></dt>
+<dd><p>return nodes in breadth-first-search order</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>start</strong> – index of starting node (default: 0)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tensor of node indeces</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="local2global_embedding.patches.html" class="btn btn-neutral float-right" title="patches" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="local2global_embedding.network.spanning_tree_mask.html" class="btn btn-neutral float-left" title="spanning_tree_mask" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Lucas G. S. Jeub.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

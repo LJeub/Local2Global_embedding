@@ -1,0 +1,6 @@
+spanning\_tree\_mask
+====================
+
+.. currentmodule:: local2global_embedding.network
+
+.. autofunction:: spanning_tree_mask

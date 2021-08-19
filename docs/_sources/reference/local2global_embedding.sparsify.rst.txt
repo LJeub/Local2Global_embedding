@@ -1,0 +1,36 @@
+sparsify
+========
+
+.. py:currentmodule:: local2global_embedding
+
+.. automodule:: local2global_embedding.sparsify
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :nosignatures:
+      :toctree:
+   
+      effective_resistances
+      relaxed_spanning_tree
+      resistance_sparsify
+      resistance_weighted_graph
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

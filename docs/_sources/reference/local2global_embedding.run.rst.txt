@@ -1,0 +1,44 @@
+run
+===
+
+.. py:currentmodule:: local2global_embedding
+
+.. automodule:: local2global_embedding.run
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :nosignatures:
+      :toctree:
+   
+      csvlist
+      dataloader
+      load_data
+      prepare_patches
+      run
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      ResultsDict
+   
+   
+
+   
+   
+   
+
+
+

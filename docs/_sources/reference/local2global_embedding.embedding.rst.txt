@@ -1,0 +1,50 @@
+embedding
+=========
+
+.. py:currentmodule:: local2global_embedding
+
+.. automodule:: local2global_embedding.embedding
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :nosignatures:
+      :toctree:
+   
+      GAE_loss
+      GAE_model
+      VGAE_loss
+      VGAE_model
+      embedding
+      lr_grid_search
+      reconstruction_auc
+      speye
+      train
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+   
+      DistanceDecoder
+      GAEconv
+      VGAEconv
+   
+   
+
+   
+   
+   
+
+
+

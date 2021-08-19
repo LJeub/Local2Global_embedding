@@ -1,0 +1,6 @@
+embedding
+=========
+
+.. currentmodule:: local2global_embedding.embedding
+
+.. autofunction:: embedding

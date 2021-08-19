@@ -1,0 +1,55 @@
+TGraph
+======
+
+.. currentmodule:: local2global_embedding.network
+
+.. autoclass:: TGraph
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :exclude-members: __init__,  device, weighted, num_nodes, num_edges, edge_index, edge_attr, degree, adj_index, weights, strength, undir,
+
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :nosignatures:
+   
+      ~TGraph.__init__
+      ~TGraph.adj
+      ~TGraph.adj_weighted
+      ~TGraph.bfs_order
+      ~TGraph.connected_component_ids
+      ~TGraph.edges
+      ~TGraph.edges_weighted
+      ~TGraph.neighbourhood
+      ~TGraph.nodes_in_lcc
+      ~TGraph.subgraph
+      ~TGraph.to_networkx
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~TGraph.device
+      ~TGraph.weighted
+      ~TGraph.num_nodes
+      ~TGraph.num_edges
+      ~TGraph.edge_index
+      ~TGraph.edge_attr
+      ~TGraph.degree
+      ~TGraph.adj_index
+      ~TGraph.weights
+      ~TGraph.strength
+      ~TGraph.undir
+   
+   
+

@@ -1,0 +1,42 @@
+ResultsDict
+===========
+
+.. currentmodule:: local2global_embedding.run
+
+.. autoclass:: ResultsDict
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :exclude-members: __init__,  replace,
+
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :nosignatures:
+   
+      ~ResultsDict.__init__
+      ~ResultsDict.contains_dim
+      ~ResultsDict.load
+      ~ResultsDict.max_auc
+      ~ResultsDict.reduce_to_dims
+      ~ResultsDict.runs
+      ~ResultsDict.save
+      ~ResultsDict.update_dim
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ResultsDict.replace
+   
+   
+
