@@ -15,10 +15,10 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/*
 	rm -rf $(SOURCEDIR)/reference/*
-	rm -rf ../docs/
 
 github:
 	@make html
+	rm -rf ../docs/
 	@cp -a $(BUILDDIR)/html/. ../docs
 
 .PHONY: help Makefile

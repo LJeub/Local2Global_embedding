@@ -37,7 +37,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
     'sphinx.ext.githubpages',
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
+    'sphinx.ext.intersphinx',
 ]
 
 autodoc_class_signature = 'separated'
@@ -46,6 +47,10 @@ autodoc_member_order = 'bysource'
 autosummary_generate = True
 autodoc_inherit_docstrings = True
 add_module_names = False
+
+intersphinx_mapping = {
+    'community': ('https://python-louvain.readthedocs.io/en/latest', None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
