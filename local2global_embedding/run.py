@@ -291,8 +291,9 @@ _parser.add_argument('--gamma', type=float, default=0.0, help="Value of 'gamma' 
 _parser.add_argument('--sparsify', default='resistance', help="Sparsification method to use.",
                      choices={'resistance', 'rmst', 'none'})
 _parser.add_argument('--cluster', default='metis', choices={'louvain', 'distributed', 'fennel', 'metis'}, help="Clustering method to use")
-_parser.add_argument('--num_clusters', default=10, type=int, help="Target number of clusters for distributed, fennel, or metis.")
-_parser.add_argument('--num_iters', default=None, type=int, help="Maximum iterations for distributed or fennel")
+_parser.add_argument('--num_clusters', default=10, type=int, help="Target number of clusters for fennel, or metis.")
+_parser.add_argument('--beta', default=0.1, type=float, help="Beta value for distributed")
+_parser.add_argument('--num_iters', default=None, type=int, help="Maximum iterations for distributed or fennel (default depends on method choice)")
 _parser.add_argument('--lr', default=0.01, type=float, help='Learning rate')
 _parser.add_argument('--dist', action='store_true', help='use distance decoder instead of inner product decoder')
 _parser.add_argument('--output',
@@ -385,8 +386,8 @@ def run(**kwargs):
         cluster_fun = lambda: louvain_clustering(graph)
         cluster_string = 'louvain'
     elif args.cluster == 'distributed':
-        cluster_fun = lambda: distributed_clustering(graph, args.num_clusters, rounds=args.num_iters)
-        cluster_string = f'distributed_n{args.num_clusters}_it{args.num_iters}'
+        cluster_fun = lambda: distributed_clustering(graph, args.beta, rounds=args.num_iters)
+        cluster_string = f'distributed_beta{args.beta}_it{args.num_iters}'
     elif args.cluster == 'fennel':
         cluster_fun = lambda: fennel_clustering(graph, num_clusters=args.num_clusters, randomise_order=True,
                                                 num_iters=args.num_iters)
