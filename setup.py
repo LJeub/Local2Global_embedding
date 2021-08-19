@@ -13,10 +13,6 @@ setup(
     packages=find_packages(),
 
     install_requires=[
-        'parse',
-        'numpy',
-        'scipy',
-        'pytest',
         'matplotlib',
         'networkx',
         'python-louvain',

@@ -2,11 +2,8 @@
 
 import argparse
 import json
-import csv
 from pathlib import Path
 from bisect import bisect_left
-from statistics import mean
-from collections.abc import Iterable, Sized
 
 import torch
 import torch_geometric as tg

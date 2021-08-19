@@ -1,6 +1,6 @@
 """Graph clustering algorithms"""
 
-from math import log, sqrt
+from math import log
 
 import community
 import torch
