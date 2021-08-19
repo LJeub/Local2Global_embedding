@@ -7,6 +7,13 @@ This package implements the embedding methods used in [#l2g]_. This package uses
 
    pip install git+https://github.com/LJeub/Local2Global_embedding@master
 
-to install the package and other dependencies. The patch alignment algorithm used in [#l2g]_ is implemented in the separate `local2global <https://github.com/LJeub/Local2Global>` package. Installing this package will also install the latest version of ``local2global``.
+to install the package and other dependencies. The patch alignment algorithm used in [#l2g]_ is implemented in the separate `local2global <https://github.com/LJeub/Local2Global>`_ package. Installing this package will also install the latest version of ``local2global``.
 
-For more information see the `Documentation <>`.
+For more information see the `Documentation <https://ljeub.github.io/Local2Global_embedding/>`_.
+
+References
++++++++++++
+
+.. [#l2g] L. G. S. Jeub, G. Colavizza, X. Dong, M. Bazzi, M. Cucuringu (2021).
+          Local2Global: Scaling global representation learning on graphs via local training.
+          DLG-KDD'21. `arXiv:2107.12224 [cs.LG] <https://arxiv.org/abs/2107.12224>`_
