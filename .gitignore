@@ -1,0 +1,4 @@
+docsrc/_build  # ingnore sphinx build dir
+docsrc/reference  # this is build automatically
+!docs/*  # overide any ignore rules for github docs
+!docs/.*
