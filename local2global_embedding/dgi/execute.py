@@ -1,11 +1,11 @@
-import numpy as np
-import scipy.sparse as sp
 import torch
 import torch.nn as nn
+import torch_geometirc as tg
 
-from local2global_embedding.dgi.models import DGI, LogReg
-from local2global_embedding.dgi.utils.loss import DGILoss
-from local2global_embedding.run import load_data
+
+from .models import DGI
+from .utils.loss import DGILoss
+
 
 dataset = 'cora'
 
@@ -22,7 +22,7 @@ hid_units = 512
 sparse = True
 nonlinearity = 'prelu'  # special name to separate parameters
 
-data = load_data('Cora')
+data = tg.datasets.Planetoid(name='Cora', root='/tmp/cora')[0]
 r_sum = data.x.sum(dim=1)
 r_sum[r_sum == 0] = 1.0  # avoid division by zero
 data.x /= r_sum[:, None]
