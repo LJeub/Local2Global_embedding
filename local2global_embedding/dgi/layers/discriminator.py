@@ -16,18 +16,18 @@ class Discriminator(nn.Module):
                 m.bias.data.fill_(0.0)
 
     def forward(self, c, h_pl, h_mi, s_bias1=None, s_bias2=None):
-        c_x = torch.unsqueeze(c, 1)
+        c_x = torch.unsqueeze(c, 0)
         c_x = c_x.expand_as(h_pl)
 
-        sc_1 = torch.squeeze(self.f_k(h_pl, c_x), 2)
-        sc_2 = torch.squeeze(self.f_k(h_mi, c_x), 2)
+        sc_1 = torch.squeeze(self.f_k(h_pl, c_x), 1)
+        sc_2 = torch.squeeze(self.f_k(h_mi, c_x), 1)
 
         if s_bias1 is not None:
             sc_1 += s_bias1
         if s_bias2 is not None:
             sc_2 += s_bias2
 
-        logits = torch.cat((sc_1, sc_2), 1)
+        logits = torch.cat((sc_1, sc_2), 0)
 
         return logits
 
