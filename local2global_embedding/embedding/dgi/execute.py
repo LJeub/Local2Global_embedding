@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch_geometric as tg
 
 
-from .models import DGI
+from .models import DGI, LogReg
 from .utils.loss import DGILoss
 
 
@@ -97,47 +97,46 @@ print('Loading {}th epoch'.format(best_t))
 model.load_state_dict(torch.load('best_dgi.pkl'))
 
 embeds, _ = model.embed(data.x, data.edge_index, None)
-# train_embs = embeds[0, idx_train]
-# val_embs = embeds[0, idx_val]
-# test_embs = embeds[0, idx_test]
+train_embs = embeds[data.train_mask]
+val_embs = embeds[data.val_mask]
+test_embs = embeds[data.test_mask]
 #
-# train_lbls = torch.argmax(labels[0, idx_train], dim=1)
-# val_lbls = torch.argmax(labels[0, idx_val], dim=1)
-# test_lbls = torch.argmax(labels[0, idx_test], dim=1)
-#
-# tot = torch.zeros(1)
-# tot = tot.cuda()
-#
-# accs = []
-#
-# for _ in range(50):
-#     log = LogReg(hid_units, nb_classes)
-#     opt = torch.optim.Adam(log.parameters(), lr=0.01, weight_decay=0.0)
-#     log.cuda()
-#
-#     pat_steps = 0
-#     best_acc = torch.zeros(1)
-#     best_acc = best_acc.cuda()
-#     for _ in range(100):
-#         log.train()
-#         opt.zero_grad()
-#
-#         logits = log(train_embs)
-#         loss = xent(logits, train_lbls)
-#
-#         loss.backward()
-#         opt.step()
-#
-#     logits = log(test_embs)
-#     preds = torch.argmax(logits, dim=1)
-#     acc = torch.sum(preds == test_lbls).float() / test_lbls.shape[0]
-#     accs.append(acc * 100)
-#     print(acc)
-#     tot += acc
-#
-# print('Average accuracy:', tot / 50)
-#
-# accs = torch.stack(accs)
-# print(accs.mean())
-# print(accs.std())
+train_lbls = data.y[data.train_mask]
+val_lbls = data.y[data.val_mask]
+test_lbls = data.y[data.test_mask]
 
+tot = torch.zeros(1)
+# tot = tot.cuda()
+
+accs = []
+
+for _ in range(50):
+    log = LogReg(hid_units, nb_classes)
+    opt = torch.optim.Adam(log.parameters(), lr=0.01, weight_decay=0.0)
+#     log.cuda()
+
+    pat_steps = 0
+    best_acc = torch.zeros(1)
+    best_acc = best_acc.cuda()
+    for _ in range(100):
+        log.train()
+        opt.zero_grad()
+
+        logits = log(train_embs)
+        loss = xent(logits, train_lbls)
+
+        loss.backward()
+        opt.step()
+
+    logits = log(test_embs)
+    preds = torch.argmax(logits, dim=1)
+    acc = torch.sum(preds == test_lbls).float() / test_lbls.shape[0]
+    accs.append(acc * 100)
+    print(acc)
+    tot += acc
+
+print('Average accuracy:', tot / 50)
+
+accs = torch.stack(accs)
+print(accs.mean())
+print(accs.std())
