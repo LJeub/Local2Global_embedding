@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch_geometirc as tg
+import torch_geometric as tg
 
 
 from .models import DGI
