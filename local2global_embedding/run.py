@@ -10,10 +10,12 @@ import torch_geometric as tg
 import matplotlib.pyplot as plt
 import local2global as l2g
 
-from local2global_embedding.embedding import speye, train, embedding, VGAE_model, VGAE_loss, reconstruction_auc
+from local2global_embedding.embedding import train
+from local2global_embedding.embedding.gae import VGAE, VGAE_loss, reconstruction_auc
 from local2global_embedding.network import largest_connected_component, TGraph
 from local2global_embedding.patches import create_patch_data
 from local2global_embedding.clustering import distributed_clustering, fennel_clustering, louvain_clustering, metis_clustering
+from local2global_embedding.utils import speye
 
 
 class ResultsDict:
@@ -438,13 +440,13 @@ def run(**kwargs):
                     print(f"full model (d={d}) run {r_it + 1} of {runs}")
                 data = data.to(args.device)
                 model = train(data,
-                              VGAE_model(d, d * args.hidden_multiplier, data.num_features, dist=args.dist).to(args.device),
+                              VGAE(d, d * args.hidden_multiplier, data.num_features, dist=args.dist).to(args.device),
                               loss_fun=VGAE_loss,
                               num_epochs=num_epochs,
                               lr=args.lr,
                               verbose=args.verbose,
                               )
-                coords = embedding(model, data)
+                coords = model.embed(data)
                 auc = reconstruction_auc(coords, data, dist=args.dist)
                 if auc > baseline_data.max_auc(d):
                     if args.verbose:
@@ -489,12 +491,12 @@ def run(**kwargs):
                     if args.verbose:
                         print(f"patch{p_ind} (d={d}) run {r_it+1} of {runs}")
                     model = train(patch,
-                                  VGAE_model(d, d * args.hidden_multiplier, patch.num_features, dist=args.dist).to(args.device),
+                                  VGAE(d, d * args.hidden_multiplier, patch.num_features, dist=args.dist).to(args.device),
                                   loss_fun=VGAE_loss,
                                   num_epochs=num_epochs,
                                   lr=args.lr,
                                   )
-                    coords = embedding(model, patch)
+                    coords = model.embed(patch)
                     auc = reconstruction_auc(coords, patch, dist=args.dist)
                     if auc > patch_results.max_auc(d):
                         if args.verbose:
