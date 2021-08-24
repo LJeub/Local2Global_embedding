@@ -3,7 +3,7 @@ from ..layers import GCN, AvgReadout, Discriminator
 
 
 class DGI(nn.Module):
-    def __init__(self, n_in, n_h, activation):
+    def __init__(self, n_in, n_h, activation='prelu'):
         super(DGI, self).__init__()
         self.gcn = GCN(n_in, n_h, activation)
         self.read = AvgReadout()
