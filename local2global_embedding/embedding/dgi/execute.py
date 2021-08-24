@@ -91,7 +91,7 @@ for epoch in range(nb_epochs):
 print('Loading {}th epoch'.format(best_t))
 model.load_state_dict(torch.load('best_dgi.pkl'))
 
-embeds, _ = model.embed(data.x, data.edge_index, None)
+embeds, _ = model.embed(data)
 train_embs = embeds[data.train_mask]
 val_embs = embeds[data.val_mask]
 test_embs = embeds[data.test_mask]
