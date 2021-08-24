@@ -358,6 +358,20 @@ def run(**kwargs):
         else:
             raise TypeError(f'Unknown argument {key}')
 
+    if args.device is None:
+        if torch.cuda.is_available():
+            args.device = torch.device('cuda')
+        else:
+            args.device = torch.device('cpu')
+    else:
+        args.device = torch.device(args.device)
+
+    if args.verbose:
+        if args.device == torch.device('cuda'):
+            print('using cuda')
+        else:
+            print('using cpu')
+            
     output_folder = Path(args.output)
     data = load_data(args.data, args.data_root)
     neg_edges = tg.utils.negative_sampling(data.edge_index, data.num_nodes)
