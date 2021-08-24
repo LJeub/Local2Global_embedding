@@ -32,7 +32,7 @@ data.x /= r_sum[:, None]
 
 nb_nodes = data.num_nodes
 ft_size = data.num_features
-nb_classes = data.y.max() + 1
+nb_classes = data.y.max().item() + 1
 
 # adj = process.normalize_adj(adj + sp.eye(adj.shape[0]))
 
