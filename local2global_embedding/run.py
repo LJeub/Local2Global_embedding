@@ -491,6 +491,9 @@ def run(**kwargs):
                         print(f"new best (auc={auc})")
                     torch.save(model.state_dict(), output_folder / f'{basename}_full_d{d}_best_model.pt')
                     torch.save(coords, output_folder / f'{basename}_full_d{d}_best_coords.pt')
+                else:
+                    if args.verbose:
+                        print(f"auc={auc}, best={baseline_data.max_auc(d)}")
                 baseline_data.update_dim(d, [auc], training_args)
                 baseline_data.save(baseline_file)
 
@@ -544,6 +547,9 @@ def run(**kwargs):
                         torch.save(model.state_dict(), patch_folder / f'{basename}_patch{p_ind}_d{d}_best_model.pt')
                         torch.save(best_coords, coords_file)
                         update_aligned_embedding = True
+                    else:
+                        if args.verbose:
+                            print(f"auc={auc}, best={patch_results.max_auc(d)}")
                     patch_results.update_dim(d, [auc], training_args)
                     patch_results.save(patch_result_file)
             patch_list.append(l2g.Patch(patch.nodes.cpu().numpy(), best_coords.cpu().numpy()))
