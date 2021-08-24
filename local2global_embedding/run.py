@@ -188,37 +188,38 @@ def dataloader(name):
 
 
 @dataloader('Cora')
-def _load_cora():
-    return tg.datasets.Planetoid(name='Cora', root='/tmp/cora')[0]
+def _load_cora(root='/tmp'):
+    return tg.datasets.Planetoid(name='Cora', root=f'{root}/cora')[0]
 
 
 @dataloader('PubMed')
-def _load_pubmed():
-    return tg.datasets.Planetoid(name='PubMed', root='/tmp/pubmed')[0]
+def _load_pubmed(root='/tmp'):
+    return tg.datasets.Planetoid(name='PubMed', root=f'{root}/pubmed')[0]
 
 
 @dataloader('AMZ_computers')
-def _load_amazon_computers():
-    return tg.datasets.Amazon(root='/tmp/amazon', name='Computers')[0]
+def _load_amazon_computers(root='/tmp'):
+    return tg.datasets.Amazon(root=f'{root}/amazon', name='Computers')[0]
 
 
 @dataloader('AMZ_photo')
-def _load_amazon_photos():
-    return tg.datasets.Amazon(root='/tmp/amazon', name='photo')[0]
+def _load_amazon_photos(root='/tmp'):
+    return tg.datasets.Amazon(root=f'{root}/amazon', name='photo')[0]
 
 
-def load_data(name):
+def load_data(name, root='/tmp'):
     """
     load data set
 
     Args:
         name: name of data set (one of {names})
+        root: root dir to store downloaded data (default '/tmp')
 
     Returns:
         largest connected component of data set
 
     """
-    data = _dataloaders[name]()
+    data = _dataloaders[name](root)
     data = largest_connected_component(data=data)
     data.num_nodes = data.x.shape[0]
     return data
@@ -278,6 +279,7 @@ def csvlist(input_type=str):
 
 _parser = argparse.ArgumentParser(description="Run training example.")
 _parser.add_argument('--data', default='Cora', choices=_dataloaders.keys(), help='Dataset to load')
+_parser.add_argument('--data_root', default='/tmp', help='Root directory for downloaded data sets')
 _parser.add_argument('--no_features', action='store_true', help='Discard features and use node identity.')
 _parser.add_argument('--num_epochs', type=int, default=10000, help='Number of training epochs')
 _parser.add_argument('--patience', type=int, default=20, help='Patience for early stopping')
@@ -357,7 +359,7 @@ def run(**kwargs):
             raise TypeError(f'Unknown argument {key}')
 
     output_folder = Path(args.output)
-    data = load_data(args.data)
+    data = load_data(args.data, args.data_root)
     neg_edges = tg.utils.negative_sampling(data.edge_index, data.num_nodes)
     graph = TGraph(data.edge_index, data.edge_attr)
     basename = args.data
