@@ -366,11 +366,11 @@ def run(**kwargs):
     else:
         args.device = torch.device(args.device)
 
-    if args.verbose:
-        if args.device == torch.device('cuda'):
-            print('using cuda')
-        else:
-            print('using cpu')
+
+    if args.device == torch.device('cuda'):
+        print('using cuda')
+    else:
+        print('using cpu')
 
 
     output_folder = Path(args.output)
@@ -452,9 +452,9 @@ def run(**kwargs):
         gamma=args.gamma,
         target_patch_degree=args.target_patch_degree,
         verbose=args.verbose)
-    if args.verbose:
-        print(f'total edges: {data.num_edges}')
-        print(f'total patch edges: {sum(c.num_edges for c in patch_data)}')
+
+    print(f'total edges: {data.num_edges}')
+    print(f'total patch edges: {sum(c.num_edges for c in patch_data)}')
 
     if args.no_features:
         data.x = speye(data.num_nodes)  # add identity as node features for training full model
@@ -470,11 +470,9 @@ def run(**kwargs):
     for d in dims:
         r = baseline_data.runs(d)
         if r < runs:
-            if args.verbose:
-                print(f'training full model for {runs-r} runs and d={d}')
+            print(f'training full model for {runs-r} runs and d={d}')
             for r_it in range(r, runs):
-                if args.verbose:
-                    print(f"full model (d={d}) run {r_it + 1} of {runs}")
+                print(f"full model (d={d}) run {r_it + 1} of {runs}")
                 data = data.to(args.device)
                 model = train(data,
                               create_model(d),
@@ -487,13 +485,11 @@ def run(**kwargs):
                 coords = model.embed(data)
                 auc = reconstruction_auc(coords, data, dist=args.dist)
                 if auc > baseline_data.max_auc(d):
-                    if args.verbose:
-                        print(f"new best (auc={auc})")
+                    print(f"new best (auc={auc})")
                     torch.save(model.state_dict(), output_folder / f'{basename}_full_d{d}_best_model.pt')
                     torch.save(coords, output_folder / f'{basename}_full_d{d}_best_coords.pt')
                 else:
-                    if args.verbose:
-                        print(f"auc={auc}, best={baseline_data.max_auc(d)}")
+                    print(f"auc={auc}, best={baseline_data.max_auc(d)}")
                 baseline_data.update_dim(d, [auc], training_args)
                 baseline_data.save(baseline_file)
 
@@ -525,12 +521,10 @@ def run(**kwargs):
             if args.no_features:
                 patch.x = speye(patch.num_nodes)
             if r < runs:
-                if args.verbose:
-                    print(f'training patch{p_ind} for {runs-r} runs and d={d}')
+                print(f'training patch{p_ind} for {runs-r} runs and d={d}')
                 patch = patch.to(args.device)
                 for r_it in range(r, runs):
-                    if args.verbose:
-                        print(f"patch{p_ind} (d={d}) run {r_it+1} of {runs}")
+                    print(f"patch{p_ind} (d={d}) run {r_it+1} of {runs}")
                     model = train(patch,
                                   create_model(d),
                                   loss_fun=loss_fun,
@@ -541,15 +535,13 @@ def run(**kwargs):
                     coords = model.embed(patch)
                     auc = reconstruction_auc(coords, patch, dist=args.dist)
                     if auc > patch_results.max_auc(d):
-                        if args.verbose:
-                            print(f"new best (auc={auc})")
+                        print(f"new best (auc={auc})")
                         best_coords = coords
                         torch.save(model.state_dict(), patch_folder / f'{basename}_patch{p_ind}_d{d}_best_model.pt')
                         torch.save(best_coords, coords_file)
                         update_aligned_embedding = True
                     else:
-                        if args.verbose:
-                            print(f"auc={auc}, best={patch_results.max_auc(d)}")
+                        print(f"auc={auc}, best={patch_results.max_auc(d)}")
                     patch_results.update_dim(d, [auc], training_args)
                     patch_results.save(patch_result_file)
             patch_list.append(l2g.Patch(patch.nodes.cpu().numpy(), best_coords.cpu().numpy()))
