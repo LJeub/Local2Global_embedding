@@ -371,7 +371,7 @@ def run(**kwargs):
             print('using cuda')
         else:
             print('using cpu')
-            
+
     output_folder = Path(args.output)
     data = load_data(args.data, args.data_root)
     neg_edges = tg.utils.negative_sampling(data.edge_index, data.num_nodes)
@@ -558,6 +558,7 @@ def run(**kwargs):
         plt.xscale('log')
         plt.xticks(dims, dims)
         plt.minorticks_off()
+        plt.ylim(0.48, 1.02)
         plt.xlabel('embedding dimension')
         plt.ylabel('AUC')
         plt.legend()
