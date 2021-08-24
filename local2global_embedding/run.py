@@ -416,7 +416,7 @@ def run(**kwargs):
 
     cluster_file = output_folder / f"{args.data}_{cluster_string}_clusters.pt"
     if cluster_file.is_file():
-        clusters = torch.load(cluster_file)
+        clusters = torch.load(cluster_file, map_location=args.device)
     else:
         clusters = cluster_fun()
         torch.save(clusters, cluster_file)
@@ -496,7 +496,7 @@ def run(**kwargs):
                 patch_results = ResultsDict()
             coords_file = patch_folder / f'{basename}_patch{p_ind}_d{d}_best_coords.pt'
             if coords_file.is_file():
-                best_coords = torch.load(coords_file)
+                best_coords = torch.load(coords_file, map_location=args.device)
 
             r = patch_results.runs(d)
             if args.no_features:
