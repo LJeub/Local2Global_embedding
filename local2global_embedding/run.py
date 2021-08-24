@@ -280,6 +280,7 @@ _parser = argparse.ArgumentParser(description="Run training example.")
 _parser.add_argument('--data', default='Cora', choices=_dataloaders.keys(), help='Dataset to load')
 _parser.add_argument('--data_root', default='/tmp', help='Root directory for downloaded data sets')
 _parser.add_argument('--no_features', action='store_true', help='Discard features and use node identity.')
+_parser.add_argument('--model', default='VGAE', choices={'VGAE', 'GAE', 'DGI'}, help='Embedding model')
 _parser.add_argument('--num_epochs', type=int, default=10000, help='Number of training epochs')
 _parser.add_argument('--patience', type=int, default=20, help='Patience for early stopping')
 _parser.add_argument('--runs', type=int, default=10, help='Number of training runs (keep best result)')
@@ -371,6 +372,7 @@ def run(**kwargs):
         else:
             print('using cpu')
 
+
     output_folder = Path(args.output)
     data = load_data(args.data, args.data_root)
     neg_edges = tg.utils.negative_sampling(data.edge_index, data.num_nodes)
@@ -385,6 +387,25 @@ def run(**kwargs):
     if args.no_features:
         data.x = None  # remove node features (trained with identity)
         basename += '_no_features'
+
+    if args.model == 'VGAE':
+        def create_model(dim):
+            return VGAE(dim, dim * args.hidden_multiplier, data.num_features, dist=args.dist).to(args.device)
+
+        loss_fun = VGAE_loss
+        basename += '_VGAE'
+    elif args.model == 'GAE':
+        def create_model(dim):
+            return GAE(dim, dim*args.hidden_multiplier, data.num_features, dist=args.dist).to(args.device)
+
+        loss_fun = GAE_loss
+        basename += '_GAE'
+    elif args.model == 'DGI':
+        def create_model(dim):
+            return DGI(data.num_features, dim).to(args.device)
+
+        loss_fun = DGILoss()
+        basename += '_DGI'
 
     if args.dist:
         basename += '_dist'
@@ -456,8 +477,8 @@ def run(**kwargs):
                     print(f"full model (d={d}) run {r_it + 1} of {runs}")
                 data = data.to(args.device)
                 model = train(data,
-                              VGAE(d, d * args.hidden_multiplier, data.num_features, dist=args.dist).to(args.device),
-                              loss_fun=VGAE_loss,
+                              create_model(d),
+                              loss_fun=loss_fun,
                               num_epochs=num_epochs,
                               patience=args.patience,
                               lr=args.lr,
@@ -508,8 +529,8 @@ def run(**kwargs):
                     if args.verbose:
                         print(f"patch{p_ind} (d={d}) run {r_it+1} of {runs}")
                     model = train(patch,
-                                  VGAE(d, d * args.hidden_multiplier, patch.num_features, dist=args.dist).to(args.device),
-                                  loss_fun=VGAE_loss,
+                                  create_model(d),
+                                  loss_fun=loss_fun,
                                   num_epochs=num_epochs,
                                   patience=args.patience,
                                   lr=args.lr,
