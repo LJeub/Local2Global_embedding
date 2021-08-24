@@ -14,8 +14,8 @@ class DGILoss(torch.nn.Module):
 
         shuf_fts = data.x[idx, :]
 
-        lbl_1 = torch.ones(nb_nodes)
-        lbl_2 = torch.zeros(nb_nodes)
+        lbl_1 = torch.ones(nb_nodes, device=device)
+        lbl_2 = torch.zeros(nb_nodes, device=device)
         lbl = torch.cat((lbl_1, lbl_2), 0)
 
         logits = model(data.x, shuf_fts, data.edge_index, None, None, None)
