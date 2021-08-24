@@ -14,6 +14,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import local2global_embedding
+from packaging.version import parse
 
 # -- Project information -----------------------------------------------------
 
@@ -22,7 +23,9 @@ copyright = '2021, Lucas G. S. Jeub'
 author = 'Lucas G. S. Jeub'
 
 # The full version, including alpha/beta/rc tags
-version = local2global_embedding.__version__
+parsed_version = parse(local2global_embedding.__version__)
+
+version = f"{parsed_version.major}.{parsed_version.minor}"
 release = version
 
 
