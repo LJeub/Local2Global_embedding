@@ -17,6 +17,8 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+import tempfile
+
 import torch
 
 
@@ -49,7 +51,7 @@ def lr_grid_search(data, model, loss_fun, validation_loss_fun, lr_grid=(0.1, 0.0
     return lr_grid[torch.argmax(torch.mean(val_loss, 1))], val_loss
 
 
-def train(data, model, loss_fun, num_epochs=100, verbose=True, lr=0.01, logger=lambda loss: None):
+def train(data, model, loss_fun, num_epochs=10000, patience=20, lr=0.01, weight_decay=0.0, verbose=True, logger=lambda loss: None):
     """
     train an embedding model
 
@@ -58,8 +60,10 @@ def train(data, model, loss_fun, num_epochs=100, verbose=True, lr=0.01, logger=l
         model: embedding auto-encoder model
         loss_fun: loss function to use with model (takes arguments ``model``, ``data``)
         num_epochs: number of training epochs
-        verbose: if ``True``, display training progress (default: ``True``)
+        patience: patience for early stopping
         lr: learining rate (default: 0.01)
+        weight_decay: weight decay for optimizer (default: 0.0)
+        verbose: if ``True``, display training progress (default: ``True``)
         logger: function that receives the training loss as input and is called after each epoch (does nothing by default)
 
     Returns:
@@ -67,14 +71,38 @@ def train(data, model, loss_fun, num_epochs=100, verbose=True, lr=0.01, logger=l
 
     This function uses the Adam optimizer for training.
     """
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    for e in range(num_epochs):
-        optimizer.zero_grad()
-        loss = loss_fun(model, data)
-        loss.backward()
-        optimizer.step()
-        logger(float(loss))
+    best = float('inf')
+    cnt_wait = 0
+    best_e = 0
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    with tempfile.TemporaryFile() as best_model_file:
+        torch.save(model.state_dict(), best_model_file)
+        for e in range(num_epochs):
+            model.train()
+            optimizer.zero_grad()
+            loss = loss_fun(model, data)
+            loss.backward()
+            optimizer.step()
+            f_loss = float(loss)
+            logger(f_loss)
+            if verbose:
+                print(f'epoch {e}: loss={f_loss}')
+            if f_loss < best:
+                best = f_loss
+                best_e = e
+                cnt_wait = 0
+                best_model_file.seek(0)
+                torch.save(model.state_dict(), best_model_file)
+            else:
+                cnt_wait += 1
+
+            if cnt_wait == patience:
+                if verbose:
+                    print(f'Early stopping at epoch {e}')
+                    break
         if verbose:
-            print(f'epoch {e}: loss={loss.item()}')
-        # schedule.step()
+            print(f'Loading {best_e}th epoch')
+        best_model_file.seek(0)
+        model.load_state_dict(torch.load(best_model_file))
+
     return model

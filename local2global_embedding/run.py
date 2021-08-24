@@ -279,7 +279,8 @@ def csvlist(input_type=str):
 _parser = argparse.ArgumentParser(description="Run training example.")
 _parser.add_argument('--data', default='Cora', choices=_dataloaders.keys(), help='Dataset to load')
 _parser.add_argument('--no_features', action='store_true', help='Discard features and use node identity.')
-_parser.add_argument('--num_epochs', type=int, default=200, help='Number of training epochs')
+_parser.add_argument('--num_epochs', type=int, default=10000, help='Number of training epochs')
+_parser.add_argument('--patience', type=int, default=20, help='Patience for early stopping')
 _parser.add_argument('--runs', type=int, default=10, help='Number of training runs (keep best result)')
 _parser.add_argument('--dims', type=csvlist(int), default=[2], help='Embedding dimensions (comma-separated)')
 _parser.add_argument('--hidden_multiplier', type=int, default=2, help='Hidden dim is `hidden_multiplier` * `dim`')
@@ -443,6 +444,7 @@ def run(**kwargs):
                               VGAE(d, d * args.hidden_multiplier, data.num_features, dist=args.dist).to(args.device),
                               loss_fun=VGAE_loss,
                               num_epochs=num_epochs,
+                              patience=args.patience,
                               lr=args.lr,
                               verbose=args.verbose,
                               )
@@ -494,6 +496,7 @@ def run(**kwargs):
                                   VGAE(d, d * args.hidden_multiplier, patch.num_features, dist=args.dist).to(args.device),
                                   loss_fun=VGAE_loss,
                                   num_epochs=num_epochs,
+                                  patience=args.patience,
                                   lr=args.lr,
                                   )
                     coords = model.embed(patch)
