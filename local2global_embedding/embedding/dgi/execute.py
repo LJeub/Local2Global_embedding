@@ -1,11 +1,16 @@
 import torch
 import torch.nn as nn
 import torch_geometric as tg
+import argparse
 
 
 from .models import DGI, LogReg
 from .utils.loss import DGILoss
 
+
+parser = argparse.ArgumentParser(description="DGI test script")
+parser.add_argument('--datapath', default='/tmp/cora')
+args = parser.parse_args()
 
 dataset = 'cora'
 
@@ -22,7 +27,7 @@ hid_units = 512
 sparse = True
 nonlinearity = 'prelu'  # special name to separate parameters
 
-data = tg.datasets.Planetoid(name='Cora', root='/tmp/cora')[0]
+data = tg.datasets.Planetoid(name='Cora', root=args.datapath)[0]
 r_sum = data.x.sum(dim=1)
 r_sum[r_sum == 0] = 1.0  # avoid division by zero
 data.x /= r_sum[:, None]
