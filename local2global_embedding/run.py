@@ -10,8 +10,7 @@ import torch_geometric as tg
 import matplotlib.pyplot as plt
 import local2global as l2g
 
-from local2global_embedding.embedding import train
-from local2global_embedding.embedding.gae import VGAE, VGAE_loss, reconstruction_auc
+from local2global_embedding.embedding import train, VGAE, VGAE_loss, GAE, GAE_loss, DGI, DGILoss, reconstruction_auc
 from local2global_embedding.network import largest_connected_component, TGraph
 from local2global_embedding.patches import create_patch_data
 from local2global_embedding.clustering import distributed_clustering, fennel_clustering, louvain_clustering, metis_clustering

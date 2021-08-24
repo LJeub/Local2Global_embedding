@@ -18,4 +18,5 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from .train import train
-from . import gae, dgi
+from .gae import VGAE, VGAE_loss, GAE, GAE_loss, reconstruction_auc
+from .dgi import DGI, DGILoss
