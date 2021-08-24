@@ -56,16 +56,7 @@ if torch.cuda.is_available():
     print('Using CUDA')
     model.cuda()
     data.cuda()
-    # if sparse:
-    #     sp_adj = sp_adj.cuda()
-    # else:
-    # adj = adj.cuda()
-    # labels = labels.cuda()
-    # idx_train = idx_train.cuda()
-    # idx_val = idx_val.cuda()
-    # idx_test = idx_test.cuda()
 
-# b_xent = nn.BCEWithLogitsLoss()
 xent = nn.CrossEntropyLoss()
 cnt_wait = 0
 best = 1e9
@@ -112,12 +103,18 @@ accs = []
 
 for _ in range(50):
     log = LogReg(hid_units, nb_classes)
+    if torch.cuda.is_available():
+        log.cuda()
     opt = torch.optim.Adam(log.parameters(), lr=0.01, weight_decay=0.0)
-#     log.cuda()
+
+
 
     pat_steps = 0
-    best_acc = torch.zeros(1)
-    best_acc = best_acc.cuda()
+    if torch.cuda.is_available():
+        best_acc = torch.zeros(1, device='cuda')
+    else:
+        best_acc = torch.zeros(1)
+        
     for _ in range(100):
         log.train()
         opt.zero_grad()
