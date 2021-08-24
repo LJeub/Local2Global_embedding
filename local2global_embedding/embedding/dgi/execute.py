@@ -13,6 +13,7 @@ parser.add_argument('--datapath', default='/tmp/cora')
 args = parser.parse_args()
 
 dataset = 'cora'
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 loss_fun = DGILoss()
 
@@ -28,6 +29,7 @@ sparse = True
 nonlinearity = 'prelu'  # special name to separate parameters
 
 data = tg.datasets.Planetoid(name='Cora', root=args.datapath)[0]
+data = data.to(device)
 r_sum = data.x.sum(dim=1)
 r_sum[r_sum == 0] = 1.0  # avoid division by zero
 data.x /= r_sum[:, None]
@@ -55,12 +57,9 @@ nb_classes = data.y.max().item() + 1
 # idx_test = torch.LongTensor(idx_test)
 
 model = DGI(ft_size, hid_units, nonlinearity)
-optimiser = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=l2_coef)
+model = model.to(device)
 
-if torch.cuda.is_available():
-    print('Using CUDA')
-    model.cuda()
-    data.cuda()
+optimiser = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=l2_coef)
 
 xent = nn.CrossEntropyLoss()
 cnt_wait = 0
@@ -101,24 +100,16 @@ train_lbls = data.y[data.train_mask]
 val_lbls = data.y[data.val_mask]
 test_lbls = data.y[data.test_mask]
 
-tot = torch.zeros(1)
-# tot = tot.cuda()
-
+tot = torch.zeros(1, device=device)
 accs = []
 
 for _ in range(50):
-    log = LogReg(hid_units, nb_classes)
-    if torch.cuda.is_available():
-        log.cuda()
+    log = LogReg(hid_units, nb_classes).to(device)
+
     opt = torch.optim.Adam(log.parameters(), lr=0.01, weight_decay=0.0)
 
-
-
     pat_steps = 0
-    if torch.cuda.is_available():
-        best_acc = torch.zeros(1, device='cuda')
-    else:
-        best_acc = torch.zeros(1)
+    best_acc = torch.zeros(1, device=device)
         
     for _ in range(100):
         log.train()
