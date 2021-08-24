@@ -27,7 +27,6 @@ class DGI(nn.Module):
     # Detach the return variables
     def embed(self, data, msk=None):
         h_1 = self.gcn(data.x, data.edge_index)
-        c = self.read(h_1, msk)
 
-        return h_1.detach(), c.detach()
+        return h_1.detach()
 
