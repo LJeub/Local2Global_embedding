@@ -499,7 +499,7 @@ def run(**kwargs):
                               )
                 coords = model.embed(data)
                 auc = reconstruction_auc(coords, data, dist=args.dist)
-                loss = loss_fun(model, data).float()
+                loss = float(loss_fun(model, data))
                 if loss < baseline_data.min_loss(d):
                     print(f"new best (auc={auc})")
                     torch.save(model.state_dict(), output_folder / f'{basename}_full_d{d}_best_model.pt')
@@ -549,7 +549,7 @@ def run(**kwargs):
                                   lr=args.lr,
                                   )
                     coords = model.embed(patch)
-                    loss = loss_fun(model, data).float()
+                    loss = float(loss_fun(model, data))
                     auc = reconstruction_auc(coords, patch, dist=args.dist)
                     if loss < patch_results.min_loss(d):
                         print(f"new best (auc={auc})")
