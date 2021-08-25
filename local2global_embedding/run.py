@@ -501,11 +501,11 @@ def run(**kwargs):
                 auc = reconstruction_auc(coords, data, dist=args.dist)
                 loss = float(loss_fun(model, data))
                 if loss < baseline_data.min_loss(d):
-                    print(f"new best (auc={auc})")
+                    print(f"new best (auc={auc}, loss={loss})")
                     torch.save(model.state_dict(), output_folder / f'{basename}_full_d{d}_best_model.pt')
                     torch.save(coords, output_folder / f'{basename}_full_d{d}_best_coords.pt')
                 else:
-                    print(f"auc={auc}, best={baseline_data.max_auc(d)}")
+                    print(f"auc={auc}, loss={loss}, best auc={baseline_data.max_auc(d)}, best loss={baseline_data.min_loss(d)}")
                 baseline_data.update_dim(d, [auc], [loss], training_args)
                 baseline_data.save(baseline_file)
 
@@ -547,19 +547,20 @@ def run(**kwargs):
                                   num_epochs=num_epochs,
                                   patience=args.patience,
                                   lr=args.lr,
+                                  verbose=args.verbose,
                                   )
                     coords = model.embed(patch)
                     loss = float(loss_fun(model, data))
                     auc = reconstruction_auc(coords, patch, dist=args.dist)
                     if loss < patch_results.min_loss(d):
-                        print(f"new best (auc={auc})")
+                        print(f"new best (loss={loss}, auc={auc})")
                         best_coords = coords
                         torch.save(model.state_dict(),
                                    patch_folder / f'{basename}_patch{p_ind}_d{d}_best_model.pt')
                         torch.save(best_coords, coords_file)
                         update_aligned_embedding = True
                     else:
-                        print(f"auc={auc}, best={patch_results.max_auc(d)}")
+                        print(f"auc={auc}, loss={loss}, best auc={patch_results.max_auc(d)}, best loss={patch_results.min_loss(d)}")
                     patch_results.update_dim(d, [auc], [loss], training_args)
                     patch_results.save(patch_result_file)
             patch_list.append(l2g.Patch(patch.nodes.cpu().numpy(), best_coords.cpu().numpy()))
