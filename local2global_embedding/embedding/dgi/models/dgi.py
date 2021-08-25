@@ -12,6 +12,11 @@ class DGI(nn.Module):
 
         self.disc = Discriminator(n_h)
 
+    def reset_parameters(self):
+        for m in self.modules():
+            if hasattr(m, 'reset_parameters'):
+                m.reset_parameters()
+
     def forward(self, seq1, seq2, adj, msk, samp_bias1, samp_bias2):
         h_1 = self.gcn(seq1, adj)
 
