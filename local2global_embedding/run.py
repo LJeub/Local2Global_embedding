@@ -56,13 +56,13 @@ class ResultsDict:
         Args:
             replace: set the replace attribute (default: ``False``)
         """
-        self._data = {'dims': [], 'auc': [], 'args': []}
+        self._data = {'dims': [], 'auc': [], 'loss': [], 'args': []}
         self.replace = replace  #: if ``True``, updates replace existing data, if ``False``, updates append data
 
     def __getitem__(self, item):
         return self._data[item]
 
-    def _update_index(self, index, aucs: list, args=None):
+    def _update_index(self, index, aucs: list, loss: list, args=None):
         """
         update data for a given index
 
@@ -74,12 +74,14 @@ class ResultsDict:
         """
         if self.replace:
             self['auc'][index] = aucs
+            self['loss'][index] = loss
             self['args'][index] = args
         else:
             self['auc'][index].extend(aucs)
+            self['loss'][index].extend(loss)
             self['args'][index].extend([args] * len(aucs))
 
-    def _insert_index(self, index: int, dim: int, aucs: list, args=None):
+    def _insert_index(self, index: int, dim: int, aucs: list, loss: list, args=None):
         """
         insert new data at index
 
@@ -90,10 +92,11 @@ class ResultsDict:
             args: new args data (optional)
         """
         self['auc'].insert(index, aucs)
+        self['loss'].insert(index, loss)
         self['dims'].insert(index, dim)
         self['args'].insert(index, [args] * len(aucs))
 
-    def update_dim(self, dim, aucs, args=None):
+    def update_dim(self, dim, aucs, loss=None, args=None):
         """
         update data for given dimension
 
@@ -107,10 +110,12 @@ class ResultsDict:
 
         """
         index = bisect_left(self['dims'], dim)
+        if loss is None:
+            loss = [None] * len(aucs)
         if index < len(self['dims']) and self['dims'][index] == dim:
-            self._update_index(index, aucs, args)
+            self._update_index(index, aucs, loss, args)
         else:
-            self._insert_index(index, dim, aucs, args)
+            self._insert_index(index, dim, aucs, loss, args)
 
     def max_auc(self, dim=None):
         """
@@ -128,6 +133,16 @@ class ResultsDict:
                 return max(self['auc'][index])
             else:
                 return 0.
+
+    def min_loss(self, dim=None):
+        if dim is None:
+            return [min(l) for l in self['loss']]
+        else:
+            index = bisect_left(self['dims'], dim)
+            if index < len(self['dims']) and self['dims'][index] == dim:
+                return min(self['loss'][index])
+            else:
+                return float('inf')
 
     def contains_dim(self, dim):
         """
@@ -484,13 +499,14 @@ def run(**kwargs):
                               )
                 coords = model.embed(data)
                 auc = reconstruction_auc(coords, data, dist=args.dist)
+                loss = loss_fun(model, data).float()
                 if auc > baseline_data.max_auc(d):
                     print(f"new best (auc={auc})")
                     torch.save(model.state_dict(), output_folder / f'{basename}_full_d{d}_best_model.pt')
                     torch.save(coords, output_folder / f'{basename}_full_d{d}_best_coords.pt')
                 else:
                     print(f"auc={auc}, best={baseline_data.max_auc(d)}")
-                baseline_data.update_dim(d, [auc], training_args)
+                baseline_data.update_dim(d, [auc], [loss], training_args)
                 baseline_data.save(baseline_file)
 
     results_file = patch_folder / f'{basename}_l2g_info.json'
@@ -533,16 +549,18 @@ def run(**kwargs):
                                   lr=args.lr,
                                   )
                     coords = model.embed(patch)
+                    loss = loss_fun(model, data).float()
                     auc = reconstruction_auc(coords, patch, dist=args.dist)
                     if auc > patch_results.max_auc(d):
                         print(f"new best (auc={auc})")
                         best_coords = coords
-                        torch.save(model.state_dict(), patch_folder / f'{basename}_patch{p_ind}_d{d}_best_model.pt')
+                        torch.save(model.state_dict(),
+                                   patch_folder / f'{basename}_patch{p_ind}_d{d}_best_model.pt')
                         torch.save(best_coords, coords_file)
                         update_aligned_embedding = True
                     else:
                         print(f"auc={auc}, best={patch_results.max_auc(d)}")
-                    patch_results.update_dim(d, [auc], training_args)
+                    patch_results.update_dim(d, [auc], [loss], training_args)
                     patch_results.save(patch_result_file)
             patch_list.append(l2g.Patch(patch.nodes.cpu().numpy(), best_coords.cpu().numpy()))
 
