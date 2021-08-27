@@ -25,5 +25,6 @@ setup(
         'scikit-learn',
         'pymetis',
         'local2global @ git+https://github.com/LJeub/Local2Global.git@master',
+        'filelock',
     ],
 )
