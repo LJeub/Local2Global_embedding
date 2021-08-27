@@ -85,11 +85,11 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
     model_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_model.pt'))
     coords_file = model_file.with_name(model_file.name.replace('model', 'coords'))
     with ResultsDict(results_file) as results:
-        if results.min_loss(dim) > loss:
+        if results.min('loss', dim) > loss:
             torch.save(model.state_dict(), model_file)
             torch.save(coords, coords_file)
-        results.update_dim(dim, auc, loss, {'lr': lr, 'num_epochs': num_epochs,
-                                            'patience': patience, 'dist': dist})
+        results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr, 'num_epochs': num_epochs,
+                                                           'patience': patience, 'dist': dist})
 
 
 if __name__ == '__main__':

@@ -160,7 +160,7 @@ class ResultsDict:
         with self._lock:
             if not self.filename.is_file():
                 with open(self.filename, 'w') as f:
-                    json.dump({'dims': [], 'auc': [], 'loss': [], 'args': []}, f)
+                    json.dump({'dims': []}, f)
         self.replace = replace  #: if ``True``, updates replace existing data, if ``False``, updates append data
         self.load()
 
@@ -177,7 +177,7 @@ class ResultsDict:
         if self._data is not None:
             return self._data[item]
 
-    def _update_index(self, index, auc: float, loss: float, args=None):
+    def _update_index(self, index, **kwargs):
         """
         update data for a given index
 
@@ -187,16 +187,15 @@ class ResultsDict:
             args: new args data (optional)
 
         """
-        if self.replace:
-            self['auc'][index] = [auc]
-            self['loss'][index] = [loss]
-            self['args'][index] = [args]
-        else:
-            self['auc'][index].append(auc)
-            self['loss'][index].append(loss)
-            self['args'][index].append(args)
+        for key, val in kwargs.items():
+            if key not in self:
+                self._data[key] = [[] for _ in self['dims']]
+            if self.replace:
+                self[key][index] = [val]
+            else:
+                self[key][index].append(val)
 
-    def _insert_index(self, index: int, dim: int, auc: float, loss: float, args=None):
+    def _insert_index(self, index: int, dim: int, **kwargs):
         """
         insert new data at index
 
@@ -206,12 +205,15 @@ class ResultsDict:
             aucs: new auc values
             args: new args data (optional)
         """
-        self['auc'].insert(index, [auc])
-        self['loss'].insert(index, [loss])
         self['dims'].insert(index, dim)
-        self['args'].insert(index, [args])
+        for key, val in kwargs.items():
+            if key in self:
+                self[key].insert(index, [val])
+            else:
+                self._data[key] = [[] for _ in self['dims']]
+                self[key]['index'].append(val)
 
-    def update_dim(self, dim, auc: float, loss: float, args=None):
+    def update_dim(self, dim, **kwargs):
         """
         update data for given dimension
 
@@ -227,36 +229,50 @@ class ResultsDict:
         """
         index = bisect_left(self['dims'], dim)
         if index < len(self['dims']) and self['dims'][index] == dim:
-            self._update_index(index, auc, loss, args)
+            self._update_index(index, **kwargs)
         else:
-            self._insert_index(index, dim, auc, loss, args)
+            self._insert_index(index, dim, **kwargs)
 
-    def max_auc(self, dim=None):
+    def max(self, field, dim=None):
         """
         return maximum auc values
 
         Args:
+            field: field to take maximum over
             dim: if ``dim=None``, return list of values for all dimension, else only return maximum value for ``dim``.
 
         """
-        if dim is None:
-            return [max(aucs) for aucs in self['auc']]
-        else:
-            index = bisect_left(self['dims'], dim)
-            if index < len(self['dims']) and self['dims'][index] == dim:
-                return max(self['auc'][index])
+        if field not in self:
+            if dim is None:
+                return [-float('inf') for _ in self['dims']]
             else:
-                return 0.
-
-    def min_loss(self, dim=None):
+                return -float('inf')
         if dim is None:
-            return [min(l) for l in self['loss']]
+            return [max(val) for val in self[field]]
         else:
             index = bisect_left(self['dims'], dim)
             if index < len(self['dims']) and self['dims'][index] == dim:
-                return min(self['loss'][index])
+                return max(self[field][index])
+            else:
+                return -float('inf')
+
+    def min(self, field, dim=None):
+        if field not in self:
+            if dim is None:
+                return [float('inf') for _ in self['dims']]
             else:
                 return float('inf')
+        if dim is None:
+            return [min(val) for val in self[field]]
+        else:
+            index = bisect_left(self['dims'], dim)
+            if index < len(self['dims']) and self['dims'][index] == dim:
+                return min(self[field][index])
+            else:
+                return float('inf')
+
+    def __contains__(self, item):
+        return item in self._data
 
     def contains_dim(self, dim):
         """
