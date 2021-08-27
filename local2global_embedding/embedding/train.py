@@ -21,6 +21,7 @@ import tempfile
 
 import torch
 
+from local2global_embedding.utils import EarlyStopping
 
 def lr_grid_search(data, model, loss_fun, validation_loss_fun, lr_grid=(0.1, 0.01, 0.005, 0.001),
                    num_epochs=10, runs=1, verbose=True):
@@ -75,8 +76,7 @@ def train(data, model, loss_fun, num_epochs=10000, patience=20, lr=0.01, weight_
     cnt_wait = 0
     best_e = 0
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-    with tempfile.TemporaryFile() as best_model_file:
-        torch.save(model.state_dict(), best_model_file)
+    with EarlyStopping(patience) as stop:
         for e in range(num_epochs):
             model.train()
             optimizer.zero_grad()
@@ -87,22 +87,9 @@ def train(data, model, loss_fun, num_epochs=10000, patience=20, lr=0.01, weight_
             logger(f_loss)
             if verbose:
                 print(f'epoch {e}: loss={f_loss}')
-            if f_loss < best:
-                best = f_loss
-                best_e = e
-                cnt_wait = 0
-                best_model_file.seek(0)
-                torch.save(model.state_dict(), best_model_file)
-            else:
-                cnt_wait += 1
-
-            if cnt_wait == patience:
+            if stop(f_loss, model):
                 if verbose:
                     print(f'Early stopping at epoch {e}')
-                    break
-        if verbose:
-            print(f'Loading {best_e}th epoch')
-        best_model_file.seek(0)
-        model.load_state_dict(torch.load(best_model_file))
+                break
 
     return model

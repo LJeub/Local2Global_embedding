@@ -1,7 +1,7 @@
 import torch
 import torch.utils.data
 import torch.utils
-from hyperopt import fmin, hp, tpe, Trials, STATUS_OK, space_eval, rand
+from hyperopt import fmin, hp, tpe, Trials, space_eval, rand
 from hyperopt.pyll import scope
 import pandas as pd
 import numpy as np
@@ -9,6 +9,24 @@ from math import log, log2, ceil
 from copy import deepcopy
 from itertools import count, chain, product, groupby
 from tqdm.auto import tqdm
+
+from local2global_embedding.utils import EarlyStopping
+
+
+class Logistic(torch.nn.Module):
+    def __init__(self, input_dim, output_dim, bias=True):
+        super().__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim, bias)
+        self.softmax = torch.nn.LogSoftmax(dim=-1)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.xavier_uniform_(self.linear.weight.data)
+        if self.linear.bias is not None:
+            self.linear.bias.data.fill_(0.0)
+
+    def forward(self, x):
+        return self.softmax(self.linear(x))
 
 
 class MLP(torch.nn.Module):
@@ -207,37 +225,6 @@ class EntMin(torch.nn.Module):
         return torch.mean(torch.distributions.Categorical(logits=logits).entropy(), dim=0)
 
 
-class EarlyStopping:
-    def __init__(self, patience, path, delta=0):
-        self.patience = patience
-        self.path = path
-        self.best_loss = float('inf')
-        self.delta = delta
-        self.count = 0
-
-    def save_model(self, model):
-        torch.save(model.state_dict(), self.path)
-
-    def load_model(self, model: torch.nn.Module):
-        model.load_state_dict(torch.load(self.path))
-
-    def __call__(self, data, model):
-        loss = 1-validation_accuracy(data, model)
-        if loss > self.best_loss - self.delta:
-            self.count += 1
-        else:
-            self.count = 0
-
-        if loss < self.best_loss:
-            self.best_loss = loss
-            self.save_model(model)
-        if self.count > self.patience:
-            self.load_model(model)
-            return True
-        else:
-            return False
-
-
 def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logger=lambda loss: None,
           epoch_logger=lambda epoch: None, device=None, epsilon=1, alpha=1, beta=1, weight_decay=1e-2, decay_lr=False, xi=1e-6,
           vat_it=1,
@@ -279,12 +266,7 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
             pass
 
     if early_stop_patience is None:
-
-        def early_stop(data, model):
-            return False
-
-    else:
-        early_stop = EarlyStopping(early_stop_patience, early_stop_path)
+        early_stop_patience = float('inf')
 
     criterion = torch.nn.NLLLoss(reduction='mean', ignore_index=-1)
     vat_loss = VATloss(epsilon=epsilon, xi=xi, it=vat_it)
@@ -307,21 +289,22 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
                 p = model(x)
                 return criterion(p, y) + alpha*vat_loss(model, x, p) + beta*ent_loss(p)
 
-    for e in range(epochs):
-        for x, y in data_loader:
-            x = x.to(device).view(-1, x.size(-1))
-            y = y.to(device).view(-1)
-            optimizer.zero_grad()
-            loss = loss_fun(model, x, y)
-            loss.backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), clip_norm)
-            optimizer.step()
-            step_lr()
-            update_teacher()
-            batch_logger(float(loss))
-        epoch_logger(e)
-        if early_stop(data, model):
-            break
+    with EarlyStopping(early_stop_patience) as stop:
+        for e in range(epochs):
+            for x, y in data_loader:
+                x = x.to(device).view(-1, x.size(-1))
+                y = y.to(device).view(-1)
+                optimizer.zero_grad()
+                loss = loss_fun(model, x, y)
+                loss.backward()
+                # torch.nn.utils.clip_grad_norm_(model.parameters(), clip_norm)
+                optimizer.step()
+                step_lr()
+                update_teacher()
+                batch_logger(float(loss))
+            epoch_logger(e)
+            if stop(loss, model):
+                break
     return model
 
 
