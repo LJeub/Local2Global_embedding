@@ -109,68 +109,127 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
         basename += '_dist'
 
     patch_create_task = asyncio.create_task(run_script('prepare_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                   output_folder=output_folder, name=name,
-                                   min_overlap=min_overlap, target_overlap=target_overlap, cluster=cluster,
-                                   num_clusters=num_clusters, num_iters=num_iters, beta=beta,
-                                   sparsify=sparsify, target_patch_degree=target_patch_degree, gamma=gamma,
-                                   verbose=False))
+                                                       output_folder=output_folder, name=name,
+                                                       min_overlap=min_overlap, target_overlap=target_overlap,
+                                                       cluster=cluster,
+                                                       num_clusters=num_clusters, num_iters=num_iters, beta=beta,
+                                                       sparsify=sparsify, target_patch_degree=target_patch_degree,
+                                                       gamma=gamma,
+                                                       verbose=False))
 
     # compute baseline full model if necessary
-    baseline_file = output_folder / f'{basename}_full_info.json'
-    training_args = {'lr': lr, 'num_epochs': num_epochs, 'hidden_multiplier': hidden_multiplier}
-
+    baseline_info_file = output_folder / f'{basename}_full_info.json'
+    baseline_eval_file = output_folder / f'{basename}_eval.json'
+    baseline_coords_to_evaluate = set()
     baseline_tasks = []
-    for d in dims:
-        with ResultsDict(baseline_file) as baseline_data:
-            r = baseline_data.runs(d)
-        if r < runs:
-            print(f'training full model for {runs - r} runs and d={d}')
-            for r_it in range(r, runs):
-                baseline_tasks.append(asyncio.create_task(run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                               data=data_file, model=model,
-                                               lr=lr, num_epochs=num_epochs,
-                                               patience=patience, verbose=verbose,
-                                               results_file=baseline_file, dim=d,
-                                               hidden_multiplier=hidden_multiplier,
-                                               no_features=no_features, dist=dist,
-                                               device=device)))
+    if run_baseline:
+        for d in dims:
+            with ResultsDict(baseline_info_file) as baseline_data:
+                r = baseline_data.runs(d)
+            if not baseline_eval_file.is_file() or r < runs:
+                baseline_coords_to_evaluate.add(output_folder / f'{basename}_full_d{d}_coords.pt')
+            if r < runs:
+                print(f'training full model for {runs - r} runs and d={d}')
+                for r_it in range(r, runs):
+                    baseline_tasks.append(
+                        asyncio.create_task(run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                                       data=data_file, model=model,
+                                                       lr=lr, num_epochs=num_epochs,
+                                                       patience=patience, verbose=verbose,
+                                                       results_file=baseline_info_file, dim=d,
+                                                       hidden_multiplier=hidden_multiplier,
+                                                       no_features=no_features, dist=dist,
+                                                       device=device)))
 
     patch_folder = output_folder / patch_folder_name(name, min_overlap, target_overlap, cluster, num_clusters,
                                                      num_iters, beta, sparsify, target_patch_degree,
                                                      gamma)
-    results_file = patch_folder / f'{basename}_l2g_info.json'
-    nt_results_file = patch_folder / f'{basename}_nt_info.json'
 
     await asyncio.gather(patch_create_task)
+
     patch_tasks = []
+    l2g_eval_file = patch_folder / f'{basename}_l2g_eval.json'
+    nt_eval_file = patch_folder / f'{basename}_nt_eval.json'
+    l2g_coords_to_evaluate = set()
+    nt_coords_to_evaluate = set()
     for d in dims:
         for patch_data_file in patch_folder.glob('patch*_data.pt'):
             patch_id = patch_data_file.stem.replace('_data', '')
             patch_result_file = patch_folder / f'{basename}_{patch_id}_info.json'
             with ResultsDict(patch_result_file) as patch_results:
                 r = patch_results.runs(d)
+            if not l2g_eval_file.is_file():
+                l2g_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_coords.pt')
+            if not nt_eval_file.is_file():
+                nt_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_ntcoords.pt')
             if r < runs:
+                l2g_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_coords.pt')
+                nt_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_ntcoords.pt')
                 print(f'training {patch_id} for {runs - r} runs and d={d}')
                 for r_it in range(r, runs):
-                    patch_tasks.append(asyncio.create_task(run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                                   data=patch_data_file, model=model,
-                                                   lr=lr, num_epochs=num_epochs,
-                                                   patience=patience, verbose=verbose,
-                                                   results_file=patch_result_file, dim=d,
-                                                   hidden_multiplier=hidden_multiplier,
-                                                   no_features=no_features, dist=dist,
-                                                   device=device)))
+                    patch_tasks.append(
+                        asyncio.create_task(
+                            run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                       data=patch_data_file, model=model,
+                                       lr=lr, num_epochs=num_epochs,
+                                       patience=patience, verbose=verbose,
+                                       results_file=patch_result_file, dim=d,
+                                       hidden_multiplier=hidden_multiplier,
+                                       no_features=no_features, dist=dist,
+                                       device=device)))
     await asyncio.gather(*patch_tasks)
     alignment_tasks = []
     for d in dims:
-        alignment_tasks.append(asyncio.create_task(run_script('l2g_align_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                          patch_folder=patch_folder, basename=basename, dim=d)))
+        alignment_tasks.append(
+            asyncio.create_task(run_script('l2g_align_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                           patch_folder=patch_folder, basename=basename, dim=d)))
 
     # execute tasks
     await asyncio.gather(*alignment_tasks, *baseline_tasks)
-    # baseline_data = ResultsDict(baseline_file).reduce_to_dims(dims)
+
+    eval_tasks = []
+    for coords_file in baseline_coords_to_evaluate:
+        eval_tasks.append(
+            asyncio.create_task(
+                run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                           data_file=data_file,
+                           embedding_file=coords_file,
+                           results_file=baseline_eval_file,
+                           dist=dist,
+                           device=device,
+                           )
+            )
+        )
+
+    for coords_file in l2g_coords_to_evaluate:
+        eval_tasks.append(
+            asyncio.create_task(
+                run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                           data_file=data_file,
+                           embedding_file=coords_file,
+                           results_file=l2g_eval_file,
+                           dist=dist,
+                           device=device,
+                           )
+            )
+        )
+
+    for coords_file in nt_coords_to_evaluate:
+        eval_tasks.append(
+            asyncio.create_task(
+                run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                           data_file=data_file,
+                           embedding_file=coords_file,
+                           results_file=nt_eval_file,
+                           dist=dist,
+                           device=device,
+                           )
+            )
+        )
+    await asyncio.gather(*eval_tasks)
+    # baseline_data = ResultsDict(baseline_info_file).reduce_to_dims(dims)
     # results = ResultsDict(results_file).reduce_to_dims(dims)
-    # nt_results = ResultsDict(nt_results_file).reduce_to_dims(dims)
+    # nt_results = ResultsDict(nt_eval_file).reduce_to_dims(dims)
     #
     # if plot:
     #     plt.figure()
