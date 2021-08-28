@@ -303,7 +303,8 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
                 update_teacher()
                 batch_logger(float(loss))
             epoch_logger(e)
-            if stop(loss, model):
+            if stop(1-validation_accuracy(data, model), model):
+                print(f'early stopping at epoch {e}')
                 break
     return model
 
