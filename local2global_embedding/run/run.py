@@ -127,7 +127,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
             with ResultsDict(baseline_info_file) as baseline_data:
                 r = baseline_data.runs(d)
             if not baseline_eval_file.is_file() or r < runs:
-                baseline_coords_to_evaluate.add(output_folder / f'{basename}_full_d{d}_coords.pt')
+                baseline_coords_to_evaluate.add(output_folder / f'{basename}_full_d{d}_best_coords.pt')
             if r < runs:
                 print(f'training full model for {runs - r} runs and d={d}')
                 for r_it in range(r, runs):
