@@ -52,7 +52,8 @@ def lr_grid_search(data, model, loss_fun, validation_loss_fun, lr_grid=(0.1, 0.0
     return lr_grid[torch.argmax(torch.mean(val_loss, 1))], val_loss
 
 
-def train(data, model, loss_fun, num_epochs=10000, patience=20, lr=0.01, weight_decay=0.0, verbose=True, logger=lambda loss: None):
+def train(data, model, loss_fun, num_epochs=10000, patience=20, lr=0.01, weight_decay=0.0, verbose=True,
+          logger=lambda loss: None):
     """
     train an embedding model
 

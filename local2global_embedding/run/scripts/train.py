@@ -74,7 +74,7 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
     if no_features:
         data.x = speye(data.num_nodes).to(device)
 
-    model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist)
+    model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     loss_fun = select_loss(model)
     model = train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose)
     coords = model.embed(data)
