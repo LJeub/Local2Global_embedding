@@ -10,7 +10,7 @@ from copy import deepcopy
 from itertools import count, chain, product, groupby
 from tqdm.auto import tqdm
 
-from local2global_embedding.utils import EarlyStopping
+from local2global_embedding.utils import EarlyStopping, get_device
 
 
 class Logistic(torch.nn.Module):
@@ -311,6 +311,7 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
 def predict(x, model: torch.nn.Module):
     eval_state = model.training
     model.eval()
+    x = x.to(get_device(model))
     with torch.no_grad():
         labels = torch.argmax(model(x), dim=-1)
     model.training = eval_state
@@ -326,8 +327,10 @@ def accuracy(data: TrainingData, model: torch.nn.Module, mode='test'):
         x, y = data.all_data
     else:
         raise ValueError(f'unknown mode {mode}')
+    x = x.to(get_device(model))
+    y = y.to(get_device(model))
     with torch.no_grad():
-        val = torch.sum(predict(x, model) == y).item() / len(y)
+        val = torch.sum(predict(x, model) == y).cpu().item() / len(y)
     return val
 
 

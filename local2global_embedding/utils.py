@@ -29,6 +29,10 @@ def speye(n, dtype=torch.float):
                                    (n, n))
 
 
+def get_device(model: torch.nn.Module):
+    return next(model.parameters()).device
+
+
 class EarlyStopping:
     """
     Context manager for early stopping
