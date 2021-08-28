@@ -39,7 +39,7 @@ def evaluate(data_file: str, embedding_file: str, results_file: str, dist=False,
     for _ in range(runs):
         model = Logistic(dim, num_labels)
         model = train(tdata, model, num_epochs, batch_size, lr, early_stop_patience=patience, weight_decay=0.0,
-                      device=device, alpha=0, beta=0)
+                      device=device, alpha=0, beta=0, batch_logger=lambda loss: print(loss))
         acc.append(accuracy(tdata, model))
     acc_mean = mean(acc)
     if len(acc) == 1:
