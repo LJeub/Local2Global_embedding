@@ -27,6 +27,7 @@ from local2global_embedding.run.utils import ScriptParser
 
 
 def main(patch_folder: str, basename: str, dim: int):
+    print(f'computing aligned embedding for {patch_folder}/{basename}_d{dim}')
     patch_list = []
     patch_folder = Path(patch_folder)
     patch_graph = torch.load(patch_folder / 'patch_graph.pt', map_location='cpu')

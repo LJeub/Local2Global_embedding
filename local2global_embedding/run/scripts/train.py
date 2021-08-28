@@ -20,6 +20,7 @@
 from pathlib import Path
 import torch
 from typing import Optional
+import os
 
 from local2global_embedding.embedding import train, VGAE, VGAE_loss, GAE, GAE_loss, DGI, DGILoss, reconstruction_auc
 from local2global_embedding.utils import speye
@@ -68,7 +69,7 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
             device = torch.device('cpu')
     else:
         device = torch.device(device)
-
+    print(f'Launched training with cuda devices {os.environ["CUDA_VISIBLE_DEVICES"]} and cuda={device=="cuda"}')
     data = torch.load(data).to(device)
 
     if no_features:

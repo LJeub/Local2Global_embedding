@@ -28,6 +28,7 @@ from local2global_embedding.run.utils import ResultsDict, ScriptParser
 
 def evaluate(data_file: str, embedding_file: str, results_file: str, dist=False, device: Optional[str]=None,
              num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=1000):
+    print(f'evaluating {embedding_file}')
     data = torch.load(data_file)
     num_labels = data.y.max().item()+1
     coords = torch.as_tensor(torch.load(embedding_file), dtype=torch.float32)

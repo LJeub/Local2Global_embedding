@@ -75,6 +75,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                      num_iters, beta, sparsify, target_patch_degree,
                                                      gamma)
     if not (patch_folder / 'patch_graph.pt').is_file():
+        print(f'creating patches in {patch_folder}')
         data = torch.load(output_folder / f'{name}_data.pt')
         graph = TGraph(data.edge_index, data.edge_attr)
         cluster_file = output_folder / f"{name}_{cluster_string}_clusters.pt"

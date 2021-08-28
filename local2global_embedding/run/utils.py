@@ -326,7 +326,7 @@ async def run_script(script_name, cmd_prefix=None, task_queue: asyncio.Queue = N
     proc = await asyncio.create_subprocess_exec(*args)
     await proc.communicate()
     if task_queue is not None:
-        args = await task_queue.get()
+        await task_queue.get()
         task_queue.task_done()
 
 
