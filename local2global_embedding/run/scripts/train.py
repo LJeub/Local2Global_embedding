@@ -69,7 +69,7 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
             device = torch.device('cpu')
     else:
         device = torch.device(device)
-    print(f'Launched training with cuda devices {os.environ["CUDA_VISIBLE_DEVICES"]} and cuda={device=="cuda"}')
+    print(f'Launched training with cuda devices {os.environ["CUDA_VISIBLE_DEVICES"]} and device={device}')
     data = torch.load(data).to(device)
 
     if no_features:
