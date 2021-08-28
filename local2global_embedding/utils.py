@@ -33,6 +33,17 @@ def get_device(model: torch.nn.Module):
     return next(model.parameters()).device
 
 
+def set_device(device):
+    if device is None:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device(device)
+    return device
+
+
 class EarlyStopping:
     """
     Context manager for early stopping

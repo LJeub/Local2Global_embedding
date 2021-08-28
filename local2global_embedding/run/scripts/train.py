@@ -23,7 +23,7 @@ from typing import Optional
 import os
 
 from local2global_embedding.embedding import train, VGAE, VGAE_loss, GAE, GAE_loss, DGI, DGILoss, reconstruction_auc
-from local2global_embedding.utils import speye
+from local2global_embedding.utils import speye, set_device
 from local2global_embedding.run.utils import ResultsDict, ScriptParser
 
 
@@ -62,13 +62,7 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
         dist: use distance decoder for reconstruction
         device: device to use for training (e.g., 'cuda', 'cpu')
     """
-    if device is None:
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
-    else:
-        device = torch.device(device)
+    device = set_device(device)
     print(f'Launched training with cuda devices {os.environ["CUDA_VISIBLE_DEVICES"]} and device={device}')
     data = torch.load(data).to(device)
 
