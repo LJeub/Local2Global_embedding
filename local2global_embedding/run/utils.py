@@ -211,7 +211,7 @@ class ResultsDict:
                 self[key].insert(index, [val])
             else:
                 self._data[key] = [[] for _ in self['dims']]
-                self[key]['index'].append(val)
+                self[key][index].append(val)
 
     def update_dim(self, dim, **kwargs):
         """
