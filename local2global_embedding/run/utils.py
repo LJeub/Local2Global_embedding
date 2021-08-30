@@ -374,6 +374,7 @@ ArgRequired = object()
 
 class ScriptParser:
     def __init__(self, func, ignore_unknown=False, nargs=None):
+        self.func = func
         self.ignore_unknown = ignore_unknown
         self.nargs = nargs
         self.parser = argparse.ArgumentParser(prog=func.__name__)
@@ -484,3 +485,10 @@ class ScriptParser:
                 raise RuntimeError(f'Missing required argument {name}')
 
         return args, kwargs
+
+    def run(self):
+        """
+        run the wrapped function with arguments passed on sys.argv
+        """
+        args, kwargs = self.parse()
+        self.func(*args, **kwargs)
