@@ -91,12 +91,15 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
         data = load_data(name, data_root)
         torch.save(data, data_file)
 
-    basename = f'{name}_{model}'
+    train_basename = f'{name}_{model}'
+    eval_basename = f'{name}_{model}'
     min_overlap = min_overlap if min_overlap is not None else max(dims) + 1
     target_overlap = target_overlap if target_overlap is not None else 2 * max(dims)
 
     if dist:
-        basename += '_dist'
+        eval_basename += '_dist'
+        if model != 'DGI':
+            train_basename += '_dist'
 
     patch_create_task = asyncio.create_task(run_script('prepare_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,
                                                        output_folder=output_folder, name=name,
@@ -108,8 +111,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                        verbose=False))
 
     # compute baseline full model if necessary
-    baseline_info_file = output_folder / f'{basename}_full_info.json'
-    baseline_eval_file = output_folder / f'{basename}_full_eval.json'
+    baseline_info_file = output_folder / f'{train_basename}_full_info.json'
+    baseline_eval_file = output_folder / f'{eval_basename}_full_eval.json'
     baseline_coords_to_evaluate = set()
     baseline_tasks = []
     if run_baseline:
@@ -117,7 +120,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
             with ResultsDict(baseline_info_file) as baseline_data:
                 r = baseline_data.runs(d)
             if not baseline_eval_file.is_file() or r < runs:
-                baseline_coords_to_evaluate.add(output_folder / f'{basename}_full_d{d}_best_coords.pt')
+                baseline_coords_to_evaluate.add(output_folder / f'{train_basename}_full_d{d}_best_coords.pt')
             if r < runs:
                 print(f'training full model for {runs - r} runs and d={d}')
                 baseline_tasks.append(
@@ -137,25 +140,25 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     # Compute patch embeddings
     await asyncio.gather(patch_create_task)  # make sure patch data is available
     patch_tasks = []
-    l2g_eval_file = patch_folder / f'{basename}_l2g_eval.json'
-    nt_eval_file = patch_folder / f'{basename}_nt_eval.json'
+    l2g_eval_file = patch_folder / f'{eval_basename}_l2g_eval.json'
+    nt_eval_file = patch_folder / f'{eval_basename}_nt_eval.json'
     l2g_coords_to_evaluate = set()
     nt_coords_to_evaluate = set()
     compute_alignment_for_dims = set()
     for d in dims:
         for patch_data_file in patch_folder.glob('patch*_data.pt'):
             patch_id = patch_data_file.stem.replace('_data', '')
-            patch_result_file = patch_folder / f'{basename}_{patch_id}_info.json'
+            patch_result_file = patch_folder / f'{train_basename}_{patch_id}_info.json'
             with ResultsDict(patch_result_file) as patch_results:
                 r = patch_results.runs(d)
             if not l2g_eval_file.is_file():
-                l2g_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_coords.pt')
+                l2g_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_coords.pt')
             if not nt_eval_file.is_file():
-                nt_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_ntcoords.pt')
+                nt_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_ntcoords.pt')
             if r < runs:
                 compute_alignment_for_dims.add(d)
-                l2g_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_coords.pt')
-                nt_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_ntcoords.pt')
+                l2g_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_coords.pt')
+                nt_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_ntcoords.pt')
                 print(f'training {patch_id} for {runs - r} runs and d={d}')
                 patch_tasks.append(
                     asyncio.create_task(
@@ -174,7 +177,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     for d in compute_alignment_for_dims:
         alignment_tasks.append(
             asyncio.create_task(run_script('l2g_align_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                           patch_folder=patch_folder, basename=basename, dim=d)))
+                                           patch_folder=patch_folder, basename=train_basename, dim=d)))
 
     # evaluate embeddings
     await asyncio.gather(*baseline_tasks)  # make sure baseline data is available
