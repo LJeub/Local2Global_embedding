@@ -81,7 +81,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
 
     """
 
-    work_queue = asyncio.Queue(maxsize=max_workers)
+    work_queue = asyncio.Queue(maxsize=max_workers)  # used to control the maximum number of simultaneous processes
 
     if dims is None:
         dims = [2]
@@ -135,8 +135,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                      num_iters, beta, sparsify, target_patch_degree,
                                                      gamma)
 
-    await asyncio.gather(patch_create_task)
-
+    # Compute patch embeddings
+    await asyncio.gather(patch_create_task)  # make sure patch data is available
     patch_tasks = []
     l2g_eval_file = patch_folder / f'{basename}_l2g_eval.json'
     nt_eval_file = patch_folder / f'{basename}_nt_eval.json'
@@ -169,6 +169,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                        hidden_multiplier=hidden_multiplier,
                                        no_features=no_features, dist=dist,
                                        device=device)))
+
+    # local2global alignment of patch embeddings
     await asyncio.gather(*patch_tasks)
     alignment_tasks = []
     for d in compute_alignment_for_dims:
@@ -176,7 +178,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
             asyncio.create_task(run_script('l2g_align_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,
                                            patch_folder=patch_folder, basename=basename, dim=d)))
 
-    # execute tasks
+    # evaluate embeddings
     await asyncio.gather(*baseline_tasks)  # make sure baseline data is available
     eval_tasks = []
     for coords_file in baseline_coords_to_evaluate:
@@ -219,29 +221,6 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
             )
         )
     await asyncio.gather(*eval_tasks)
-    # baseline_data = ResultsDict(baseline_info_file).reduce_to_dims(dims)
-    # results = ResultsDict(results_file).reduce_to_dims(dims)
-    # nt_results = ResultsDict(nt_eval_file).reduce_to_dims(dims)
-    #
-    # if plot:
-    #     plt.figure()
-    #     plt.plot(dims, [max(v) for v in baseline_data['auc']], label='full', marker='o',
-    #              color='tab:blue')
-    #     plt.plot(dims, results['auc'], '--', label='l2g', marker='>', color='tab:blue')
-    #     plt.plot(dims, nt_results['auc'], ':', label='no-trans', color='tab:blue',
-    #              linewidth=1)
-    #
-    #     plt.xscale('log')
-    #     plt.xticks(dims, dims)
-    #     plt.minorticks_off()
-    #     plt.ylim(0.48, 1.02)
-    #     plt.xlabel('embedding dimension')
-    #     plt.ylabel('AUC')
-    #     plt.legend()
-    #     oversampling_ratio = sum(p.num_edges for p in patch_data) / data.num_edges
-    #     plt.title(f"oversampling ratio: {oversampling_ratio:.2}, #patches: {len(patch_data)}")
-    #     plt.savefig(output_folder / f"{basename}_{cluster_string}_{sp_string}_mo{min_overlap}_to{target_overlap}.pdf")
-    #     plt.show()
 
 
 if __name__ == '__main__':
