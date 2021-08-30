@@ -85,6 +85,9 @@ def load_data(name, root='/tmp'):
     """
     data = _dataloaders[name](root)
     data = largest_connected_component(data=data)
+    r_sum = data.x.sum(dim=1)
+    r_sum[r_sum == 0] = 1.0  # avoid division by zero
+    data.x /= r_sum[:, None]
     data.num_nodes = data.x.shape[0]
     return data
 
