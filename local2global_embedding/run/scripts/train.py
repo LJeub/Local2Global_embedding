@@ -47,7 +47,7 @@ def create_model(model, dim, hidden_dim, num_features, dist):
 
 def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, results_file: str,
          dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
-         device: Optional[str] = None):
+         device: Optional[str] = None, runs=1):
     """
     train model on data
 
@@ -65,29 +65,35 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
     device = set_device(device)
     print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ["CUDA_VISIBLE_DEVICES"]} and device={device}')
     data = torch.load(data).to(device)
+    results_file = Path(results_file)
 
     if no_features:
         data.x = speye(data.num_nodes).to(device)
 
-    model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     loss_fun = select_loss(model)
-    model = train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose)
-    coords = model.embed(data)
-
-    auc = reconstruction_auc(coords, data, dist=dist)
-    loss = float(loss_fun(model, data))
-    results_file = Path(results_file)
     model_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_model.pt'))
     coords_file = model_file.with_name(model_file.name.replace('model', 'coords'))
+    model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     with ResultsDict(results_file) as results:
-        if results.min('loss', dim) > loss:
-            torch.save(model.state_dict(), model_file)
-            torch.save(coords, coords_file)
-        results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr, 'num_epochs': num_epochs,
-                                                           'patience': patience, 'dist': dist})
+        runs_done = results.runs(dim)
+    while runs_done < runs:
+        model.reset_parameters()
+        model = train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose)
+        coords = model.embed(data)
+
+        auc = reconstruction_auc(coords, data, dist=dist)
+        loss = float(loss_fun(model, data))
+
+        with ResultsDict(results_file) as results:
+            if results.runs(dim) >= runs:
+                break
+            if results.min('loss', dim) > loss:
+                torch.save(model.state_dict(), model_file)
+                torch.save(coords, coords_file)
+            results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr, 'num_epochs': num_epochs,
+                                                              'patience': patience, 'dist': dist})
+            runs_done = results.runs(dim)
 
 
 if __name__ == '__main__':
-    parser = ScriptParser(main)
-    args, kwargs = parser.parse()
-    main(*args, **kwargs)
+    ScriptParser(main).run()

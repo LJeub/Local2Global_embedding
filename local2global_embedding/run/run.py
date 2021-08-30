@@ -33,7 +33,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
               patience=20, runs=10, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
               min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
               cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.01, dist=False,
-              output='.', device: str = None, plot=False, verbose=False, max_workers=1, cmd_prefix: str = None,
+              output='.', device: str = None, verbose=False, max_workers=1, cmd_prefix: str = None,
               run_baseline=True):
     """
     Run training example.
@@ -120,16 +120,15 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                 baseline_coords_to_evaluate.add(output_folder / f'{basename}_full_d{d}_best_coords.pt')
             if r < runs:
                 print(f'training full model for {runs - r} runs and d={d}')
-                for r_it in range(r, runs):
-                    baseline_tasks.append(
-                        asyncio.create_task(run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                                       data=data_file, model=model,
-                                                       lr=lr, num_epochs=num_epochs,
-                                                       patience=patience, verbose=verbose,
-                                                       results_file=baseline_info_file, dim=d,
-                                                       hidden_multiplier=hidden_multiplier,
-                                                       no_features=no_features, dist=dist,
-                                                       device=device)))
+                baseline_tasks.append(
+                    asyncio.create_task(run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                                   data=data_file, model=model,
+                                                   lr=lr, num_epochs=num_epochs,
+                                                   patience=patience, verbose=verbose,
+                                                   results_file=baseline_info_file, dim=d,
+                                                   hidden_multiplier=hidden_multiplier,
+                                                   no_features=no_features, dist=dist,
+                                                   device=device, runs=runs)))
 
     patch_folder = output_folder / patch_folder_name(name, min_overlap, target_overlap, cluster, num_clusters,
                                                      num_iters, beta, sparsify, target_patch_degree,
@@ -158,17 +157,16 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                 l2g_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_coords.pt')
                 nt_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_ntcoords.pt')
                 print(f'training {patch_id} for {runs - r} runs and d={d}')
-                for r_it in range(r, runs):
-                    patch_tasks.append(
-                        asyncio.create_task(
-                            run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                       data=patch_data_file, model=model,
-                                       lr=lr, num_epochs=num_epochs,
-                                       patience=patience, verbose=verbose,
-                                       results_file=patch_result_file, dim=d,
-                                       hidden_multiplier=hidden_multiplier,
-                                       no_features=no_features, dist=dist,
-                                       device=device)))
+                patch_tasks.append(
+                    asyncio.create_task(
+                        run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                   data=patch_data_file, model=model,
+                                   lr=lr, num_epochs=num_epochs,
+                                   patience=patience, verbose=verbose,
+                                   results_file=patch_result_file, dim=d,
+                                   hidden_multiplier=hidden_multiplier,
+                                   no_features=no_features, dist=dist,
+                                   device=device, runs=runs)))
 
     # local2global alignment of patch embeddings
     await asyncio.gather(*patch_tasks)
