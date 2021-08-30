@@ -22,21 +22,11 @@
 
 from pathlib import Path
 import asyncio
-
-import torch
-import torch_geometric as tg
-import matplotlib.pyplot as plt
-import local2global as l2g
 from typing import List
 
-from local2global_embedding.embedding import train, VGAE, VGAE_loss, GAE, GAE_loss, DGI, DGILoss, reconstruction_auc
-from local2global_embedding.run.utils import ResultsDict, load_data
-from local2global_embedding.network import TGraph
-from local2global_embedding.patches import create_patch_data
-from local2global_embedding.clustering import distributed_clustering, fennel_clustering, louvain_clustering, \
-    metis_clustering
-from local2global_embedding.utils import speye
-from local2global_embedding.run.utils import ScriptParser, run_script, patch_folder_name
+import torch
+
+from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, run_script, patch_folder_name
 
 
 async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
