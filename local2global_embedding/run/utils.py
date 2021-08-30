@@ -160,7 +160,7 @@ class ResultsDict:
         with self._lock:
             if not self.filename.is_file():
                 with open(self.filename, 'w') as f:
-                    json.dump({'dims': []}, f)
+                    json.dump({'dims': [], 'runs': []}, f)
         self.replace = replace  #: if ``True``, updates replace existing data, if ``False``, updates append data
         self.load()
 
@@ -194,6 +194,8 @@ class ResultsDict:
                 self[key][index] = [val]
             else:
                 self[key][index].append(val)
+        if not self.replace:
+            self['runs'][index] += 1
 
     def _insert_index(self, index: int, dim: int, **kwargs):
         """
@@ -212,6 +214,7 @@ class ResultsDict:
             else:
                 self._data[key] = [[] for _ in self['dims']]
                 self[key][index].append(val)
+        self['runs'].insert(index, 1)
 
     def update_dim(self, dim, **kwargs):
         """
@@ -305,11 +308,11 @@ class ResultsDict:
 
         """
         if dim is None:
-            return [len(x) for x in self['auc']]
+            return self['runs']
         else:
             index = bisect_left(self['dims'], dim)
             if index < len(self['dims']) and self['dims'][index] == dim:
-                return len(self['auc'][index])
+                return self['runs'][index]
             else:
                 return 0
 
