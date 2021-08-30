@@ -289,8 +289,10 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
                 p = model(x)
                 return criterion(p, y) + alpha*vat_loss(model, x, p) + beta*ent_loss(p)
 
+    x_val, y_val = data.val_data
     with EarlyStopping(early_stop_patience) as stop:
         for e in range(epochs):
+            model.train()
             for x, y in data_loader:
                 x = x.to(device).view(-1, x.size(-1))
                 y = y.to(device).view(-1)
@@ -303,7 +305,8 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
                 update_teacher()
                 batch_logger(float(loss))
             epoch_logger(e)
-            if stop(1-validation_accuracy(data, model), model):
+            model.eval()
+            if stop(criterion(model(x_val), y_val), model):
                 print(f'early stopping at epoch {e}')
                 break
     return model
