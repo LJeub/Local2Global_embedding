@@ -13,7 +13,7 @@ class DGI(nn.Module):
         self.disc = Discriminator(n_h)
 
     def reset_parameters(self):
-        for m in self.modules():
+        for m in self.children():
             if hasattr(m, 'reset_parameters'):
                 m.reset_parameters()
 
