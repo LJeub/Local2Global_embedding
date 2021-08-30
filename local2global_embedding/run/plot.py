@@ -19,6 +19,7 @@
 #  SOFTWARE.
 
 import json
+import torch
 import matplotlib.pyplot as plt
 from pathlib import Path
 from local2global_embedding.run.utils import ScriptParser
@@ -71,13 +72,24 @@ def plot_all(folder=None):
                 nt_data = json.load(f)
         else:
             nt_data = None
-
+        name = file.stem.split('_', 1)[0]
+        network_data = torch.load(file.parents[1] / f'{name}_data.pt')
+        all_edges = network_data.num_edges
+        patch_files = list(file.parent.glob('patch*_data.pt'))
+        patch_edges = sum(torch.load(patch_file, map_location='cpu').num_edges
+                          for patch_file in patch_files)
+        oversampling_ratio = patch_edges / all_edges
+        title = f"oversampling ratio: {oversampling_ratio:.2}, #patches: {len(patch_files)}"
         if 'auc' in data:
             fig = plot(data, 'auc', baseline_data, nt_data)
+            ax = fig.gca()
+            ax.set_title(title)
             fig.savefig(file.with_name(file.name.replace('_eval.json', '_auc.pdf')))
 
         if 'acc_mean' in data:
             fig = plot(data, 'acc_mean', baseline_data, nt_data)
+            ax = fig.gca()
+            ax.set_title(title)
             fig.savefig(file.with_name(file.name.replace('_eval.json', '_cl.pdf')))
 
 
