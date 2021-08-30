@@ -142,7 +142,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     nt_eval_file = patch_folder / f'{basename}_nt_eval.json'
     l2g_coords_to_evaluate = set()
     nt_coords_to_evaluate = set()
-    compute_alignment_for_dims = []
+    compute_alignment_for_dims = set()
     for d in dims:
         for patch_data_file in patch_folder.glob('patch*_data.pt'):
             patch_id = patch_data_file.stem.replace('_data', '')
@@ -154,7 +154,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
             if not nt_eval_file.is_file():
                 nt_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_ntcoords.pt')
             if r < runs:
-                compute_alignment_for_dims.append(d)
+                compute_alignment_for_dims.add(d)
                 l2g_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_coords.pt')
                 nt_coords_to_evaluate.add(patch_folder / f'{basename}_d{d}_ntcoords.pt')
                 print(f'training {patch_id} for {runs - r} runs and d={d}')
