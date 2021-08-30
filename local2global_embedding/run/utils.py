@@ -28,7 +28,7 @@ from inspect import signature
 import typing
 
 from docstring_parser import parse as parse_doc
-from filelock import FileLock
+from filelock import SoftFileLock
 import torch_geometric as tg
 
 from local2global_embedding.network import largest_connected_component
@@ -156,7 +156,7 @@ class ResultsDict:
             replace: set the replace attribute (default: ``False``)
         """
         self.filename = Path(filename)
-        self._lock = FileLock(self.filename.with_suffix('.lock'))
+        self._lock = SoftFileLock(self.filename.with_suffix('.lock'))
         with self._lock:
             if not self.filename.is_file():
                 with open(self.filename, 'w') as f:
