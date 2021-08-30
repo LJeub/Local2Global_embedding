@@ -290,6 +290,8 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
                 return criterion(p, y) + alpha*vat_loss(model, x, p) + beta*ent_loss(p)
 
     x_val, y_val = data.val_data
+    x_val = x_val.to(device)
+    y_val = y_val.to(device)
     with EarlyStopping(early_stop_patience) as stop:
         for e in range(epochs):
             model.train()
