@@ -32,7 +32,7 @@ from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParse
 async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
               patience=20, runs=10, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
               min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
-              cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.01, dist=False,
+              cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
               output='.', device: str = None, verbose=False, max_workers=1, cmd_prefix: str = None,
               run_baseline=True):
     """
@@ -188,6 +188,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                            results_file=baseline_eval_file,
                            dist=dist,
                            device=device,
+                           lr=cl_lr,
                            )
             )
         )
@@ -202,6 +203,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                            results_file=l2g_eval_file,
                            dist=dist,
                            device=device,
+                           lr=cl_lr,
                            )
             )
         )
@@ -215,6 +217,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                            results_file=nt_eval_file,
                            dist=dist,
                            device=device,
+                           lr=cl_lr,
                            )
             )
         )
