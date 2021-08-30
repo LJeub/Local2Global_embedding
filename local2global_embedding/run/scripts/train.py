@@ -70,12 +70,14 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
     if no_features:
         data.x = speye(data.num_nodes).to(device)
 
-    loss_fun = select_loss(model)
     model_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_model.pt'))
     coords_file = model_file.with_name(model_file.name.replace('model', 'coords'))
     model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
+    loss_fun = select_loss(model)
+
     with ResultsDict(results_file) as results:
         runs_done = results.runs(dim)
+        
     while runs_done < runs:
         model.reset_parameters()
         model = train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose)
