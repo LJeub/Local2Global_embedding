@@ -224,5 +224,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
 
 
 if __name__ == '__main__':
-    # run script
-    asyncio.run(ScriptParser(run).run())
+    # run main script
+    parser = ScriptParser(run)
+    args, kwargs = parser.parse()
+    asyncio.run(run(*args, **kwargs))
