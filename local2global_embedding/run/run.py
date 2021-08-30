@@ -119,7 +119,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
 
     # compute baseline full model if necessary
     baseline_info_file = output_folder / f'{basename}_full_info.json'
-    baseline_eval_file = output_folder / f'{basename}_eval.json'
+    baseline_eval_file = output_folder / f'{basename}_full_eval.json'
     baseline_coords_to_evaluate = set()
     baseline_tasks = []
     if run_baseline:
