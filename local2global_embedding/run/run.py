@@ -146,19 +146,23 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     nt_coords_to_evaluate = set()
     compute_alignment_for_dims = set()
     for d in dims:
+        coords_file = patch_folder / f'{train_basename}_d{d}_coords.pt'
+        nt_coords_file = patch_folder / f'{train_basename}_d{d}_ntcoords.pt'
+        if not coords_file.is_file() or not nt_coords_file.is_file():
+            compute_alignment_for_dims.add(d)
         for patch_data_file in patch_folder.glob('patch*_data.pt'):
             patch_id = patch_data_file.stem.replace('_data', '')
             patch_result_file = patch_folder / f'{train_basename}_{patch_id}_info.json'
             with ResultsDict(patch_result_file) as patch_results:
                 r = patch_results.runs(d)
             if not l2g_eval_file.is_file():
-                l2g_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_coords.pt')
+                l2g_coords_to_evaluate.add(coords_file)
             if not nt_eval_file.is_file():
-                nt_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_ntcoords.pt')
+                nt_coords_to_evaluate.add(nt_coords_file)
             if r < runs:
                 compute_alignment_for_dims.add(d)
-                l2g_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_coords.pt')
-                nt_coords_to_evaluate.add(patch_folder / f'{train_basename}_d{d}_ntcoords.pt')
+                l2g_coords_to_evaluate.add(coords_file)
+                nt_coords_to_evaluate.add(nt_coords_file)
                 print(f'training {patch_id} for {runs - r} runs and d={d}')
                 patch_tasks.append(
                     asyncio.create_task(
