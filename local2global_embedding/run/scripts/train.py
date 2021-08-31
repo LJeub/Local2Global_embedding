@@ -45,6 +45,14 @@ def create_model(model, dim, hidden_dim, num_features, dist):
         return DGI(num_features, dim)
 
 
+class Count:
+    def __init__(self):
+        self.count = 0
+
+    def __call__(self, *args, **kwargs):
+        self.count += 1
+
+
 def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, results_file: str,
          dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
          device: Optional[str] = None, runs=1):
@@ -80,13 +88,17 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
         
     while runs_done < runs:
         model.reset_parameters()
-        model = train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose)
+
+        ep_count = Count()
+        model = train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose, logger=ep_count)
+
         coords = model.embed(data)
 
         auc = reconstruction_auc(coords, data, dist=dist)
         loss = float(loss_fun(model, data))
 
         with ResultsDict(results_file) as results:
+            print(f'Training for run {results.runs(dim)+1} of {data} and model {model}_d{dim} stopped after {ep_count.count} epochs')
             if results.runs(dim) >= runs:
                 break
             if results.min('loss', dim) > loss:
