@@ -150,6 +150,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
         nt_coords_file = patch_folder / f'{train_basename}_d{d}_ntcoords.pt'
         if not coords_file.is_file() or not nt_coords_file.is_file():
             compute_alignment_for_dims.add(d)
+            l2g_coords_to_evaluate.add(coords_file)
+            nt_coords_to_evaluate.add(nt_coords_file)
         for patch_data_file in patch_folder.glob('patch*_data.pt'):
             patch_id = patch_data_file.stem.replace('_data', '')
             patch_result_file = patch_folder / f'{train_basename}_{patch_id}_info.json'
