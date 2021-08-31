@@ -76,7 +76,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                      num_iters, beta, sparsify, target_patch_degree,
                                                      gamma)
 
-    with SoftFileLock(patch_folder.with_suffix('.lock')):  # make sure not to create patches twice
+    with SoftFileLock(patch_folder.with_suffix('.lock'), timeout=10):  # make sure not to create patches twice
         if not (patch_folder / 'patch_graph.pt').is_file():
             print(f'creating patches in {patch_folder}')
             data = torch.load(output_folder / f'{name}_data.pt')

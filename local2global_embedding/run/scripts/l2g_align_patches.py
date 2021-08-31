@@ -37,7 +37,7 @@ def main(patch_folder: str, basename: str, dim: int):
     patch_graph = torch.load(patch_folder / 'patch_graph.pt', map_location='cpu')
 
     for criterion in criterions:
-        with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock'):  # only one task at a time
+        with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
             for i in range(patch_graph.num_nodes):
                 patch_file = patch_folder / f'patch{i}_data.pt'
                 patch = torch.load(patch_file, map_location='cpu')

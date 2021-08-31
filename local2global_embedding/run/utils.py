@@ -159,7 +159,7 @@ class ResultsDict:
             replace: set the replace attribute (default: ``False``)
         """
         self.filename = Path(filename)
-        self._lock = SoftFileLock(self.filename.with_suffix('.lock'))
+        self._lock = SoftFileLock(self.filename.with_suffix('.lock'), timeout=10)
         with self._lock:
             if not self.filename.is_file():
                 with open(self.filename, 'w') as f:
