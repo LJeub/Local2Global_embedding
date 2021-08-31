@@ -23,7 +23,7 @@ from pathlib import Path
 import torch
 from filelock import SoftFileLock
 
-from local2global import WeightedAlignmentProblem, Patch
+from local2global import SVDAlignmentProblem, Patch
 from local2global_embedding.run.utils import ScriptParser
 
 
@@ -41,7 +41,7 @@ def main(patch_folder: str, basename: str, dim: int):
                 coords = torch.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_coords.pt', map_location='cpu')
             patch_list.append(Patch(patch.nodes, coords))
 
-        prob = WeightedAlignmentProblem(patch_list, patch_edges=patch_graph.edges())
+        prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges())
         patched_embedding_file = patch_folder / f'{basename}_d{dim}_coords.pt'
         patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_ntcoords.pt'
         ntcoords = prob.mean_embedding()
