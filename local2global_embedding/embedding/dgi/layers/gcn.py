@@ -13,6 +13,8 @@ class GCN(nn.Module):
         self.conv.reset_parameters()
         if hasattr(self.act, 'reset_parameters'):
             self.act.reset_parameters()
+        elif isinstance(self.act, nn.PReLU):
+            self.act.weight.data.fill_(0.25)
 
     # Shape of seq: (batch, nodes, features)
     def forward(self, seq, adj):
