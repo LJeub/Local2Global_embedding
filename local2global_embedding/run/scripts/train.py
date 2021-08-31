@@ -71,6 +71,8 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
         device: device to use for training (e.g., 'cuda', 'cpu')
     """
     device = set_device(device)
+    data_str = data
+    model_str = model
     print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ["CUDA_VISIBLE_DEVICES"]} and device={device}')
     data = torch.load(data).to(device)
     results_file = Path(results_file)
@@ -98,7 +100,7 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
         loss = float(loss_fun(model, data))
 
         with ResultsDict(results_file) as results:
-            print(f'Training for run {results.runs(dim)+1} of {data} and model {model}_d{dim} stopped after {ep_count.count} epochs')
+            print(f'Training for run {results.runs(dim)+1} of {data_str} and model {model_str}_d{dim} stopped after {ep_count.count} epochs')
             if results.runs(dim) >= runs:
                 break
             if results.min('loss', dim) > loss:
