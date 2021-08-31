@@ -80,8 +80,10 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
     if no_features:
         data.x = speye(data.num_nodes).to(device)
 
-    model_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_model.pt'))
-    coords_file = model_file.with_name(model_file.name.replace('model', 'coords'))
+    model_auc_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_auc_model.pt'))
+    model_loss_file = model_auc_file.with_name(model_auc_file.name.replace('_auc_', '_loss_'))
+    coords_auc_file = model_auc_file.with_name(model_auc_file.name.replace('model', 'coords'))
+    coords_loss_file = model_auc_file.with_name(model_loss_file.name.replace('model', 'coords'))
     model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     loss_fun = select_loss(model)
 
@@ -104,8 +106,11 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
             if results.runs(dim) >= runs:
                 break
             if results.min('loss', dim) > loss:
-                torch.save(model.state_dict(), model_file)
-                torch.save(coords, coords_file)
+                torch.save(model.state_dict(), model_loss_file)
+                torch.save(coords, coords_loss_file)
+            if results.max('auc', dim) < auc:
+                torch.save(model.state_dict(), model_auc_file)
+                torch.save(coords, coords_auc_file)
             results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr, 'num_epochs': num_epochs,
                                                               'patience': patience, 'dist': dist})
             runs_done = results.runs(dim)
