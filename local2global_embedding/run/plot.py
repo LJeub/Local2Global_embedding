@@ -79,6 +79,7 @@ def plot_all(folder=None):
         patch_edges = sum(torch.load(patch_file, map_location='cpu').num_edges
                           for patch_file in patch_files)
         oversampling_ratio = patch_edges / all_edges
+        num_labels = network_data.y.max().item() + 1
         title = f"oversampling ratio: {oversampling_ratio:.2}, #patches: {len(patch_files)}"
         if 'auc' in data:
             fig = plot(data, 'auc', baseline_data, nt_data)
@@ -90,6 +91,7 @@ def plot_all(folder=None):
             fig = plot(data, 'acc_mean', baseline_data, nt_data)
             ax = fig.gca()
             ax.set_title(title)
+            ax.set_ylim(0.98/num_labels, 1.02)
             fig.savefig(file.with_name(file.name.replace('.json', '_cl.pdf')))
 
 
