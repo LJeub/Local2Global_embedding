@@ -165,7 +165,6 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     await asyncio.gather(*patch_tasks)
     alignment_tasks = []
     l2g_dims_to_evaluate = set()
-    nt_coords_to_evaluate = set()
     for d in dims:
         coords_files = [patch_folder / f'{train_basename}_d{d}_{criterion}_{nt}coords.pt'
                         for criterion in ('auc', 'loss') for nt in ('', 'nt')]
@@ -178,65 +177,111 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     # evaluate embeddings
     await asyncio.gather(*baseline_tasks)  # make sure baseline data is available
     eval_tasks = []
-    baseline_eval_file = output_folder / f'{eval_basename}_full_eval.json'
+    baseline_loss_eval_file = output_folder / f'{eval_basename}_full_loss_eval.json'
+    baseline_auc_eval_file = baseline_loss_eval_file.with_name(baseline_loss_eval_file.name.replace('_loss_','_auc_'))
     for d in dims:
-        with ResultsDict(baseline_eval_file, replace=True) as eval_results:
+        with ResultsDict(baseline_loss_eval_file, replace=True) as eval_results:
             if d in baseline_dims_to_evaluate or not eval_results.contains_dim(d):
-                for crit in ('auc', 'loss'):
-                    coords_file = output_folder / f'{train_basename}_full_d{d}_best_{crit}_coords.pt'
-                    eval_tasks.append(
-                        asyncio.create_task(
-                            run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                       data_file=data_file,
-                                       embedding_file=coords_file,
-                                       results_file=baseline_eval_file,
-                                       dist=dist,
-                                       device=device,
-                                       lr=cl_lr,
-                                       )
-                        )
+                coords_file = output_folder / f'{train_basename}_full_d{d}_best_loss_coords.pt'
+                eval_tasks.append(
+                    asyncio.create_task(
+                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                   data_file=data_file,
+                                   embedding_file=coords_file,
+                                   results_file=baseline_loss_eval_file,
+                                   dist=dist,
+                                   device=device,
+                                   lr=cl_lr,
+                                   )
                     )
+                )
+        with ResultsDict(baseline_auc_eval_file, replace=True) as eval_results:
+            if d in baseline_dims_to_evaluate or not eval_results.contains_dim(d):
+                coords_file = output_folder / f'{train_basename}_full_d{d}_best_auc_coords.pt'
+                eval_tasks.append(
+                    asyncio.create_task(
+                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                   data_file=data_file,
+                                   embedding_file=coords_file,
+                                   results_file=baseline_auc_eval_file,
+                                   dist=dist,
+                                   device=device,
+                                   lr=cl_lr,
+                                   )
+                    )
+                )
 
     await asyncio.gather(*alignment_tasks)  # make sure aligned coordinates are available
-    l2g_eval_file = patch_folder / f'{eval_basename}_l2g_eval.json'
-    nt_eval_file = patch_folder / f'{eval_basename}_nt_eval.json'
+    l2g_loss_eval_file = patch_folder / f'{eval_basename}_l2g_loss_eval.json'
+    l2g_auc_eval_file = l2g_loss_eval_file.with_name(l2g_loss_eval_file.name.replace('_loss_', '_auc_'))
+    nt_loss_eval_file = patch_folder / f'{eval_basename}_nt_loss_eval.json'
+    nt_auc_eval_file = nt_loss_eval_file.with_name(nt_loss_eval_file.name.replace('_loss_', '_auc_'))
     for d in dims:
-
-        with ResultsDict(l2g_eval_file, replace=True) as l2g_eval:
+        with ResultsDict(l2g_loss_eval_file, replace=True) as l2g_eval:
             if d in l2g_dims_to_evaluate or not l2g_eval.contains_dim(d):
-                for crit in ('auc', 'loss'):
-                    coords_file = patch_folder / f'{train_basename}_d{d}_{crit}_coords.pt'
-                    eval_tasks.append(
-                        asyncio.create_task(
-                            run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                       data_file=data_file,
-                                       embedding_file=coords_file,
-                                       results_file=l2g_eval_file,
-                                       dist=dist,
-                                       device=device,
-                                       lr=cl_lr,
-                                       )
-                        )
+                coords_file = patch_folder / f'{train_basename}_d{d}_loss_coords.pt'
+                eval_tasks.append(
+                    asyncio.create_task(
+                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                   data_file=data_file,
+                                   embedding_file=coords_file,
+                                   results_file=l2g_loss_eval_file,
+                                   dist=dist,
+                                   device=device,
+                                   lr=cl_lr,
+                                   )
                     )
+                )
+
+        with ResultsDict(l2g_auc_eval_file, replace=True) as l2g_eval:
+            if d in l2g_dims_to_evaluate or not l2g_eval.contains_dim(d):
+                coords_file = patch_folder / f'{train_basename}_d{d}_auc_coords.pt'
+                eval_tasks.append(
+                    asyncio.create_task(
+                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                   data_file=data_file,
+                                   embedding_file=coords_file,
+                                   results_file=l2g_auc_eval_file,
+                                   dist=dist,
+                                   device=device,
+                                   lr=cl_lr,
+                                   )
+                    )
+                )
 
     for d in dims:
-
-        with ResultsDict(nt_eval_file, replace=True) as nt_eval:
+        with ResultsDict(nt_loss_eval_file, replace=True) as nt_eval:
             if d in l2g_dims_to_evaluate or not nt_eval.contains_dim(d):
-                for crit in ('auc', 'loss'):
-                    coords_file = patch_folder / f'{train_basename}_d{d}_{crit}_ntcoords.pt'
-                    eval_tasks.append(
-                        asyncio.create_task(
-                            run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                       data_file=data_file,
-                                       embedding_file=coords_file,
-                                       results_file=nt_eval_file,
-                                       dist=dist,
-                                       device=device,
-                                       lr=cl_lr,
-                                       )
-                        )
+                coords_file = patch_folder / f'{train_basename}_d{d}_loss_ntcoords.pt'
+                eval_tasks.append(
+                    asyncio.create_task(
+                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                   data_file=data_file,
+                                   embedding_file=coords_file,
+                                   results_file=nt_loss_eval_file,
+                                   dist=dist,
+                                   device=device,
+                                   lr=cl_lr,
+                                   )
                     )
+                )
+
+        with ResultsDict(nt_auc_eval_file, replace=True) as nt_eval:
+            if d in l2g_dims_to_evaluate or not nt_eval.contains_dim(d):
+                coords_file = patch_folder / f'{train_basename}_d{d}_auc_ntcoords.pt'
+                eval_tasks.append(
+                    asyncio.create_task(
+                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
+                                   data_file=data_file,
+                                   embedding_file=coords_file,
+                                   results_file=nt_auc_eval_file,
+                                   dist=dist,
+                                   device=device,
+                                   lr=cl_lr,
+                                   )
+                    )
+                )
+
     await asyncio.gather(*eval_tasks)
 
 
