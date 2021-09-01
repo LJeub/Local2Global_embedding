@@ -55,7 +55,7 @@ def plot_all(folder=None):
     else:
         folder = Path(folder)
 
-    for file in folder.glob('**/*_l2g_eval.json'):
+    for file in folder.glob('**/*_l2g_*_eval.json'):
         with open(file) as f:
             data = json.load(f)
 
@@ -84,13 +84,13 @@ def plot_all(folder=None):
             fig = plot(data, 'auc', baseline_data, nt_data)
             ax = fig.gca()
             ax.set_title(title)
-            fig.savefig(file.with_name(file.name.replace('_eval.json', '_auc.pdf')))
+            fig.savefig(file.with_name(file.name.replace('.json', '_auc.pdf')))
 
         if 'acc_mean' in data:
             fig = plot(data, 'acc_mean', baseline_data, nt_data)
             ax = fig.gca()
             ax.set_title(title)
-            fig.savefig(file.with_name(file.name.replace('_eval.json', '_cl.pdf')))
+            fig.savefig(file.with_name(file.name.replace('.json', '_cl.pdf')))
 
 
 if __name__ == '__main__':
