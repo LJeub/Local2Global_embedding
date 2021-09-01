@@ -292,7 +292,7 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
     x_val, y_val = data.val_data
     x_val = x_val.to(device)
     y_val = y_val.to(device)
-    with EarlyStopping(early_stop_patience) as stop:
+    with EarlyStopping(early_stop_patience, delta=1e-4) as stop:
         for e in range(epochs):
             model.train()
             for x, y in data_loader:
