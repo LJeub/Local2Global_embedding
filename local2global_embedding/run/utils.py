@@ -71,6 +71,12 @@ def _load_amazon_photos(root='/tmp'):
     return tg.datasets.Amazon(root=f'{root}/amazon', name='photo')[0]
 
 
+@dataloader('MAG240M')
+def _load_mag240(root='.'):
+    from ogb.lsc import MAG240MDataset
+    return MAG240MDataset(root=root)
+
+
 def load_data(name, root='/tmp'):
     """
     load data set
@@ -84,11 +90,12 @@ def load_data(name, root='/tmp'):
 
     """
     data = _dataloaders[name](root)
-    data = largest_connected_component(data=data)
-    r_sum = data.x.sum(dim=1)
-    r_sum[r_sum == 0] = 1.0  # avoid division by zero
-    data.x /= r_sum[:, None]
-    data.num_nodes = data.x.shape[0]
+    if name != 'MAG240M':
+        data = largest_connected_component(data=data)
+        r_sum = data.x.sum(dim=1)
+        r_sum[r_sum == 0] = 1.0  # avoid division by zero
+        data.x /= r_sum[:, None]
+        data.num_nodes = data.x.shape[0]
     return data
 
 
