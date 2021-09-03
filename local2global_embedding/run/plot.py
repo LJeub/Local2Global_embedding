@@ -22,7 +22,7 @@ import json
 import torch
 import matplotlib.pyplot as plt
 from pathlib import Path
-from local2global_embedding.run.utils import ScriptParser
+from local2global_embedding.run.utils import ScriptParser, ResultsDict
 
 
 def plot(data, key, baseline_data=None, nt_data=None):
@@ -56,13 +56,14 @@ def plot_all(folder=None):
         folder = Path(folder)
 
     for file in folder.glob('**/*_l2g_*_eval.json'):
+        print(file)
         with open(file) as f:
             data = json.load(f)
 
         baseline = folder / file.name.replace('_l2g_', '_full_')
         if baseline.is_file():
-            with open(baseline) as f:
-                baseline_data = json.load(f)
+            baseline_data = ResultsDict(baseline)
+            baseline_data.reduce_to_dims(data['dims'])
         else:
             baseline_data = None
 
