@@ -160,7 +160,8 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         clusters = np.full((num_nodes,), -1, dtype=np.int64)
     else:
         clusters = np.copy(clusters)
-        np.add.at(partition_sizes, clusters, 1)
+        for index in clusters:
+            partition_sizes[index] += 1
 
     load_limit *= num_nodes/num_clusters
 
@@ -172,7 +173,8 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         cluster_indices = clusters[neighbours]
         cluster_indices = cluster_indices[cluster_indices >= 0]
         if cluster_indices.numel() > 0:
-            np.add.at(deltas, cluster_indices, 1)
+            for index in cluster_indices:
+                deltas[index] += 1
             deltas[partition_sizes >= load_limit] = -float('inf')
         # ind = torch.multinomial((deltas == deltas.max()).float(), 1)
         ind = np.argmax(deltas)
@@ -198,7 +200,7 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         for missing_node in range(current_node + 1, num_nodes):
             not_converged += update_cluster(missing_node, [])  # output any remaining nodes of degree 0
 
-        print('iteration: '+ str(it) + ', not converged: ' + str(not_converged))
+        print('iteration: ' + str(it) + ', not converged: ' + str(not_converged))
 
         if not_converged == 0:
             print(f'converged after ' + str(it) + ' iterations.')
