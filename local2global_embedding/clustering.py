@@ -172,10 +172,10 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         cluster_indices = clusters[neighbours]
         cluster_indices = cluster_indices[cluster_indices >= 0]
         if cluster_indices.numel() > 0:
-            deltas.index_add_(0, cluster_indices, torch.ones(cluster_indices.shape, device=device))
+            np.add.at(deltas, cluster_indices, 1)
             deltas[partition_sizes >= load_limit] = -float('inf')
         # ind = torch.multinomial((deltas == deltas.max()).float(), 1)
-        ind = torch.argmax(deltas)
+        ind = np.argmax(deltas)
         clusters[n] = ind
         partition_sizes[ind] += 1
         return ind != old_cluster
