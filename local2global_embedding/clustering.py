@@ -33,6 +33,7 @@ class NodeStream:
                     yield missing_node, []
                 current_node = edge[0]
                 neighbours = [edge[1]]
+        yield current_node, neighbours  # output last node with edges
 
     @property
     def num_edges(self):
