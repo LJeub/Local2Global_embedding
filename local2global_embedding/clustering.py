@@ -155,9 +155,9 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
     if alpha is None:
         alpha = num_edges * (num_clusters ** (gamma-1)) / (num_nodes ** gamma)
 
-    partition_sizes = np.zeros(num_clusters, dtype=np.long)
+    partition_sizes = np.zeros(num_clusters, dtype=np.int64)
     if clusters is None:
-        clusters = np.full((num_nodes,), -1, dtype=np.long)
+        clusters = np.full((num_nodes,), -1, dtype=np.int64)
     else:
         clusters = np.copy(clusters)
         np.add.at(partition_sizes, clusters, 1)
