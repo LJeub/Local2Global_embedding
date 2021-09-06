@@ -17,7 +17,7 @@ from local2global_embedding.network import TGraph
 
 @jitclass
 class NodeStream:
-    _data: numba.int64[:]
+    _data: numba.int64[:, :]
     num_nodes: numba.int64
 
     def __init__(self, edge_index, num_nodes):
