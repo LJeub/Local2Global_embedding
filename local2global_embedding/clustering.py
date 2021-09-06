@@ -185,20 +185,20 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
     for it in range(num_iters):
         not_converged = 0
         current_node = 0
-        neighbours = []
+        neighbours = np.empty((0,), dtype=np.int64)
         for i in range(num_edges):
             edge = edge_index[:, i]
             if current_node == edge[0]:
-                neighbours.append(edge[1])
+                neighbours = np.append(neighbours, edge[1])
             else:
                 not_converged += update_cluster(current_node, neighbours)  # all neighbours accumulated
                 for missing_node in range(current_node + 1, edge[0]):
-                    update_cluster(missing_node, [])  # output nodes with degree 0
+                    update_cluster(missing_node, np.empty((0,), dtype=np.int64))  # output nodes with degree 0
                 current_node = edge[0]
-                neighbours = [edge[1]]
+                neighbours = np.array([edge[1]], dtype=np.int64)
         not_converged += update_cluster(current_node, neighbours)  # output last node with edges
         for missing_node in range(current_node + 1, num_nodes):
-            not_converged += update_cluster(missing_node, [])  # output any remaining nodes of degree 0
+            not_converged += update_cluster(missing_node, np.empty((0,), dtype=np.int64))  # output any remaining nodes of degree 0
 
         print('iteration: ' + str(it) + ', not converged: ' + str(not_converged))
 
