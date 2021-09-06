@@ -28,12 +28,14 @@ class NodeStream:
             if current_node == edge[0]:
                 neighbours.append(edge[1])
             else:
-                yield current_node, neighbours
+                yield current_node, neighbours  # all neighbours accumulated
                 for missing_node in range(current_node+1, edge[0]):
-                    yield missing_node, []
+                    yield missing_node, []  # output nodes with degree 0
                 current_node = edge[0]
                 neighbours = [edge[1]]
         yield current_node, neighbours  # output last node with edges
+        for missing_node in range(current_node+1, self.num_nodes):
+            yield missing_node, []  # output any remaining nodes of degree 0
 
     @property
     def num_edges(self):
