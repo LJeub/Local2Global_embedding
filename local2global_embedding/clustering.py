@@ -216,10 +216,10 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
                 current_node = edge[0]
                 neighbours = np.array([edge[1]], dtype=np.int64)
 
-            if i % 10000 == 0 and i > 0:
+            if i % 1000000 == 0 and i > 0:
                 progress_it = i
                 with numba.objmode:
-                    update_progress(10000)
+                    update_progress(1000000)
         with numba.objmode:
             update_progress(num_edges-progress_it)
 
