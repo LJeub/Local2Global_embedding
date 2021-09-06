@@ -29,6 +29,8 @@ class NodeStream:
                 neighbours.append(edge[1])
             else:
                 yield current_node, neighbours
+                for missing_node in range(current_node+1, edge[0]):
+                    yield missing_node, []
                 current_node = edge[0]
                 neighbours = [edge[1]]
 
