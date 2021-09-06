@@ -14,6 +14,15 @@ from local2global_embedding.network import TGraph
 
 class NodeStream:
     def __init__(self, edge_index, num_nodes):
+        """
+        Initialize node-stream data
+
+        Args:
+            edge_index: Edge index to stream (can be a file path to a .npy file which is then memory mapped)
+            num_nodes: number of nodes
+
+        Note that edge index needs to be sorted!
+        """
         if isinstance(edge_index, str) or isinstance(edge_index, os.PathLike):
             self._data = np.load(edge_index, mmap_mode='r')
         else:
