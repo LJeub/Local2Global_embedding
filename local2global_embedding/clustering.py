@@ -58,6 +58,9 @@ class NodeStream:
         else:
             return 'cpu'
 
+    def __len__(self):
+        return self.num_nodes
+
 
 
 def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_samples=2):
