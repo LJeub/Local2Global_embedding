@@ -8,12 +8,18 @@ import torch
 import pymetis
 import numpy as np
 from tqdm.auto import tqdm
+import numba
+from numba.experimental import jitclass
 
 
 from local2global_embedding.network import TGraph
 
 
+@jitclass
 class NodeStream:
+    _data: numba.int64[:]
+    num_nodes: numba.int64
+
     def __init__(self, edge_index, num_nodes):
         """
         Initialize node-stream data
@@ -24,10 +30,7 @@ class NodeStream:
 
         Note that edge index needs to be sorted!
         """
-        if isinstance(edge_index, str) or isinstance(edge_index, os.PathLike):
-            self._data = np.load(edge_index, mmap_mode='r')
-        else:
-            self._data = edge_index
+        self._data = edge_index
         self.num_nodes = num_nodes
 
     def __iter__(self):
@@ -53,14 +56,10 @@ class NodeStream:
 
     @property
     def device(self):
-        if hasattr(self._data, 'device'):
-            return self._data.device
-        else:
-            return 'cpu'
+        return 'cpu'
 
     def __len__(self):
         return self.num_nodes
-
 
 
 def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_samples=2):
