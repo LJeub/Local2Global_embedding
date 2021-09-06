@@ -30,7 +30,7 @@ class NodeStream:
             else:
                 yield current_node, neighbours
                 current_node = edge[0]
-                neighbours = []
+                neighbours = [edge[1]]
 
     @property
     def num_edges(self):
