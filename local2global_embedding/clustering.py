@@ -1,12 +1,48 @@
 """Graph clustering algorithms"""
 
 from math import log
+import os
 
 import community
 import torch
 import pymetis
+import numpy as np
+
 
 from local2global_embedding.network import TGraph
+
+
+class NodeStream:
+    def __init__(self, edge_index, num_nodes):
+        if isinstance(edge_index, str) or isinstance(edge_index, os.PathLike):
+            self._data = np.load(edge_index, mmap_mode='r')
+        else:
+            self._data = edge_index
+        self.num_nodes = num_nodes
+
+    def __iter__(self):
+        current_node = 0
+        neighbours = []
+        for i in range(self._data.shape[1]):
+            edge = self._data[:, i]
+            if current_node == edge[0]:
+                neighbours.append(edge[1])
+            else:
+                yield current_node, neighbours
+                current_node = edge[0]
+                neighbours = []
+
+    @property
+    def num_edges(self):
+        return self._data.shape[1]
+
+    @property
+    def device(self):
+        if hasattr(self._data, 'device'):
+            return self._data.device
+        else:
+            return 'cpu'
+
 
 
 def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_samples=2):
@@ -66,7 +102,7 @@ def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_sam
     return clusters
 
 
-def fennel_clustering(graph: TGraph, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, randomise_order=False,
+def fennel_clustering(nodes: NodeStream, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, randomise_order=False,
                       clusters=None, num_iters=1):
     r"""
     FENNEL single-pass graph clustering algorithm
@@ -92,37 +128,34 @@ def fennel_clustering(graph: TGraph, num_clusters, load_limit=1.1, alpha=None, g
                      WSDM'14 (2014) doi: `10.1145/2556195.2556213 <https://doi.org/10.1145/2556195.2556213>`_.
 
     """
+    device = nodes.device
+
     if num_iters is None:
         num_iters = 1
 
     if alpha is None:
-        alpha = graph.num_edges * (num_clusters ** (gamma-1)) / (graph.num_nodes ** gamma)
+        alpha = nodes.num_edges * (num_clusters ** (gamma-1)) / (nodes.num_nodes ** gamma)
 
-    partition_sizes = torch.zeros(num_clusters, dtype=torch.long, device=graph.device)
+    partition_sizes = torch.zeros(num_clusters, dtype=torch.long, device=device)
     if clusters is None:
-        clusters = torch.full((graph.num_nodes,), -1, dtype=torch.long, device=graph.device)
+        clusters = torch.full((nodes.num_nodes,), -1, dtype=torch.long, device=device)
     else:
-        clusters = torch.clone(clusters).to(device=graph.device)
+        clusters = torch.clone(clusters).to(device=device)
         partition_sizes.index_add_(0, clusters, torch.ones_like(clusters))
 
-    load_limit *= graph.num_nodes/num_clusters
-
-    if randomise_order:
-        order = torch.randperm(graph.num_nodes, dtype=torch.long, device=graph.device)
-    else:
-        order = graph.bfs_order()
+    load_limit *= nodes.num_nodes/num_clusters
 
     for it in range(num_iters):
         not_converged = 0
-        for n in order:
+        for n, neighbours in nodes:
             old_cluster = clusters[n]
             if old_cluster >= 0:
                 partition_sizes[old_cluster] -= 1
             deltas = - alpha * gamma * (partition_sizes ** (gamma-1))
-            cluster_indices = clusters[graph.adj(n)]
+            cluster_indices = clusters[neighbours]
             cluster_indices = cluster_indices[cluster_indices >= 0]
             if cluster_indices.numel() > 0:
-                deltas.index_add_(0, cluster_indices, torch.ones(cluster_indices.shape, device=graph.device))
+                deltas.index_add_(0, cluster_indices, torch.ones(cluster_indices.shape, device=device))
                 deltas[partition_sizes >= load_limit] = -float('inf')
             # ind = torch.multinomial((deltas == deltas.max()).float(), 1)
             ind = torch.argmax(deltas)
