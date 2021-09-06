@@ -119,9 +119,22 @@ def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_sam
     return clusters
 
 
-@numba.njit([numba.int64[:](numba.int64[:, :], numba.int64, numba.int64, numba.float64, numba.optional(numba.float64), numba.float64, numba.boolean, numba.optional(numba.int64[:]), numba.int64)])
+def reset_progress(total):
+    global pbar
+    pbar = tqdm(total=total)
+    pbar.update(0)
+
+
+def update_progress(iterations):
+    pbar.update(iterations)
+
+
+def close_progress():
+    pbar.close()
+
+@numba.njit
 def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, randomise_order=False,
-                      clusters=None, num_iters=1):
+                      clusters=np.empty(0, dtype=np.int64), num_iters=1):
     r"""
     FENNEL single-pass graph clustering algorithm
 
@@ -151,12 +164,13 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         num_iters = 1
 
     num_edges = edge_index.shape[1]
+    total = num_edges * num_iters
 
     if alpha is None:
         alpha = num_edges * (num_clusters ** (gamma-1)) / (num_nodes ** gamma)
 
     partition_sizes = np.zeros(num_clusters, dtype=np.int64)
-    if clusters is None:
+    if clusters.size == 0:
         clusters = np.full((num_nodes,), -1, dtype=np.int64)
     else:
         clusters = np.copy(clusters)
@@ -182,10 +196,15 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         partition_sizes[ind] += 1
         return ind != old_cluster
 
+    with numba.objmode:
+        reset_progress(total)
+
     for it in range(num_iters):
         not_converged = 0
         current_node = 0
         neighbours = np.empty((0,), dtype=np.int64)
+
+        progress_it = 0
         for i in range(num_edges):
             edge = edge_index[:, i]
             if current_node == edge[0]:
@@ -196,6 +215,14 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
                     update_cluster(missing_node, np.empty((0,), dtype=np.int64))  # output nodes with degree 0
                 current_node = edge[0]
                 neighbours = np.array([edge[1]], dtype=np.int64)
+
+            if i % 10000 == 0 and i > 0:
+                progress_it = i
+                with numba.objmode:
+                    update_progress(10000)
+        with numba.objmode:
+            update_progress(num_edges-progress_it)
+
         not_converged += update_cluster(current_node, neighbours)  # output last node with edges
         for missing_node in range(current_node + 1, num_nodes):
             not_converged += update_cluster(missing_node, np.empty((0,), dtype=np.int64))  # output any remaining nodes of degree 0
@@ -205,6 +232,9 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         if not_converged == 0:
             print(f'converged after ' + str(it) + ' iterations.')
             break
+    with numba.objmode:
+        close_progress()
+
     return clusters
 
 
