@@ -7,6 +7,7 @@ import community
 import torch
 import pymetis
 import numpy as np
+from tqdm.auto import tqdm
 
 
 from local2global_embedding.network import TGraph
@@ -161,7 +162,7 @@ def fennel_clustering(nodes: NodeStream, num_clusters, load_limit=1.1, alpha=Non
 
     for it in range(num_iters):
         not_converged = 0
-        for n, neighbours in nodes:
+        for n, neighbours in tqdm(nodes):
             old_cluster = clusters[n]
             if old_cluster >= 0:
                 partition_sizes[old_cluster] -= 1
