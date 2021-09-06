@@ -119,7 +119,8 @@ def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_sam
     return clusters
 
 
-def fennel_clustering(nodes: NodeStream, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, randomise_order=False,
+@numba.njit([numba.int64[:](numba.int64[:, :], numba.int64, numba.int64, numba.float64, numba.optional(numba.float64), numba.float64, numba.boolean, numba.optional(numba.int64[:]), numba.int64)])
+def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, randomise_order=False,
                       clusters=None, num_iters=1):
     r"""
     FENNEL single-pass graph clustering algorithm
@@ -145,41 +146,57 @@ def fennel_clustering(nodes: NodeStream, num_clusters, load_limit=1.1, alpha=Non
                      WSDM'14 (2014) doi: `10.1145/2556195.2556213 <https://doi.org/10.1145/2556195.2556213>`_.
 
     """
-    device = nodes.device
 
     if num_iters is None:
         num_iters = 1
 
+    num_edges = edge_index.shape[1]
+
     if alpha is None:
-        alpha = nodes.num_edges * (num_clusters ** (gamma-1)) / (nodes.num_nodes ** gamma)
+        alpha = num_edges * (num_clusters ** (gamma-1)) / (num_nodes ** gamma)
 
-    partition_sizes = torch.zeros(num_clusters, dtype=torch.long, device=device)
+    partition_sizes = np.zeros(num_clusters, dtype=np.long)
     if clusters is None:
-        clusters = torch.full((nodes.num_nodes,), -1, dtype=torch.long, device=device)
+        clusters = np.full((num_nodes,), -1, dtype=np.long)
     else:
-        clusters = torch.clone(clusters).to(device=device)
-        partition_sizes.index_add_(0, clusters, torch.ones_like(clusters))
+        clusters = np.copy(clusters)
+        np.add.at(partition_sizes, clusters, 1)
 
-    load_limit *= nodes.num_nodes/num_clusters
+    load_limit *= num_nodes/num_clusters
+
+    def update_cluster(n, neighbours):
+        old_cluster = clusters[n]
+        if old_cluster >= 0:
+            partition_sizes[old_cluster] -= 1
+        deltas = - alpha * gamma * (partition_sizes ** (gamma - 1))
+        cluster_indices = clusters[neighbours]
+        cluster_indices = cluster_indices[cluster_indices >= 0]
+        if cluster_indices.numel() > 0:
+            deltas.index_add_(0, cluster_indices, torch.ones(cluster_indices.shape, device=device))
+            deltas[partition_sizes >= load_limit] = -float('inf')
+        # ind = torch.multinomial((deltas == deltas.max()).float(), 1)
+        ind = torch.argmax(deltas)
+        clusters[n] = ind
+        partition_sizes[ind] += 1
+        return ind != old_cluster
 
     for it in range(num_iters):
         not_converged = 0
-        for n, neighbours in tqdm(nodes):
-            old_cluster = clusters[n]
-            if old_cluster >= 0:
-                partition_sizes[old_cluster] -= 1
-            deltas = - alpha * gamma * (partition_sizes ** (gamma-1))
-            cluster_indices = clusters[neighbours]
-            cluster_indices = cluster_indices[cluster_indices >= 0]
-            if cluster_indices.numel() > 0:
-                deltas.index_add_(0, cluster_indices, torch.ones(cluster_indices.shape, device=device))
-                deltas[partition_sizes >= load_limit] = -float('inf')
-            # ind = torch.multinomial((deltas == deltas.max()).float(), 1)
-            ind = torch.argmax(deltas)
-            if ind != old_cluster:
-                not_converged += 1
-            clusters[n] = ind
-            partition_sizes[ind] += 1
+        current_node = 0
+        neighbours = []
+        for i in range(num_edges):
+            edge = edge_index[:, i]
+            if current_node == edge[0]:
+                neighbours.append(edge[1])
+            else:
+                not_converged += update_cluster(current_node, neighbours)  # all neighbours accumulated
+                for missing_node in range(current_node + 1, edge[0]):
+                    update_cluster(missing_node, [])  # output nodes with degree 0
+                current_node = edge[0]
+                neighbours = [edge[1]]
+        not_converged += update_cluster(current_node, neighbours)  # output last node with edges
+        for missing_node in range(current_node + 1, num_nodes):
+            not_converged += update_cluster(missing_node, [])  # output any remaining nodes of degree 0
 
         print(f'iteration: {it}, not converged: {not_converged}')
 
