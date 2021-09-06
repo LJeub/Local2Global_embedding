@@ -198,10 +198,10 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         for missing_node in range(current_node + 1, num_nodes):
             not_converged += update_cluster(missing_node, [])  # output any remaining nodes of degree 0
 
-        print(f'iteration: {it}, not converged: {not_converged}')
+        print('iteration: '+ str(it) + ', not converged: ' + str(not_converged))
 
         if not_converged == 0:
-            print(f'converged after {it} iterations.')
+            print(f'converged after ' + str(it) + ' iterations.')
             break
     return clusters
 
