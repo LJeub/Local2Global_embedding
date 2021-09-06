@@ -172,7 +172,7 @@ def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha
         deltas = - alpha * gamma * (partition_sizes ** (gamma - 1))
         cluster_indices = clusters[neighbours]
         cluster_indices = cluster_indices[cluster_indices >= 0]
-        if cluster_indices.numel() > 0:
+        if cluster_indices.size > 0:
             for index in cluster_indices:
                 deltas[index] += 1
             deltas[partition_sizes >= load_limit] = -float('inf')
