@@ -61,7 +61,7 @@ class TGraph:
     @property
     def weighted(self):
         """boolean indicating if graph is weighted"""
-        return self.edge_attr is None
+        return self.edge_attr is not None
 
     def adj(self, node: int):
         """
