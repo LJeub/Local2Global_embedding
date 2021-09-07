@@ -1,11 +1,17 @@
 """Graph data handling"""
 
 import typing as _t
+import json
+from pathlib import Path
+
 import torch
 import torch_geometric as tg
 import torch_scatter as ts
 from networkx.utils import UnionFind
 import networkx as nx
+import numpy as np
+
+
 
 
 class TGraph:
@@ -204,6 +210,266 @@ class TGraph:
             node = bfs_list[i]
             if node < 0:
                 node = torch.nonzero(not_visited)[0]
+                bfs_list[i] = node
+                not_visited[node] = False
+                append_pointer += 1
+            i += 1
+            new_nodes = self.adj(node)
+            new_nodes = new_nodes[not_visited[new_nodes]]
+            number_new_nodes = len(new_nodes)
+            not_visited[new_nodes] = False
+            bfs_list[append_pointer:append_pointer+number_new_nodes] = new_nodes
+            append_pointer += number_new_nodes
+        return bfs_list
+
+
+class NPGraph:
+    @classmethod
+    def load(cls, folder, mmap_mode=None):
+        folder = Path(folder)
+        kwargs = {}
+
+        kwargs['edge_index'] = np.load(folder / 'edge_index.npy', mmap_mode=mmap_mode)
+
+        attr_file = folder / 'edge_attr.npy'
+        if attr_file.is_file():
+            kwargs['edge_attr'] = np.load(attr_file, mmap_mode=mmap_mode)
+
+        info_file = folder / 'info.json'
+        if info_file.is_file():
+            with open(info_file) as f:
+                info = json.load(f)
+            kwargs.update(info)
+        return cls(**kwargs)
+
+    def save(self, folder):
+        folder = Path(folder)
+        np.save(folder / 'edge_index.npy', self.edge_index)
+
+        if self.weighted:
+            np.save(folder / 'edge_attr.npy', self.edge_attr)
+
+        info = {'num_nodes': self.num_nodes, 'undir': self.undir}
+        with open(folder / 'info.json', 'w') as f:
+            json.dump(info, f)
+
+    def __init__(self, edge_index, edge_attr=None, num_nodes=None, ensure_sorted=False, undir=None):
+        self.edge_index = edge_index
+        self.edge_attr = edge_attr
+        if num_nodes is None:
+            self.num_nodes = np.max(edge_index) + 1
+        else:
+            self.num_nodes = num_nodes
+
+        if ensure_sorted:
+            if isinstance(edge_index, np.memmap):
+                raise NotImplementedError("Sorting for memmapped arrays not yet implemented")
+            else:
+                index = np.argsort(edge_index[0]*self.num_nodes + edge_index[1])
+                self.edge_index = edge_index[:, index]
+                if self.edge_attr is not None:
+                    self.edge_attr = self.edge_attr[index]
+
+        if undir is None:
+            if isinstance(edge_index, np.memmap):
+                raise NotImplementedError("Checking directedness for memmapped arrays not yet implemented")
+            else:
+                index = np.argsort(edge_index[1]*self.num_nodes + edge_index[0])
+                edge_reverse = edge_index[::-1, index]
+                self.undir = np.array_equal(self.edge_index, edge_reverse)
+        else:
+            self.undir = undir
+
+        self.degree = np.zeros(self.num_nodes, dtype=np.int64)
+        np.add.at(self.degree, self.edge_index[0], 1)
+        self.adj_index = np.zeros(self.num_nodes + 1, dtype=np.int64)  #: adjacency index such that edges starting at node ``i`` are given by ``edge_index[:, adj_index[i]:adj_index[i+1]]``
+        self.degree.cumsum(out=self.adj_index[1:])
+        # use expand to avoid actually allocating large array
+        self.weights = edge_attr if edge_attr is not None else np.broadcast_to(np.ones(1), (self.num_edges,))  #: edge weights
+        if self.weighted:
+            self.strength = np.zeros(self.num_nodes)  #: tensor of node strength
+            np.add.at(self.strength, self.edge_index[0], self.weights)
+        else:
+            self.strength = self.degree
+        self.device = 'cpu'
+
+    @property
+    def weighted(self):
+        """boolean indicating if graph is weighted"""
+        return self.edge_attr is not None
+
+    @property
+    def num_edges(self):
+        return self.edge_index.shape[1]
+
+    def adj(self, node: int):
+        """
+        list neighbours of node
+
+        Args:
+            node: source node
+
+        Returns:
+            neighbours
+
+        """
+        return self.edge_index[1][self.adj_index[node]:self.adj_index[node + 1]]
+
+    def adj_weighted(self, node: int):
+        """
+        list neighbours of node and corresponding edge weight
+        Args:
+            node: source node
+
+        Returns:
+            neighbours, weights
+
+        """
+        return self.adj(node), self.weights[self.adj_index[node]:self.adj_index[node + 1]]
+
+    def edges(self):
+        """
+        return list of edges where each edge is a tuple ``(source, target)``
+        """
+        return ((e[0], e[1]) for e in self.edge_index.T)
+
+    def edges_weighted(self):
+        """
+        return list of edges where each edge is a tuple ``(source, target, weight)``
+        """
+        return [(e[0], e[1], w[0] if w.size > 1 else w)
+                for e, w in zip(self.edge_index.T, self.weights)]
+
+    def neighbourhood(self, nodes, hops: int = 1):
+        """
+        find the neighbourhood of a set of source nodes
+
+        note that the neighbourhood includes the source nodes themselves
+
+        Args:
+            nodes: indices of source nodes
+            hops: number of hops for neighbourhood
+
+        Returns:
+            neighbourhood
+
+        """
+        explore = np.ones(self.num_nodes, dtype=np.bool)
+        explore[nodes] = False
+        all_nodes = nodes
+        new_nodes = nodes
+        for _ in range(hops):
+            new_nodes = np.concatenate([self.adj(node) for node in new_nodes])
+            new_nodes = np.unique(new_nodes[explore[new_nodes]])
+            explore[new_nodes] = False
+            all_nodes = np.concatenate((all_nodes, new_nodes))
+        return all_nodes
+
+    def subgraph(self, nodes: torch.Tensor):
+        """
+        find induced subgraph for a set of nodes
+
+        Args:
+            nodes: node indeces
+
+        Returns:
+            subgraph
+
+        """
+        index = np.concatenate([np.arange(self.adj_index[node], self.adj_index[node + 1], dtype=np.int64) for node in nodes])
+        node_mask = np.zeros(self.num_nodes, dtype=np.bool)
+        node_mask[nodes] = True
+        node_ids = np.zeros(self.num_nodes, dtype=np.int64)
+        node_ids[nodes] = np.arange(len(nodes))
+        index = index[node_mask[self.edge_index[1][index]]]
+        edge_attr = self.edge_attr
+        return self.__class__(edge_index=node_ids[self.edge_index[:, index]],
+                              edge_attr=edge_attr[index] if edge_attr is not None else None,
+                              num_nodes=len(nodes),
+                              ensure_sorted=False,
+                              undir=self.undir)
+
+    def connected_component_ids(self):
+        """
+        return nodes in breadth-first-search order
+
+        Args:
+            start: index of starting node (default: 0)
+
+        Returns:
+            tensor of node indeces
+
+        """
+        components = np.full((self.num_nodes,), -1, dtype=np.int64)
+        not_visited = np.ones(self.num_nodes, dtype=np.bool)
+        component_id = 0
+        components[0] = component_id
+        not_visited[0] = False
+        append_pointer = 1
+        bfs_list = [0]
+        i = 0
+        for _ in range(self.num_nodes):
+            if bfs_list:
+                node = bfs_list.pop()
+            else:
+                component_id += 1
+                for i in range(i, self.num_nodes):
+                    if not_visited[i]:
+                        break
+                node = i
+                not_visited[node] = False
+            components[node] = component_id
+            new_nodes = self.adj(node)
+            new_nodes = new_nodes[not_visited[new_nodes]]
+            not_visited[new_nodes] = False
+            bfs_list.extend(new_nodes)
+
+        component_id, inverse, component_size = np.unique(components, return_counts=True, return_inverse=True)
+        new_id = np.argsort(component_size)[::-1]
+        return new_id[inverse]
+
+    def nodes_in_lcc(self):
+        """List all nodes in the largest connected component"""
+        return np.flatnonzero(self.connected_component_ids() == 0)
+
+    def to_networkx(self):
+        """convert graph to NetworkX format"""
+        if self.undir:
+            nxgraph = nx.Graph()
+        else:
+            nxgraph = nx.DiGraph()
+        nxgraph.add_nodes_from(range(self.num_nodes))
+        if self.weighted:
+            nxgraph.add_weighted_edges_from(self.edges_weighted())
+        else:
+            nxgraph.add_edges_from(self.edges())
+        return nxgraph
+
+    def bfs_order(self, start=0):
+        """
+        return nodes in breadth-first-search order
+
+        Args:
+            start: index of starting node (default: 0)
+
+        Returns:
+            tensor of node indeces
+
+        """
+        bfs_list = np.full((self.num_nodes,), -1, dtype=np.int64)
+        not_visited = np.ones(self.num_nodes, dtype=np.int64)
+        bfs_list[0] = start
+        not_visited[start] = False
+        append_pointer = 1
+        i = 0
+        restart = 0
+        while append_pointer < self.num_nodes:
+            node = bfs_list[i]
+            if node < 0:
+                for node in range(restart, self.num_nodes):
+                    if not_visited[node]:
+                        break
+                restart = node
                 bfs_list[i] = node
                 not_visited[node] = False
                 append_pointer += 1
