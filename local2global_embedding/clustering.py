@@ -83,9 +83,18 @@ def update_progress(iterations):
 def close_progress():
     pbar.close()
 
+
+def fennel_clustering(graph, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, num_iters=1, clusters=None):
+    if clusters is None:
+        return _fennel_clustering(graph.edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters)
+    else:
+        return _fennel_clustering(graph.edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters,
+                                  clusters)
+
+
 @numba.njit
-def fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, randomise_order=False,
-                      clusters=np.empty(0, dtype=np.int64), num_iters=1):
+def _fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, num_iters=1,
+                       clusters=np.empty(0, dtype=np.int64)):
     r"""
     FENNEL single-pass graph clustering algorithm
 
