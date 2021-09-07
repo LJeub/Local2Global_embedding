@@ -35,9 +35,10 @@ class TGraph:
         self.edge_attr = edge_attr  #: edge weights if weighted, otherwise ``None``
         self.degree = torch.zeros(self.num_nodes, dtype=torch.long, device=self.device)  #: tensor of node degrees
         self.degree.index_add_(0, self.edge_index[0],
-                               torch.ones(1, dtype=torch.long, device=self.device).expand(self.num_edges))
+                               torch.ones(1, dtype=torch.long, device=self.device).expand(self.num_edges))  # use expand to avoid actually allocating large array
         self.adj_index = torch.zeros(self.num_nodes + 1, dtype=torch.long)  #: adjacency index such that edges starting at node ``i`` are given by ``edge_index[:, adj_index[i]:adj_index[i+1]]``
         self.adj_index[1:] = torch.cumsum(self.degree, 0)
+        # use expand to avoid actually allocating large array
         self.weights = edge_attr if edge_attr is not None else torch.ones(1, device=self.device).expand(self.num_edges)  #: edge weights
         if self.weighted:
             self.strength = torch.zeros(self.num_nodes, device=self.device)  #: tensor of node strength
