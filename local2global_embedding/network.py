@@ -12,7 +12,7 @@ class TGraph:
     """Wrapper class for pytorch-geometric edge_index providing fast adjacency look-up."""
 
     def __init__(self, edge_index, edge_attr: _t.Optional[torch.Tensor] = None, num_nodes: _t.Optional[int] = None,
-                 ensure_sorted: bool = True, undir:_t.Optional[bool] = None):
+                 ensure_sorted: bool = False, undir:_t.Optional[bool] = None):
         """
         Initialise graph
 
