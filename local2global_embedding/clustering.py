@@ -9,57 +9,8 @@ import pymetis
 import numpy as np
 from tqdm.auto import tqdm
 import numba
-from numba.experimental import jitclass
-
 
 from local2global_embedding.network import TGraph
-
-
-@jitclass
-class NodeStream:
-    _data: numba.int64[:, :]
-    num_nodes: numba.int64
-
-    def __init__(self, edge_index, num_nodes):
-        """
-        Initialize node-stream data
-
-        Args:
-            edge_index: Edge index to stream (can be a file path to a .npy file which is then memory mapped)
-            num_nodes: number of nodes
-
-        Note that edge index needs to be sorted!
-        """
-        self._data = edge_index
-        self.num_nodes = num_nodes
-
-    def __iter__(self):
-        current_node = 0
-        neighbours = []
-        for i in range(self._data.shape[1]):
-            edge = self._data[:, i]
-            if current_node == edge[0]:
-                neighbours.append(edge[1])
-            else:
-                yield current_node, neighbours  # all neighbours accumulated
-                for missing_node in range(current_node+1, edge[0]):
-                    yield missing_node, []  # output nodes with degree 0
-                current_node = edge[0]
-                neighbours = [edge[1]]
-        yield current_node, neighbours  # output last node with edges
-        for missing_node in range(current_node+1, self.num_nodes):
-            yield missing_node, []  # output any remaining nodes of degree 0
-
-    @property
-    def num_edges(self):
-        return self._data.shape[1]
-
-    @property
-    def device(self):
-        return 'cpu'
-
-    def __len__(self):
-        return self.num_nodes
 
 
 def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_samples=2):
