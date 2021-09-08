@@ -158,13 +158,14 @@ def _load_mag240(root='.'):
                                      shape=(undir_index.shape[1],),
                                      mode='w+')
             num_edges = _transform_mag240m(edge_index, undir_index, sort_index, num_nodes)
-            undir_index = undir_index[:, num_edges]
+            undir_index = undir_index[:, :num_edges]
             f = NamedTemporaryFile(delete=False)
             np.save(f, undir_index)
             f.close()
             shutil.copy(f.name, undir_index_file)
             del sort_index
             Path(sort_index_file.name).unlink()
+            Path(f.name).unlink()
 
         with open(data_folder / 'info.json', 'w') as f:
             json.dump({'num_nodes': num_nodes, 'undir': True}, f)
