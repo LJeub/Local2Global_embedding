@@ -85,11 +85,15 @@ def close_progress():
 
 
 def fennel_clustering(graph, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, num_iters=1, clusters=None):
+    edge_index = graph.edge_index
+    if isinstance(edge_index, torch.Tensor):
+        edge_index = edge_index.cpu().numpy()
     if clusters is None:
-        return _fennel_clustering(graph.edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters)
+        clusters = _fennel_clustering(edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters)
     else:
-        return _fennel_clustering(graph.edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters,
-                                  clusters)
+        clusters = _fennel_clustering(edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters,
+                                      clusters)
+    return torch.as_tensor(clusters)
 
 
 @numba.njit
