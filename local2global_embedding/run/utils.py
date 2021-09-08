@@ -166,7 +166,7 @@ def _load_mag240(root='.'):
             del sort_index
             Path(sort_index_file.name).unlink()
 
-        with open(data_folder / 'info.json') as f:
+        with open(data_folder / 'info.json', 'w') as f:
             json.dump({'num_nodes': num_nodes, 'undir': True}, f)
 
         shutil.copy(root / 'mag240m_kddcup2021' / 'processed' / 'paper' / 'node_feat.npy', data_folder)
