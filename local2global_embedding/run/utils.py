@@ -97,8 +97,9 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
         print('pass over edges in forward direction')
         reset_progress(edge_index.shape[1])
     for i in range(edge_index.shape[1]):
-        edge = edge_index[:, i]
-        sort_index[i] = edge[0] * num_nodes + edge[1]
+        e = edge_index[0, i]
+        sort_index[i] = e * num_nodes
+        sort_index[i+edge_index.shape[1]] = e
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
                 update_progress(1000000)
@@ -106,8 +107,9 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
         print('pass over edges in reverse direction')
         reset_progress(edge_index.shape[1])
     for i in range(edge_index.shape[1]):
-        edge = edge_index[:, i]
-        sort_index[edge_index.shape[1]+i] = edge[1] * num_nodes + edge[0]
+        e = edge_index[1, i]
+        sort_index[i] += e
+        sort_index[edge_index.shape[1]+i] += e * num_nodes
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
                 update_progress(1000000)
