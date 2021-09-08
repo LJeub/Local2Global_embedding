@@ -17,7 +17,7 @@ import numpy as np
 class TGraph:
     """Wrapper class for pytorch-geometric edge_index providing fast adjacency look-up."""
 
-    def __init__(self, edge_index, edge_attr: _t.Optional[torch.Tensor] = None, num_nodes: _t.Optional[int] = None,
+    def __init__(self, edge_index, edge_attr: _t.Optional[torch.Tensor] = None, x=None, y=None, num_nodes: _t.Optional[int] = None,
                  ensure_sorted: bool = False, undir:_t.Optional[bool] = None):
         """
         Initialise graph
@@ -31,6 +31,8 @@ class TGraph:
         """
         self.num_nodes = int(torch.max(edge_index)+1) if num_nodes is None else int(num_nodes)  #: number of nodes
         self.num_edges = int(edge_index.shape[1])  #: number of edges
+        self.x = x
+        self.y = y
         if ensure_sorted:
             index = torch.argsort(edge_index[0]*self.num_nodes+edge_index[1])
             edge_index = edge_index[:, index]
@@ -150,11 +152,13 @@ class TGraph:
         node_ids[nodes] = torch.arange(len(nodes), device=self.device)
         index = index[node_mask[self.edge_index[1][index]]]
         edge_attr = self.edge_attr
+        x = None if self.x is None else self.x[nodes, :]
+        y = None if self.y is None else self.y[nodes]
         return TGraph(edge_index=node_ids[self.edge_index[:, index]],
                               edge_attr=edge_attr[index] if edge_attr is not None else None,
                               num_nodes=len(nodes),
                               ensure_sorted=False,
-                              undir=self.undir)
+                              undir=self.undir, x=x, y=y)
 
     def connected_component_ids(self):
         """Find the (weakly)-connected components. Component ids are sorted by size, such that id=0 corresponds
@@ -183,6 +187,12 @@ class TGraph:
         else:
             nxgraph = nx.DiGraph()
         nxgraph.add_nodes_from(range(self.num_nodes))
+        if self.x is not None:
+            for i in range(self.num_nodes):
+                nxgraph.nodes[i]['x'] = self.x[i, :]
+        if self.y is not None:
+            for i in range(self.num_nodes):
+                nxgraph.nodes[i]['y'] = self.y[i]
         if self.weighted:
             nxgraph.add_weighted_edges_from(self.edges_weighted())
         else:
@@ -224,6 +234,9 @@ class TGraph:
 
 
 class NPGraph:
+    """
+    numpy backed graph class with support for memmapped edge_index
+    """
     @classmethod
     def load(cls, folder, mmap_mode=None):
         folder = Path(folder)
@@ -240,6 +253,15 @@ class NPGraph:
             with open(info_file) as f:
                 info = json.load(f)
             kwargs.update(info)
+
+        feat_file = folder / 'node_feat.npy'
+        if feat_file.is_file():
+            kwargs['x'] = np.load(feat_file, mmap_mode=mmap_mode)
+
+        label_file = folder / 'node_label.npy'
+        if label_file.is_file():
+            kwargs['y'] = np.load(label_file)
+
         return cls(**kwargs)
 
     def save(self, folder):
@@ -253,9 +275,18 @@ class NPGraph:
         with open(folder / 'info.json', 'w') as f:
             json.dump(info, f)
 
-    def __init__(self, edge_index, edge_attr=None, num_nodes=None, ensure_sorted=False, undir=None):
+        if self.y is not None:
+            np.save(self.y, folder / 'node_label.npy')
+
+        if self.x is not None:
+            np.save(self.x, folder / 'node_feat.npy')
+
+    def __init__(self, edge_index, edge_attr=None, x=None, y=None, num_nodes=None, ensure_sorted=False, undir=None):
         self.edge_index = edge_index
         self.edge_attr = edge_attr
+        self.x = x
+        self.y = y
+
         if num_nodes is None:
             self.num_nodes = np.max(edge_index) + 1
         else:
