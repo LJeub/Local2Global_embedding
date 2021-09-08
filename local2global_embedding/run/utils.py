@@ -108,7 +108,7 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
         sort_index['index'][i] = i
     with numba.objmode:
         print('sortin edge_index')
-        sort_index.sort(kind='quicksort', order='key')
+        sort_index.sort(kind='heapsort', order='key')
         reset_progress(sort_index.size-1)
     num_edges = 1
     index = sort_index['index'][0]
