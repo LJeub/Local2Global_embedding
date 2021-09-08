@@ -107,6 +107,7 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
     for i in range(sort_index.size):
         sort_index['index'][i] = i
     with numba.objmode:
+        print('sortin edge_index')
         sort_index.sort(kind='quicksort', order='key')
         reset_progress(sort_index.size-1)
     num_edges = 1
@@ -158,7 +159,10 @@ def _load_mag240(root='.'):
                                      mode='w+')
             num_edges = _transform_mag240m(edge_index, undir_index, sort_index, num_nodes)
             undir_index = undir_index[:, num_edges]
-            np.save(undir_index_file, undir_index)
+            f = NamedTemporaryFile(delete=False)
+            np.save(f, undir_index)
+            f.close()
+            Path(f.name).replace(undir_index_file)
             del sort_index
             Path(sort_index_file.name).unlink()
 
