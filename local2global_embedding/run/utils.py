@@ -97,15 +97,15 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
         reset_progress(edge_index.shape[1])
     for i in range(edge_index.shape[1]):
         edge = edge_index[:, i]
-        sort_index['key'][i] = edge[0] * num_nodes + edge[1]
-        sort_index['key'][edge_index.shape[1]+i] = edge[1] * num_nodes + edge[0]
+        sort_index[i]['key'] = edge[0] * num_nodes + edge[1]
+        sort_index[i]['key'] = i
+        sort_index[edge_index.shape[1]+i]['key'] = edge[1] * num_nodes + edge[0]
+        sort_index[edge_index.shape[1]+i]['key'] = edge_index.shape[1]+i
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
                 update_progress(1000000)
     with numba.objmode:
         close_progress()
-    for i in range(sort_index.size):
-        sort_index['index'][i] = i
     with numba.objmode:
         print('sortin edge_index')
         sort_index.sort(kind='heapsort', order='key')
