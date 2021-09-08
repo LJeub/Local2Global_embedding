@@ -94,36 +94,35 @@ def close_progress():
 @numba.njit
 def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
     with numba.objmode:
+        print('pass over edges in forward direction')
         reset_progress(edge_index.shape[1])
     for i in range(edge_index.shape[1]):
         edge = edge_index[:, i]
-        sort_index[i]['key'] = edge[0] * num_nodes + edge[1]
-        sort_index[i]['key'] = i
-        sort_index[edge_index.shape[1]+i]['key'] = edge[1] * num_nodes + edge[0]
-        sort_index[edge_index.shape[1]+i]['key'] = edge_index.shape[1]+i
+        sort_index[i] = edge[0] * num_nodes + edge[1]
+        if i % 1000000 == 0 and i > 0:
+            with numba.objmode:
+                update_progress(1000000)
+    with numba.objmode:
+        print('pass over edges in reverse direction')
+        reset_progress(edge_index.shape[1])
+    for i in range(edge_index.shape[1]):
+        edge = edge_index[:, i]
+        sort_index[edge_index.shape[1]+i] = edge[1] * num_nodes + edge[0]
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
                 update_progress(1000000)
     with numba.objmode:
         close_progress()
     with numba.objmode:
-        print('sortin edge_index')
-        sort_index.sort(kind='heapsort', order='key')
+        print('sorting edge_index')
+        sort_index.sort()
         reset_progress(sort_index.size-1)
     num_edges = 1
-    index = sort_index['index'][0]
-    if index > num_nodes:
-        undir_index[:, 0] = edge_index[::-1, index - num_nodes]
-    else:
-        undir_index[:, 0] = edge_index[:, index]
-    for it, index in enumerate(sort_index['index'][1:]):
-        if index > num_nodes:
-            edge = edge_index[::-1, index-num_nodes]
-        else:
-            edge = edge_index[:, index]
-        if not np.array_equal(undir_index[:, num_edges-1], edge):
+    undir_index[:, 0] = divmod(sort_index[0], num_nodes)
+    for it, index in enumerate(sort_index[1:]):
+        if sort_index[it] != index:
             # bidirectional edges in the original data will be duplicated and need to be removed
-            undir_index[:, num_edges] = edge
+            undir_index[:, num_edges] = divmod(sort_index[0], num_nodes)
             num_edges += 1
         if it % 1000000 == 0 and it > 0:
             with numba.objmode:
@@ -154,7 +153,7 @@ def _load_mag240(root='.'):
         if np.array_equal(undir_index[:, -1], [0, 0]):
             sort_index_file = NamedTemporaryFile(delete=False, suffix='.npy')
             sort_index_file.close()
-            sort_index = open_memmap(sort_index_file.name, dtype=[('key', 'i8'), ('index', 'i8')],
+            sort_index = open_memmap(sort_index_file.name, dtype='i8',
                                      shape=(undir_index.shape[1],),
                                      mode='w+')
             num_edges = _transform_mag240m(edge_index, undir_index, sort_index, num_nodes)
