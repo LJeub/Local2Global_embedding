@@ -80,7 +80,6 @@ def _load_amazon_photos(root='/tmp'):
 def reset_progress(total):
     global pbar
     pbar = tqdm(total=total)
-    pbar.update(0)
 
 
 def update_progress(iterations):
@@ -96,18 +95,18 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
     with numba.objmode:
         print('pass over edges in forward direction')
         reset_progress(edge_index.shape[1])
-    for i in range(edge_index.shape[1]):
-        e = edge_index[0, i]
+
+    for i, e in enumerate(edge_index[0]):
         sort_index[i] = e * num_nodes
         sort_index[i+edge_index.shape[1]] = e
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
                 update_progress(1000000)
     with numba.objmode:
-        print('pass over edges in reverse direction')
+        close_progress()
+        print('\n pass over edges in reverse direction\n')
         reset_progress(edge_index.shape[1])
-    for i in range(edge_index.shape[1]):
-        e = edge_index[1, i]
+    for i, e in enumerate(edge_index[1]):
         sort_index[i] += e
         sort_index[edge_index.shape[1]+i] += e * num_nodes
         if i % 1000000 == 0 and i > 0:
@@ -115,9 +114,9 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
                 update_progress(1000000)
     with numba.objmode:
         close_progress()
-    with numba.objmode:
-        print('sorting edge_index')
+        print('\n sorting edge_index\n')
         sort_index.sort()
+        print('storing undirected edges')
         reset_progress(sort_index.size-1)
     num_edges = 1
     undir_index[:, 0] = divmod(sort_index[0], num_nodes)
@@ -163,7 +162,7 @@ def _load_mag240(root='.'):
             f = NamedTemporaryFile(delete=False)
             np.save(f, undir_index)
             f.close()
-            Path(f.name).replace(undir_index_file)
+            shutil.copy(f.name, undir_index_file)
             del sort_index
             Path(sort_index_file.name).unlink()
 
