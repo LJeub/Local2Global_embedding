@@ -28,6 +28,7 @@ class Graph:
     """
     weights: Sequence
     degree: Sequence
+    device = 'cpu'
 
     @staticmethod
     def _convert_input(input):
