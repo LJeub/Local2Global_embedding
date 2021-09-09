@@ -3,11 +3,11 @@ import torch
 import torch_geometric as tg
 import torch_scatter as ts
 
-from local2global_embedding.network import TGraph, conductance, induced_subgraph
+from local2global_embedding.network import TGraph, conductance
 from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree
 
 
-def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_overlap):
+def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_overlap, reseed_samples=10):
     """
     expand patch
 
@@ -33,12 +33,17 @@ def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_
     while overlap.numel() < min_overlap:
         new_nodes = torch.unique(torch.cat([subgraph.adj(node) for node in new_nodes]))
         new_nodes = new_nodes[mask[new_nodes]]
+        if not new_nodes.numel():
+            # no more connected nodes to add so add some remaining nodes by random sampling
+            new_nodes = torch.nonzero(mask).flatten()
+            if new_nodes.size > reseed_samples:
+                new_nodes = new_nodes[
+                    torch.multinomial(torch.ones(new_nodes.shape), reseed_samples, replacement=False)]
         if overlap.numel() + new_nodes.numel() > target_overlap:
             new_nodes = new_nodes[
                 torch.multinomial(torch.ones(new_nodes.shape), target_overlap - overlap.numel(), replacement=False)]
         if not new_nodes.numel():
-            print("Could not reach minimum overlap.")
-            break
+            raise RuntimeError("Could not reach minimum overlap.")
         mask[new_nodes] = False
         overlap = torch.cat((overlap, new_nodes))
 
@@ -73,10 +78,13 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
         p = parts[smallest_id]
         for node in p:
             other = partition_tensor[graph.adj(node)]
-            out_neighbour_fraction.scatter_add_(0, other, torch.ones(other.shape, device=graph.device))
-        out_neighbour_fraction /= part_degs  # encourage merging with smaller clusters
-        out_neighbour_fraction[smallest_id] = 0
-        merge = torch.argmax(out_neighbour_fraction)
+            out_neighbour_fraction.scatter_add_(0, other, torch.ones(1).expand(other.shape, device=graph.device))
+        if out_neighbour_fraction.sum() == 0:
+            merge = torch.argsort(sizes)[1]
+        else:
+            out_neighbour_fraction /= part_degs  # encourage merging with smaller clusters
+            out_neighbour_fraction[smallest_id] = 0
+            merge = torch.argmax(out_neighbour_fraction)
         if merge > smallest_id:
             new_id = smallest_id
             other = merge
