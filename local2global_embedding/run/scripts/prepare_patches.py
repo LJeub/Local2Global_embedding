@@ -30,9 +30,9 @@ from local2global_embedding.clustering import louvain_clustering, metis_clusteri
 from local2global_embedding.network import TGraph
 
 
-def prepare_patches(output_folder, name: str, data_root='/tmp', min_overlap: int, target_overlap: int,
+def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: int, data_root='/tmp',
                     min_patch_size: int = None, cluster='metis', num_clusters=10, num_iters: Optional[int]=None, beta=0.1,
-                    sparsify='resistance', target_patch_degree=4.0, gamma=0.0,
+                    sparsify='resistance', target_patch_degree=4.0, gamma=0.0, normalise=False, restrict_lcc=False,
                     verbose=False):
     """
     initialise patch data
@@ -63,8 +63,7 @@ def prepare_patches(output_folder, name: str, data_root='/tmp', min_overlap: int
         cluster_fun = lambda graph: distributed_clustering(graph, beta, rounds=num_iters)
         cluster_string = f'distributed_beta{beta}_it{num_iters}'
     elif cluster == 'fennel':
-        cluster_fun = lambda graph: fennel_clustering(graph, num_clusters=num_clusters, randomise_order=True,
-                                                num_iters=num_iters)
+        cluster_fun = lambda graph: fennel_clustering(graph, num_clusters=num_clusters, num_iters=num_iters)
         cluster_string = f"fennel_n{num_clusters}_it{num_iters}"
     elif cluster == 'metis':
         cluster_fun = lambda graph: metis_clustering(graph, num_clusters=num_clusters)
@@ -79,7 +78,7 @@ def prepare_patches(output_folder, name: str, data_root='/tmp', min_overlap: int
     with SoftFileLock(patch_folder.with_suffix('.lock'), timeout=10):  # make sure not to create patches twice
         if not (patch_folder / 'patch_graph.pt').is_file():
             print(f'creating patches in {patch_folder}')
-            graph = load_data(name, root=data_root)
+            graph = load_data(name, root=data_root, normalise=normalise, restrict_lcc=restrict_lcc)
 
             cluster_file = output_folder / f"{name}_{cluster_string}_clusters.pt"
             if cluster_file.is_file():
