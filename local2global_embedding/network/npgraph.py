@@ -23,8 +23,26 @@ from pathlib import Path
 import networkx as nx
 import numpy as np
 import torch
+import numba
 
 from .graph import Graph
+from local2global_embedding import progress
+
+
+@numba.njit
+def _memmap_degree(edge_index, num_nodes):
+    degree = np.zeros(num_nodes, dtype=np.int64)
+    with numba.objmode:
+        print('computing degrees')
+        progress.reset_progress(edge_index.shape[1])
+    for it, source in enumerate(edge_index[0]):
+        degree[source] += 1
+        if it % 1000000 == 0 and it > 0:
+            with numba.objmode:
+                progress.update_progress(1000000)
+    with numba.objmode:
+        progress.close_progress()
+    return degree
 
 
 class NPGraph(Graph):
@@ -106,8 +124,11 @@ class NPGraph(Graph):
                     self.edge_attr = self.edge_attr[index]
 
         if self.adj_index is None:
-            self.degree = np.zeros(self.num_nodes, dtype=np.int64)
-            np.add.at(self.degree, self.edge_index[0], 1)
+            if isinstance(self.edge_index, np.memmap):
+                self.degree = _memmap_degree(self.edge_index, self.num_nodes)
+            else:
+                self.degree = np.zeros(self.num_nodes, dtype=np.int64)
+                np.add.at(self.degree, self.edge_index[0], 1)
             self.adj_index = np.zeros(self.num_nodes + 1, dtype=np.int64)  #: adjacency index such that edges starting at node ``i`` are given by ``edge_index[:, adj_index[i]:adj_index[i+1]]``
             self.degree.cumsum(out=self.adj_index[1:])
         else:
