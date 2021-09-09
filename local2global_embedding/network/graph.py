@@ -210,3 +210,7 @@ class Graph:
 
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def partition_graph(self, partition):
+        raise NotImplementedError

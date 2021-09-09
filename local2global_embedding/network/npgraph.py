@@ -19,9 +19,11 @@
 #  SOFTWARE.
 import json
 from pathlib import Path
+from tempfile import TemporaryFile
 
 import networkx as nx
 import numpy as np
+from numpy.lib.format import open_memmap
 import torch
 import numba
 
@@ -43,6 +45,25 @@ def _memmap_degree(edge_index, num_nodes):
     with numba.objmode:
         progress.close_progress()
     return degree
+
+@numba.njit
+def _memmap_partition_graph(edge_index, partition, workspace, num_clusters):
+    with numba.objmode:
+        print('finding partition edges')
+        progress.reset_progress(edge_index.shape[1])
+    for i, edge in enumerate(edge_index.T):
+        workspace[i] = partition[edge[0]]*num_clusters + partition[edge[1]]
+        if i % 1000000 == 0 and i > 0:
+            with numba.objmode:
+                progress.update_progress(1000000)
+    with numba.objmode:
+        progress.close_progress()
+        print('find unique edges')
+    pe_index, pe_weight = np.unique(workspace, return_counts=True)
+    partition_edges = np.divmod(pe_index, num_clusters)
+    print('done')
+    return np.stack(partition_edges), pe_weight
+
 
 
 class NPGraph(Graph):
@@ -303,3 +324,17 @@ class NPGraph(Graph):
             bfs_list[append_pointer:append_pointer+number_new_nodes] = new_nodes
             append_pointer += number_new_nodes
         return bfs_list
+
+    def partition_graph(self, partition):
+        num_clusters = np.max(partition) + 1
+        if isinstance(self.edge_index, np.memmap):
+            with TemporaryFile() as f:
+                workspace = np.memmap(f, dtype=np.int64, shape=(self.edge_index.shape[1],))
+                partition_edges, weights = _memmap_partition_graph(self.edge_index, partition, workspace, num_clusters)
+        else:
+            pe_index = partition[self.edge_index[0]]*num_clusters + partition[self.edge_index[1]]
+            partition_edges, weights = np.unique(pe_index, return_counts=True)
+            partition_edges = np.stack(np.divmod(np.unique(partition_edges), num_clusters))
+        return self.__class__(edge_index=partition_edges, edge_attr=weights, num_nodes=num_clusters, undir=self.undir)
+
+
