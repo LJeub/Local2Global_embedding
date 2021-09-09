@@ -11,6 +11,7 @@ from tqdm.auto import tqdm
 import numba
 
 from local2global_embedding.network import TGraph
+from local2global_embedding import progress
 
 
 def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_samples=2):
@@ -68,20 +69,6 @@ def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_sam
     if uc[0] == -1:
         clusters -= 1
     return clusters
-
-
-def reset_progress(total):
-    global pbar
-    pbar = tqdm(total=total)
-    pbar.update(0)
-
-
-def update_progress(iterations):
-    pbar.update(iterations)
-
-
-def close_progress():
-    pbar.close()
 
 
 def fennel_clustering(graph, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, num_iters=1, clusters=None):
@@ -161,7 +148,7 @@ def _fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alph
         return ind != old_cluster
 
     with numba.objmode:
-        reset_progress(total)
+        progress.reset_progress(total)
 
     for it in range(num_iters):
         not_converged = 0
@@ -183,9 +170,9 @@ def _fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alph
             if i % 1000000 == 0 and i > 0:
                 progress_it = i
                 with numba.objmode:
-                    update_progress(1000000)
+                    progress.update_progress(1000000)
         with numba.objmode:
-            update_progress(num_edges-progress_it)
+            progress.update_progress(num_edges-progress_it)
 
         not_converged += update_cluster(current_node, neighbours)  # output last node with edges
         for missing_node in range(current_node + 1, num_nodes):
@@ -197,7 +184,7 @@ def _fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alph
             print(f'converged after ' + str(it) + ' iterations.')
             break
     with numba.objmode:
-        close_progress()
+        progress.close_progress()
 
     return clusters
 

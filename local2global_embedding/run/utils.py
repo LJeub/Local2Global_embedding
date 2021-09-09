@@ -38,6 +38,7 @@ import numba
 from tqdm.auto import tqdm
 
 from local2global_embedding.network import largest_connected_component, NPGraph
+import local2global_embedding.progress as progress
 
 
 _dataloaders = {}  #: dataloaders
@@ -77,69 +78,59 @@ def _load_amazon_photos(root='/tmp'):
     return tg.datasets.Amazon(root=f'{root}/amazon', name='photo')[0]
 
 
-def reset_progress(total):
-    global pbar
-    pbar = tqdm(total=total)
 
-
-def update_progress(iterations):
-    pbar.update(iterations)
-
-
-def close_progress():
-    pbar.close()
 
 
 @numba.njit
 def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
     with numba.objmode:
         print('pass over edge source, forward')
-        reset_progress(edge_index.shape[1])
+        progress.reset_progress(edge_index.shape[1])
 
     for i, e in enumerate(edge_index[0]):
         sort_index[i] = e * num_nodes
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
-                update_progress(1000000)
+                progress.update_progress(1000000)
 
     with numba.objmode:
-        close_progress()
+        progress.close_progress()
         print('pass over edge source, backward')
-        reset_progress(edge_index.shape[1])
+        progress.reset_progress(edge_index.shape[1])
 
     for i, e in enumerate(edge_index[0]):
         sort_index[i+edge_index.shape[1]] = e
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
-                update_progress(1000000)
+                progress.update_progress(1000000)
 
     with numba.objmode:
-        close_progress()
+        progress.close_progress()
         print('\n pass over edge target, forward\n')
-        reset_progress(edge_index.shape[1])
+        progress.reset_progress(edge_index.shape[1])
 
     for i, e in enumerate(edge_index[1]):
         sort_index[i] += e
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
-                update_progress(1000000)
+                progress.update_progress(1000000)
     with numba.objmode:
-        close_progress()
+        progress.close_progress()
         print('\n pass over edge target, forward\n')
-        reset_progress(edge_index.shape[1])
+        progress.reset_progress(edge_index.shape[1])
 
     for i, e in enumerate(edge_index[1]):
         sort_index[edge_index.shape[1]+i] += e * num_nodes
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
-                update_progress(1000000)
+                progress.update_progress(1000000)
 
     with numba.objmode:
-        close_progress()
+        progress.close_progress()
         print('\n sorting edge_index\n')
         sort_index.sort()
         print('storing undirected edges')
-        reset_progress(sort_index.size-1)
+        progress.reset_progress(sort_index.size-1)
 
     num_edges = 1
     undir_index[:, 0] = divmod(sort_index[0], num_nodes)
@@ -150,10 +141,10 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
             num_edges += 1
         if it % 1000000 == 0 and it > 0:
             with numba.objmode:
-                update_progress(1000000)
+                progress.update_progress(1000000)
 
     with numba.objmode:
-        close_progress()
+        progress.close_progress()
     return num_edges
 
 
