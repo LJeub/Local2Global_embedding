@@ -37,7 +37,7 @@ from numpy.lib.format import open_memmap
 import numba
 from tqdm.auto import tqdm
 
-from local2global_embedding.network import largest_connected_component, NPGraph
+from local2global_embedding.network import NPGraph, TGraph
 import local2global_embedding.progress as progress
 
 
@@ -60,22 +60,22 @@ def dataloader(name):
 
 @dataloader('Cora')
 def _load_cora(root='/tmp'):
-    return tg.datasets.Planetoid(name='Cora', root=f'{root}/cora')[0]
+    return TGraph.from_tg(tg.datasets.Planetoid(name='Cora', root=f'{root}/cora')[0])
 
 
 @dataloader('PubMed')
 def _load_pubmed(root='/tmp'):
-    return tg.datasets.Planetoid(name='PubMed', root=f'{root}/pubmed')[0]
+    return TGraph.from_tg(tg.datasets.Planetoid(name='PubMed', root=f'{root}/pubmed')[0])
 
 
 @dataloader('AMZ_computers')
 def _load_amazon_computers(root='/tmp'):
-    return tg.datasets.Amazon(root=f'{root}/amazon', name='Computers')[0]
+    return TGraph.from_tg(tg.datasets.Amazon(root=f'{root}/amazon', name='Computers')[0])
 
 
 @dataloader('AMZ_photo')
 def _load_amazon_photos(root='/tmp'):
-    return tg.datasets.Amazon(root=f'{root}/amazon', name='photo')[0]
+    return TGraph.from_tg(tg.datasets.Amazon(root=f'{root}/amazon', name='photo')[0])
 
 
 
@@ -219,13 +219,15 @@ def load_data(name, root='/tmp', normalise=True, restrict_lcc=True):
 
     """
     data = _dataloaders[name](root)
+
     if restrict_lcc:
-        data = largest_connected_component(data=data)
+        data = data.lcc()
+
     if normalise:
         r_sum = data.x.sum(dim=1)
         r_sum[r_sum == 0] = 1.0  # avoid division by zero
         data.x /= r_sum[:, None]
-    data.num_nodes = data.x.shape[0]
+
     return data
 
 
