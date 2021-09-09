@@ -86,10 +86,11 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     if dims is None:
         dims = [2]
     output_folder = Path(output)
-    data_file = output_folder / f'{name}_data.pt'
-    if not data_file.is_file():
-        data = load_data(name, data_root)
-        torch.save(data, data_file)
+    if run_baseline:
+        data_file = output_folder / f'{name}_data.pt'
+        if not data_file.is_file():
+            data = load_data(name, data_root)
+            torch.save(data, data_file)
 
     train_basename = f'{name}_{model}'
     eval_basename = f'{name}_{model}'
