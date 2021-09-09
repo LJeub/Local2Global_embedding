@@ -184,13 +184,25 @@ def _load_mag240(root='.'):
 
         with open(data_folder / 'info.json', 'w') as f:
             json.dump({'num_nodes': num_nodes, 'undir': True}, f)
-        print('link node features')
-        (root / 'mag240m_kddcup2021' / 'processed' / 'paper' / 'node_feat.npy').link_to(data_folder / 'node_feat.npy')
-        print('link node labels')
-        (root / 'mag240m_kddcup2021' / 'processed' / 'paper' / 'node_label.npy').link_to(data_folder / 'node_label.npy')
+
+        feat_file = data_folder / 'node_feat.npy'
+        if not feat_file.is_file():
+            print('link node features')
+            (root / 'mag240m_kddcup2021' / 'processed' / 'paper' / 'node_feat.npy').link_to(feat_file)
+
+        label_file = data_folder / 'node_label.npy'
+        if not label_file.is_file():
+            print('link node labels')
+            (root / 'mag240m_kddcup2021' / 'processed' / 'paper' / 'node_label.npy').link_to(label_file)
+
         (data_folder / 'processed').touch()
 
     data = NPGraph.load(data_folder, mmap_mode='r')
+
+    index_file = data_folder / 'adj_index.npy'
+    if not index_file.is_file():
+        np.save(index_file, data.adj_index)
+
     return data
 
 
