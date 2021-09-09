@@ -21,69 +21,13 @@
 #  SOFTWARE.
 
 import torch
-import torch_geometric as tg
 from networkx.utils import UnionFind
 
 from local2global_embedding.network.tgraph import TGraph
+from .graph import Graph
 
 
-def connected_components(data: tg.data.Data):
-    """
-    Find the (weakly)-connected components of graph data. Components are sorted by size, such that id=0 corresponds
-     to the largest connected component
-
-     Args:
-         data: input graph data
-     """
-    graph = TGraph(data.edge_index)
-    return graph.connected_component_ids()
-
-
-def largest_connected_component(data: tg.data.Data):
-    """find largest connected component of data
-
-    Args:
-        data: input graph data
-    """
-    components = connected_components(data)
-    nodes = torch.nonzero(components == 0).flatten()
-    return induced_subgraph(data, nodes)
-
-
-def induced_subgraph(data: tg.data.Data, nodes, extend_hops=0):
-    """
-    find the subgraph induced by the neighbourhood of a set of nodes
-
-    Args:
-        data: input graph data
-        nodes: set of source nodes
-        extend_hops: number of hops for the neighbourhood (default: 0)
-
-    Returns:
-        data for induced subgraph
-    """
-    nodes = torch.as_tensor(nodes, dtype=torch.long)
-    if extend_hops > 0:
-        nodes, edge_index, node_map, edge_mask = tg.utils.k_hop_subgraph(nodes, num_hops=extend_hops,
-                                                                         edge_index=data.edge_index,
-                                                                         relabel_nodes=True)
-        edge_attr = data.edge_attr[edge_mask, :] if data.edge_attr is not None else None
-    else:
-        edge_index, edge_attr = tg.utils.subgraph(nodes, data.edge_index, data.edge_attr, relabel_nodes=True)
-
-    subgraph = tg.data.Data(edge_index=edge_index, edge_attr=edge_attr)
-    for key, value in data.__dict__.items():
-        if not key.startswith('edge'):
-            if hasattr(value, 'shape') and value.shape[0] == data.num_nodes:
-                setattr(subgraph, key, value[nodes])
-            else:
-                setattr(subgraph, key, value)
-    subgraph.nodes = nodes
-    subgraph.num_nodes = len(nodes)
-    return subgraph
-
-
-def conductance(graph: TGraph, source, target=None):
+def conductance(graph: Graph, source, target=None):
     """
     compute conductance between source and target nodes
 
