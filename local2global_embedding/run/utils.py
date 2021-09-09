@@ -221,7 +221,7 @@ def load_data(name, root='/tmp', normalise=True, restrict_lcc=True):
     data = _dataloaders[name](root)
 
     if restrict_lcc:
-        data = data.lcc()
+        data = data.lcc(relabel=True)
 
     if normalise:
         r_sum = data.x.sum(dim=1)

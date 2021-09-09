@@ -114,7 +114,7 @@ class TGraph(Graph):
             all_nodes.append(new_nodes)
         return torch.cat(all_nodes)
 
-    def subgraph(self, nodes: torch.Tensor):
+    def subgraph(self, nodes: torch.Tensor, relabel=False):
         """
         find induced subgraph for a set of nodes
 
@@ -132,13 +132,21 @@ class TGraph(Graph):
         node_ids[nodes] = torch.arange(len(nodes), device=self.device)
         index = index[node_mask[self.edge_index[1][index]]]
         edge_attr = self.edge_attr
+        if relabel:
+            node_labels = None
+        else:
+            node_labels = [self.nodes[n] for n in nodes]
         x = None if self.x is None else self.x[nodes, :]
         y = None if self.y is None else self.y[nodes]
-        return TGraph(edge_index=node_ids[self.edge_index[:, index]],
+        return self.__class__(edge_index=node_ids[self.edge_index[:, index]],
                               edge_attr=edge_attr[index] if edge_attr is not None else None,
                               num_nodes=len(nodes),
                               ensure_sorted=False,
-                              undir=self.undir, x=x, y=y)
+                              undir=self.undir,
+                              x=x,
+                              y=y,
+                              nodes=node_labels
+                              )
 
     def connected_component_ids(self):
         """Find the (weakly)-connected components. Component ids are sorted by size, such that id=0 corresponds

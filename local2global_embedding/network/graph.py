@@ -44,7 +44,7 @@ class Graph:
 
     @abstractmethod
     def __init__(self, edge_index, edge_attr=None, x=None, y=None, num_nodes=None, adj_index=None,
-                 ensure_sorted=False, undir=None):
+                 ensure_sorted=False, undir=None, nodes=None):
         """
         Initialise graph
 
@@ -57,6 +57,7 @@ class Graph:
         """
         self.edge_index = self._convert_input(edge_index)
         self.edge_attr = self._convert_input(edge_attr)
+        self._nodes = self._convert_input(nodes)
         self.x = self._convert_input(x)
         self.y = self._convert_input(y)
         self.num_nodes = num_nodes
@@ -73,6 +74,13 @@ class Graph:
     @property
     def num_edges(self):
         return self.edge_index.shape[1]
+
+    @property
+    def nodes(self):
+        if self._nodes is None:
+            return range(self.num_nodes)
+        else:
+            return self._nodes
 
     def adj(self, node: int):
         """
@@ -131,7 +139,7 @@ class Graph:
         raise NotImplementedError
 
     @abstractmethod
-    def subgraph(self, nodes: Iterable):
+    def subgraph(self, nodes: Iterable, relabel=False):
         """
         find induced subgraph for a set of nodes
 
@@ -159,8 +167,8 @@ class Graph:
         """Iterator over nodes in the largest connected component"""
         return (i for i, c in enumerate(self.connected_component_ids()) if c == 0)
 
-    def lcc(self):
-        return self.subgraph(self.nodes_in_lcc())
+    def lcc(self, relabel=False):
+        return self.subgraph(self.nodes_in_lcc(), relabel)
 
     def to_networkx(self):
         """convert graph to NetworkX format"""
@@ -186,7 +194,8 @@ class Graph:
                              num_nodes=self.num_nodes,
                              adj_index=self.adj_index,
                              ensure_sorted=False,
-                             undir=self.undir)
+                             undir=self.undir,
+                             nodes=self._nodes)
 
     @abstractmethod
     def bfs_order(self, start=0):
