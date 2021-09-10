@@ -78,6 +78,7 @@ def load_data(name, root='/tmp', normalise=False, restrict_lcc=False):
         graph data
 
     """
+    root = Path(root).expanduser()
     data = _dataloaders[name](root)
 
     if restrict_lcc:
@@ -92,7 +93,8 @@ def load_data(name, root='/tmp', normalise=False, restrict_lcc=False):
 
 
 def load_classification_problem(name, root='/tmp', restrict_lcc=False):
-    y, split = _classification_loader[name]()
+    root = Path(root).expanduser()
+    y, split = _classification_loader[name](root=root)
     if restrict_lcc:
         graph = load_data(name, root, restrict_lcc=False)
         index = graph.nodes_in_lcc()
