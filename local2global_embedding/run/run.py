@@ -86,6 +86,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     if dims is None:
         dims = [2]
     output_folder = Path(output)
+    print(f'Started experiment for data set {name}.')
+    print(f'Results will be placed in {output_folder}.')
 
     mmap_mode = 'r' if use_mmap else None
 
