@@ -76,15 +76,15 @@ def fennel_clustering(graph, num_clusters, load_limit=1.1, alpha=None, gamma=1.5
     if isinstance(edge_index, torch.Tensor):
         edge_index = edge_index.cpu().numpy()
     if clusters is None:
-        clusters = _fennel_clustering(edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters)
+        clusters = _fennel_clustering(edge_index, graph.adj_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters)
     else:
-        clusters = _fennel_clustering(edge_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters,
+        clusters = _fennel_clustering(edge_index, graph.adj_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters,
                                       clusters)
     return torch.as_tensor(clusters)
 
 
 @numba.njit
-def _fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, num_iters=1,
+def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, num_iters=1,
                        clusters=np.empty(0, dtype=np.int64)):
     r"""
     FENNEL single-pass graph clustering algorithm
@@ -153,30 +153,18 @@ def _fennel_clustering(edge_index, num_nodes, num_clusters, load_limit=1.1, alph
     for it in range(num_iters):
         not_converged = 0
         current_node = 0
-        neighbours = np.empty((0,), dtype=np.int64)
 
         progress_it = 0
-        for i in range(num_edges):
-            edge = edge_index[:, i]
-            if current_node == edge[0]:
-                neighbours = np.append(neighbours, edge[1])
-            else:
-                not_converged += update_cluster(current_node, neighbours)  # all neighbours accumulated
-                for missing_node in range(current_node + 1, edge[0]):
-                    update_cluster(missing_node, np.empty((0,), dtype=np.int64))  # output nodes with degree 0
-                current_node = edge[0]
-                neighbours = np.array([edge[1]], dtype=np.int64)
+        for i in range(num_nodes):
+            neighbours = edge_index[1, adj_index[i]:adj_index[i+1]]
+            not_converged += update_cluster(current_node, neighbours)
 
-            if i % 1000000 == 0 and i > 0:
+            if i % 100000 == 0 and i > 0:
                 progress_it = i
                 with numba.objmode:
-                    progress.update_progress(1000000)
+                    progress.update_progress(100000)
         with numba.objmode:
             progress.update_progress(num_edges-progress_it)
-
-        not_converged += update_cluster(current_node, neighbours)  # output last node with edges
-        for missing_node in range(current_node + 1, num_nodes):
-            not_converged += update_cluster(missing_node, np.empty((0,), dtype=np.int64))  # output any remaining nodes of degree 0
 
         print('iteration: ' + str(it) + ', not converged: ' + str(not_converged))
 
