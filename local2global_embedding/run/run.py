@@ -86,8 +86,10 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     if dims is None:
         dims = [2]
     output_folder = Path(output).expanduser()
+    data_root = Path(data_root).expanduser()
     print(f'Started experiment for data set {name}.')
     print(f'Results will be placed in {output_folder}.')
+    print(f'Data root is {data_root}')
 
     mmap_mode = 'r' if use_mmap else None
 
@@ -102,7 +104,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
             train_basename += '_dist'
 
     patch_create_task = asyncio.create_task(run_script('prepare_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                                       output_folder=output_folder, name=name,
+                                                       output_folder=output_folder, name=name, data_root=data_root,
                                                        min_overlap=min_overlap, target_overlap=target_overlap,
                                                        cluster=cluster,
                                                        num_clusters=num_clusters, num_iters=num_iters, beta=beta,
