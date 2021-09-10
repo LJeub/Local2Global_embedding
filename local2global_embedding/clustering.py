@@ -148,7 +148,7 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
         return ind != old_cluster
 
     with numba.objmode:
-        progress.reset_progress(total)
+        progress.reset_progress(num_nodes)
 
     for it in range(num_iters):
         not_converged = 0
@@ -159,12 +159,12 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
             neighbours = edge_index[1, adj_index[i]:adj_index[i+1]]
             not_converged += update_cluster(current_node, neighbours)
 
-            if i % 100000 == 0 and i > 0:
+            if i % 10000 == 0 and i > 0:
                 progress_it = i
                 with numba.objmode:
-                    progress.update_progress(100000)
+                    progress.update_progress(10000)
         with numba.objmode:
-            progress.update_progress(num_edges-progress_it)
+            progress.update_progress(num_nodes-progress_it)
 
         print('iteration: ' + str(it) + ', not converged: ' + str(not_converged))
 
