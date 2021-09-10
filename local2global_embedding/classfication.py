@@ -88,8 +88,9 @@ def random_split(y, num_train_per_class=20, num_val=500):
         idx = idx[torch.randperm(idx.size(0))]
         idx = idx[:num_train_per_class]
         train_mask[idx] = True
-    split['train'] = train_mask.nonzero(as_tuple=False).view(-1)
-    remaining = (~train_mask).nonzero(as_tuple=False).view(-1)
+    split['train'] = train_mask.nonzero().view(-1)
+    remaining = (~train_mask).nonzero().view(-1)
+    remaining = remaining[remaining >= 0]  # only consider labelled data
     remaining = remaining[torch.randperm(remaining.size(0))]
 
     split['val'] = remaining[:num_val]
@@ -97,80 +98,74 @@ def random_split(y, num_train_per_class=20, num_val=500):
     return split
 
 
-class TrainingData(torch.utils.data.Dataset):
-    def __init__(self, x, y, split=None, mode='train', num_unlabeled=10):
-        super().__init__()
-        self.x = x
+class ClassificationProblem:
+    def __init__(self, y, x=None, split=None):
         self.y = y
-        self._train_y = torch.full_like(self.y, -1)
-        split = random_split(y) if split is None else split
-        self.train_index = split['train']
-        self._train_y[self.train_index] = self.y[self.train_index]
-        unlabeled_mask = torch.ones(y.size(), dtype=torch.bool)
-        unlabeled_mask[self.train_index] = False
-        self.unlabeled_index = torch.nonzero(unlabeled_mask).flatten()
-        self.val_index = split['val']
-        self.test_index = split['test']
-        self.num_unlabeled = num_unlabeled
-        self.mode = mode
+        self.x = x
+        self.num_labels = int(y.max()) + 1
+        if split is None:
+            self.resplit()
+        else:
+            self.split = split
 
-    def __getitem__(self, item):
-        if self.mode == 'train':
-            return self._train_getitem(item)
-        elif self.mode == 'flat_train':
-            return self.x[item], self._train_y[item]
-        elif self.mode == 'val':
-            return self._val_getitem(item)
-        elif self.mode == 'test':
-            return self._test_getitem(item)
-
-    def __len__(self):
-        if self.mode == 'train':
-            return len(self.train_index)
-        elif self.mode == 'flat_train':
-            return len(self.y)
-        elif self.mode == 'val':
-            return len(self.val_index)
-        elif self.mode == 'test':
-            return len(self.test_index)
-
-    def _train_getitem(self, index):
-        return (torch.cat((self.x[self.train_index[index]][None, :], self.x[torch.randint(len(self.unlabeled_index), (self.num_unlabeled,))])),
-                torch.cat((self.y[self.train_index[index]][None], torch.full((self.num_unlabeled,), -1, dtype=torch.long))))
-
-    def _val_getitem(self, index):
-        return self.x[self.val_index[index]], self.y[self.val_index[index]]
-
-    def _test_getitem(self, index):
-        return self.x[self.test_index[index]], self.y[self.test_index[index]]
-
-    @property
-    def train_data(self):
-        return self.x[self.train_index], self.y[self.train_index]
-
-    @property
-    def val_data(self):
-        return self.x[self.val_index], self.y[self.val_index]
-
-    @property
-    def test_data(self):
-        return self.x[self.test_index], self.y[self.test_index]
-
-    @property
-    def all_data(self):
-        return self.x, self.y
-
-    @property
-    def num_features(self):
-        return self.x.size(1)
-
-    @property
-    def num_labels(self):
-        return self.y.max().item() + 1
+    def resplit(self, num_train_per_class=20, num_val=500):
+        self.split = random_split(self.y, num_train_per_class=num_train_per_class, num_val=num_val)
 
     @property
     def split(self):
         return {'train': self.train_index, 'val': self.val_index, 'test': self.test_index}
+
+    @split.setter
+    def split(self, split):
+        self.train_index = split['train']
+        self.val_index = split['val']
+        self.test_index = split['test']
+
+    def training_data(self, include_unlabeled=False):
+        if self.x is None:
+            raise RuntimeError('Need to set embedding first')
+        if include_unlabeled:
+            y = torch.tensor(self.y)
+            y[self.val_index] = -1
+            y[self.test_index] = -1
+            if isinstance(self.x, np.memmap):
+                return MMapData(self.x, y)
+            else:
+                x = torch.as_tensor(self.x)
+                return torch.utils.data.TensorDataset(x, y)
+        else:
+            return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.train_index, :]),
+                                                  torch.as_tensor(self.y[self.train_index]))
+
+    def validation_data(self):
+        return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.val_index, :]),
+                                              torch.as_tensor(self.y[self.val_index]))
+
+    def test_data(self):
+        return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.test_index, :]),
+                                              torch.as_tensor(self.y[self.test_index]))
+
+    def labeled_data(self):
+        return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.y >= 0, :]),
+                                              torch.as_tensor(self.y[self.y >= 0]))
+
+    def all_data(self):
+        if isinstance(self.x, np.memmap):
+            return MMapData(self.x, self.y)
+        else:
+            return torch.utils.data.TensorDataset(torch.as_tensor(self.x), torch.as_tensor(self.y))
+
+
+class MMapData(torch.utils.data.Dataset):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, item):
+        return torch.as_tensor(self.x[item]), torch.as_tensor(self.y[item])
 
 
 class logger:
@@ -225,13 +220,16 @@ class EntMin(torch.nn.Module):
         return torch.mean(torch.distributions.Categorical(logits=logits).entropy(), dim=0)
 
 
-def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logger=lambda loss: None,
-          epoch_logger=lambda epoch: None, device=None, epsilon=1, alpha=1, beta=1, weight_decay=1e-2, decay_lr=False, xi=1e-6,
+def train(data: ClassificationProblem, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logger=lambda loss: None,
+          epoch_logger=lambda epoch: None, device=None, epsilon=1, alpha=0, beta=0, weight_decay=1e-2, decay_lr=False, xi=1e-6,
           vat_it=1,
-          teacher_alpha=0, beta_1=0.9, beta_2=0.999, adam_epsilon=1e-8, early_stop_patience=None, early_stop_path='checkpoint.pt'):
+          teacher_alpha=0, beta_1=0.9, beta_2=0.999, adam_epsilon=1e-8, early_stop_patience=None):
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    if alpha > 0 or beta > 0:
+        train_data = data.training_data(include_unlabeled=True)
+    else:
+        train_data = data.training_data(include_unlabeled=False)
     model = model.to(device)
     if teacher_alpha:
         teacher = deepcopy(model)
@@ -255,7 +253,7 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, betas=(beta_1, beta_2),
                                  eps=adam_epsilon)
     # optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
-    data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+    data_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=True)
     if decay_lr:
         lr_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(data_loader) * epochs)
 
@@ -289,15 +287,15 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
                 p = model(x)
                 return criterion(p, y) + alpha*vat_loss(model, x, p) + beta*ent_loss(p)
 
-    x_val, y_val = data.val_data
-    x_val = x_val.to(device)
-    y_val = y_val.to(device)
+    x_val, y_val = data.validation_data()[:]
+    x_val = x_val.to(device=device, dtype=torch.float32)
+    y_val = y_val.to(device=device)
     with EarlyStopping(early_stop_patience, delta=1e-4) as stop:
         for e in range(epochs):
             model.train()
             for x, y in data_loader:
-                x = x.to(device).view(-1, x.size(-1))
-                y = y.to(device).view(-1)
+                x = x.to(device=device, dtype=torch.float32, non_blocking=True).view(-1, x.size(-1))
+                y = y.to(device=device, non_blocking=True).view(-1)
                 optimizer.zero_grad()
                 loss = loss_fun(model, x, y)
                 loss.backward()
@@ -317,31 +315,37 @@ def train(data, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logge
 def predict(x, model: torch.nn.Module):
     eval_state = model.training
     model.eval()
-    x = x.to(get_device(model))
+    x = x.to(device=get_device(model), dtype=torch.float32)
     with torch.no_grad():
         labels = torch.argmax(model(x), dim=-1)
     model.training = eval_state
     return labels
 
 
-def accuracy(data: TrainingData, model: torch.nn.Module, mode='test'):
+def accuracy(data: ClassificationProblem, model: torch.nn.Module, mode='test', batch_size=None):
     if mode == 'test':
-        x, y = data.test_data
+        data = data.test_data()
     elif mode == 'val':
-        x, y = data.val_data
+        data = data.validation_data()
     elif mode == 'all':
-        x, y = data.all_data
+        data = data.labeled_data()
     else:
         raise ValueError(f'unknown mode {mode}')
-    x = x.to(get_device(model))
-    y = y.to(get_device(model))
+    if batch_size is None:
+        batch_size = len(data)
+    loader = torch.utils.data.DataLoader(data, batch_size)
+    val = 0
     with torch.no_grad():
-        val = torch.sum(predict(x, model) == y).cpu().item() / len(y)
-    return val
+        for x, y in loader:
+            x = x.to(device=get_device(model), dtype=torch.float32)
+            y = y.to(get_device(model))
+
+            val += torch.sum(predict(x, model) == y).cpu().item()
+    return val / len(data)
 
 
-def validation_accuracy(data, model: torch.nn.Module):
-    return accuracy(data, model, mode='val')
+def validation_accuracy(data, model: torch.nn.Module, batch_size=None):
+    return accuracy(data, model, mode='val', batch_size=batch_size)
 
 
 class HyperTuneObjective:
@@ -396,7 +400,7 @@ def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lam
     return objective.best_model, objective.best_parameters, pd.DataFrame.from_records(results)
 
 
-def hyper_tune(data: TrainingData, max_evals=100, min_hidden=None, max_hidden=64, max_layers=4, epochs=10, n_tries=1, random_search=False,
+def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=None, max_hidden=64, max_layers=4, epochs=10, n_tries=1, random_search=False,
                search_params=None, **kwargs):
     objective = HyperTuneObjective(data, epochs=epochs, n_tries=n_tries, **kwargs)
     trials = Trials()

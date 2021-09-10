@@ -22,6 +22,7 @@ import typing as _t
 import networkx as nx
 import torch
 import torch_scatter as ts
+import torch_geometric as tg
 
 from .graph import Graph
 
@@ -58,7 +59,7 @@ class TGraph(Graph):
 
         if self.weighted:
             self.weights = self.edge_attr
-            self.strength = torch.zeros(self.num_nodes, device=self.device)  #: tensor of node strength
+            self.strength = torch.zeros(self.num_nodes, device=self.device, dtype=self.weights.dtype)  #: tensor of node strength
             self.strength.index_add_(0, self.edge_index[0], self.weights)
         else:
             # use expand to avoid actually allocating large array
@@ -202,7 +203,7 @@ class TGraph(Graph):
             if not (graph_cls is None and device is None):
                 raise ValueError("Both positional and keyword arguments specified.")
             arg, = args
-            if issubclass(arg, Graph):
+            if isinstance(arg, type) and issubclass(arg, Graph):
                 graph_cls = arg
             else:
                 device = arg
@@ -214,10 +215,10 @@ class TGraph(Graph):
                 for key, value in self.__dict__.items():
                     if isinstance(value, torch.Tensor):
                         self.__dict__[key] = value.to(device)
+                return self
 
             if graph_cls is not None:
-                super().to(graph_cls)
-
+                return super().to(graph_cls)
 
     def bfs_order(self, start=0):
         """
@@ -258,3 +259,10 @@ class TGraph(Graph):
         partition_edges, weights = torch.unique(pe_index, return_counts=True)
         partition_edges = torch.stack((partition_edges // num_clusters, partition_edges % num_clusters), dim=0)
         return self.__class__(edge_index=partition_edges, edge_attr=weights, num_nodes=num_clusters, undir=self.undir)
+
+    def sample_negative_edges(self, num_samples):
+        return tg.utils.negative_sampling(self.edge_index, self.num_nodes, num_samples)
+
+    def sample_positive_edges(self, num_samples):
+        index = torch.randint(self.num_edges, (num_samples,), dtype=torch.long)
+        return self.edge_index[:, index]

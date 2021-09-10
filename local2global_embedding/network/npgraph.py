@@ -20,6 +20,7 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryFile
+from random import randrange
 
 import networkx as nx
 import numpy as np
@@ -29,6 +30,24 @@ import numba
 
 from .graph import Graph
 from local2global_embedding import progress
+
+
+rng = np.random.default_rng()
+
+
+@numba.njit
+def _sample_neg_edges(edge_index, adj_index, num_samples, num_nodes):
+    i = 0
+    sampled_edges = np.empty((2, num_samples), dtype=edge_index.dtype)
+    while i < num_samples:
+        source = randrange(num_nodes)
+        target = randrange(num_nodes)
+        neighbours = edge_index[1, adj_index[source:source+1]]
+        index = np.searchsorted(neighbours, target)
+        if index == len(neighbours) or neighbours[index] != target:
+            sampled_edges[0, i] = source
+            sampled_edges[1, i] = target
+    return sampled_edges
 
 
 @numba.njit
@@ -336,5 +355,12 @@ class NPGraph(Graph):
             partition_edges, weights = np.unique(pe_index, return_counts=True)
             partition_edges = np.stack(np.divmod(np.unique(partition_edges), num_clusters))
         return self.__class__(edge_index=partition_edges, edge_attr=weights, num_nodes=num_clusters, undir=self.undir)
+
+    def sample_negative_edges(self, num_samples):
+        return _sample_neg_edges(self.edge_index, self.adj_index, num_samples, self.num_nodes)
+
+    def sample_positive_edges(self, num_samples):
+        index = rng.integers(self.num_edges, (num_samples,))
+        return self.edge_index[:, index]
 
 

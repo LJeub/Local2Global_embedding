@@ -1,4 +1,6 @@
 """Dividing input data into overlapping patches"""
+from random import choice
+
 import torch
 import torch_geometric as tg
 import torch_scatter as ts
@@ -30,6 +32,9 @@ def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_
     new_nodes = new_nodes[mask[new_nodes]]
     mask[new_nodes] = False
     overlap = new_nodes
+    if overlap.numel() > target_overlap:
+        overlap = overlap[
+            torch.multinomial(torch.ones(overlap.shape), target_overlap, replacement=False)]
     while overlap.numel() < min_overlap:
         new_nodes = torch.unique(torch.cat([subgraph.adj(node) for node in new_nodes]))
         new_nodes = new_nodes[mask[new_nodes]]
@@ -149,13 +154,13 @@ def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor
     return patches
 
 
-def create_patch_data(graph, partition_tensor, min_overlap, target_overlap,
+def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overlap,
                       min_patch_size=None, sparsify_method='resistance', target_patch_degree=4, gamma=0, verbose=False):
     """
     Divide data into overlapping patches
 
     Args:
-        data: input data
+        graph: input data
         partition_tensor: starting partition for creating patches
         min_overlap: minimum patch overlap for connected patches
         target_overlap: maximum patch overlap during expansion of an edge of the patch graph
@@ -175,7 +180,28 @@ def create_patch_data(graph, partition_tensor, min_overlap, target_overlap,
     partition_tensor = merge_small_clusters(graph, partition_tensor, min_patch_size)
     if verbose:
         print(f"number of patches: {partition_tensor.max().item() + 1}")
-    pg = graph.partition_graph(partition_tensor)
+    pg = graph.partition_graph(partition_tensor).to(TGraph)
+    components = pg.connected_component_ids()
+    num_components = components.max()+1
+    if num_components > 1:
+        # connect all components
+        edges = torch.empty((2, num_components*(num_components-1)/2), dtype=torch.long)
+        comp_lists = [[] for _ in range(num_components)]
+        for i, c in enumerate(components):
+            comp_lists[c].append(i)
+        i = 0
+        for c1 in range(num_components):
+            for c2 in range(c1+1, num_components):
+                p1 = choice(comp_lists[c1])
+                p2 = choice(comp_lists[c2])
+                edges[:, i] = (p1, p2)
+                i += 1
+
+        edge_index = torch.cat((pg.edge_index, edges, edges[::-1, :]))
+        weights = torch.cat((pg.edge_attr, torch.ones(2*edges.shape[1], dtype=torch.long)))
+        pg = TGraph(edge_index=edge_index, edge_attr=weights, ensure_sorted=True, num_nodes=pg.num_nodes,
+                    undir=pg.undir)
+
     if sparsify_method == 'resistance':
         pg = resistance_sparsify(pg, target_mean_degree=target_patch_degree)
     elif sparsify_method == 'rmst':
@@ -188,7 +214,7 @@ def create_patch_data(graph, partition_tensor, min_overlap, target_overlap,
 
     if verbose:
         print(f"average patch degree: {pg.num_edges / pg.num_nodes}")
-        
+
     patches = create_overlapping_patches(graph, partition_tensor, pg, min_overlap, target_overlap)
-    patch_data = (graph.subgraph(patch) for patch in patches)
+    patch_data = (graph.subgraph(patch, relabel=False).to(TGraph) for patch in patches)
     return patch_data, pg

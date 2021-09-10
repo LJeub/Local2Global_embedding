@@ -30,11 +30,11 @@ from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParse
 
 
 async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
-              patience=20, runs=10, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
+              patience=20, runs=10, cl_runs=50, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
               min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
               cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
               output='.', device: str = None, verbose=False, max_workers=1, cmd_prefix: str = None,
-              run_baseline=True):
+              run_baseline=True, normalise=False, restrict_lcc=False, use_mmap=False, random_split=False):
     """
     Run training example.
 
@@ -86,11 +86,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     if dims is None:
         dims = [2]
     output_folder = Path(output)
-    if run_baseline:
-        data_file = output_folder / f'{name}_data.pt'
-        if not data_file.is_file():
-            data = load_data(name, data_root)
-            torch.save(data, data_file)
+
+    mmap_mode = 'r' if use_mmap else None
 
     train_basename = f'{name}_{model}'
     eval_basename = f'{name}_{model}'
@@ -109,13 +106,19 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                        num_clusters=num_clusters, num_iters=num_iters, beta=beta,
                                                        sparsify=sparsify, target_patch_degree=target_patch_degree,
                                                        gamma=gamma,
-                                                       verbose=False))
+                                                       verbose=False,
+                                                       normalise=normalise,
+                                                       restrict_lcc=restrict_lcc))
 
     # compute baseline full model if necessary
     baseline_info_file = output_folder / f'{train_basename}_full_info.json'
     baseline_dims_to_evaluate = set()
     baseline_tasks = []
     if run_baseline:
+        data_file = output_folder / f'{name}_data.pt'
+        if not data_file.is_file():
+            data = load_data(name, data_root, restrict_lcc=restrict_lcc, normalise=normalise)
+            torch.save(data, data_file)
         for d in dims:
             with ResultsDict(baseline_info_file) as baseline_data:
                 r = baseline_data.runs(d)
@@ -167,7 +170,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     alignment_tasks = []
     l2g_dims_to_evaluate = set()
     for d in dims:
-        coords_files = [patch_folder / f'{train_basename}_d{d}_{criterion}_{nt}coords.pt'
+        coords_files = [patch_folder / f'{train_basename}_d{d}_{criterion}_{nt}coords.npy'
                         for criterion in ('auc', 'loss') for nt in ('', 'nt')]
         if d in compute_alignment_for_dims or not all(coords_file.is_file() for coords_file in coords_files):
             l2g_dims_to_evaluate.add(d)
@@ -183,31 +186,41 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     for d in dims:
         with ResultsDict(baseline_loss_eval_file, replace=True) as eval_results:
             if d in baseline_dims_to_evaluate or not eval_results.contains_dim(d):
-                coords_file = output_folder / f'{train_basename}_full_d{d}_best_loss_coords.pt'
+                coords_file = output_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
                         run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                   data_file=data_file,
+                                   name=name,
+                                   data_root=data_root,
+                                   restrict_lcc=restrict_lcc,
                                    embedding_file=coords_file,
                                    results_file=baseline_loss_eval_file,
                                    dist=dist,
                                    device=device,
                                    lr=cl_lr,
+                                   runs=cl_runs,
+                                   random_split=random_split,
+                                   mmap_mode=mmap_mode,
                                    )
                     )
                 )
         with ResultsDict(baseline_auc_eval_file, replace=True) as eval_results:
             if d in baseline_dims_to_evaluate or not eval_results.contains_dim(d):
-                coords_file = output_folder / f'{train_basename}_full_d{d}_best_auc_coords.pt'
+                coords_file = output_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
                         run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                   data_file=data_file,
+                                   name=name,
+                                   data_root=data_root,
+                                   restrict_lcc=restrict_lcc,
                                    embedding_file=coords_file,
                                    results_file=baseline_auc_eval_file,
                                    dist=dist,
                                    device=device,
                                    lr=cl_lr,
+                                   runs=cl_runs,
+                                   random_split=random_split,
+                                   mmap_mode=mmap_mode,
                                    )
                     )
                 )
@@ -220,32 +233,42 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     for d in dims:
         with ResultsDict(l2g_loss_eval_file, replace=True) as l2g_eval:
             if d in l2g_dims_to_evaluate or not l2g_eval.contains_dim(d):
-                coords_file = patch_folder / f'{train_basename}_d{d}_loss_coords.pt'
+                coords_file = patch_folder / f'{train_basename}_d{d}_loss_coords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
                         run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                   data_file=data_file,
+                                   name=name,
+                                   data_root=data_root,
+                                   restrict_lcc=restrict_lcc,
                                    embedding_file=coords_file,
                                    results_file=l2g_loss_eval_file,
                                    dist=dist,
                                    device=device,
                                    lr=cl_lr,
+                                   runs=cl_runs,
+                                   random_split=random_split,
+                                   mmap_mode=mmap_mode,
                                    )
                     )
                 )
 
         with ResultsDict(l2g_auc_eval_file, replace=True) as l2g_eval:
             if d in l2g_dims_to_evaluate or not l2g_eval.contains_dim(d):
-                coords_file = patch_folder / f'{train_basename}_d{d}_auc_coords.pt'
+                coords_file = patch_folder / f'{train_basename}_d{d}_auc_coords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
                         run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                   data_file=data_file,
+                                   name=name,
+                                   data_root=data_root,
+                                   restrict_lcc=restrict_lcc,
                                    embedding_file=coords_file,
                                    results_file=l2g_auc_eval_file,
                                    dist=dist,
                                    device=device,
                                    lr=cl_lr,
+                                   runs=cl_runs,
+                                   random_split=random_split,
+                                   mmap_mode=mmap_mode,
                                    )
                     )
                 )
@@ -253,32 +276,42 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     for d in dims:
         with ResultsDict(nt_loss_eval_file, replace=True) as nt_eval:
             if d in l2g_dims_to_evaluate or not nt_eval.contains_dim(d):
-                coords_file = patch_folder / f'{train_basename}_d{d}_loss_ntcoords.pt'
+                coords_file = patch_folder / f'{train_basename}_d{d}_loss_ntcoords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
                         run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                   data_file=data_file,
+                                   name=name,
+                                   data_root=data_root,
+                                   restrict_lcc=restrict_lcc,
                                    embedding_file=coords_file,
                                    results_file=nt_loss_eval_file,
                                    dist=dist,
                                    device=device,
                                    lr=cl_lr,
+                                   runs=cl_runs,
+                                   random_split=random_split,
+                                   mmap_mode=mmap_mode,
                                    )
                     )
                 )
 
         with ResultsDict(nt_auc_eval_file, replace=True) as nt_eval:
             if d in l2g_dims_to_evaluate or not nt_eval.contains_dim(d):
-                coords_file = patch_folder / f'{train_basename}_d{d}_auc_ntcoords.pt'
+                coords_file = patch_folder / f'{train_basename}_d{d}_auc_ntcoords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
                         run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue,
-                                   data_file=data_file,
+                                   name=name,
+                                   data_root=data_root,
+                                   restrict_lcc=restrict_lcc,
                                    embedding_file=coords_file,
                                    results_file=nt_auc_eval_file,
                                    dist=dist,
                                    device=device,
                                    lr=cl_lr,
+                                   runs=cl_runs,
+                                   random_split=random_split,
+                                   mmap_mode=mmap_mode,
                                    )
                     )
                 )

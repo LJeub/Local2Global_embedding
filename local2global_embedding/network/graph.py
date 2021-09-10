@@ -76,6 +76,10 @@ class Graph:
         return self.edge_index.shape[1]
 
     @property
+    def num_features(self):
+        return 0 if self.x is None else self.x.shape[1]
+
+    @property
     def nodes(self):
         if self._nodes is None:
             return range(self.num_nodes)
@@ -213,4 +217,11 @@ class Graph:
 
     @abstractmethod
     def partition_graph(self, partition):
+        raise NotImplementedError
+
+    @abstractmethod
+    def sample_negative_edges(self, num_samples):
+        raise NotImplementedError
+
+    def sample_positive_edges(self, num_samples):
         raise NotImplementedError

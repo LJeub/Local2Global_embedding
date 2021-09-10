@@ -20,27 +20,32 @@
 from statistics import mean, stdev
 
 import torch
+import numpy as np
 from typing import Optional
 from local2global_embedding.embedding import reconstruction_auc
-from local2global_embedding.classfication import Logistic, train, accuracy, TrainingData
-from local2global_embedding.run.utils import ResultsDict, ScriptParser
+from local2global_embedding.classfication import Logistic, train, accuracy
+from local2global_embedding.run.utils import ResultsDict, ScriptParser, load_classification_problem, load_data
 
 
-def evaluate(data_file: str, embedding_file: str, results_file: str, dist=False, device: Optional[str]=None,
-             num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=1000):
+def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str, results_file: str, dist=False,
+             device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=1000,
+             mmap_mode: Optional[str] = None, random_split=False):
     print(f'evaluating {embedding_file} with {runs} classification runs.')
-    data = torch.load(data_file)
-    num_labels = data.y.max().item()+1
-    coords = torch.as_tensor(torch.load(embedding_file), dtype=torch.float32)
+    graph = load_data(name, root=data_root, restrict_lcc=restrict_lcc)
+    cl_data = load_classification_problem(name, root=data_root, restrict_lcc=restrict_lcc)
+    num_labels = cl_data.num_labels
+    coords = np.load(embedding_file, mmap_mode=mmap_mode)
+    cl_data.x = coords
     dim = coords.shape[1]
-    auc = reconstruction_auc(coords, data, dist=dist)
+    auc = reconstruction_auc(coords, graph, dist=dist)
     acc = []
     for _ in range(runs):
-        tdata = TrainingData(coords, data.y, num_unlabeled=0)  # random split
+        if random_split:
+            cl_data.resplit()
         model = Logistic(dim, num_labels)
-        model = train(tdata, model, num_epochs, batch_size, lr, early_stop_patience=patience, weight_decay=0.0,
+        model = train(cl_data, model, num_epochs, batch_size, lr, early_stop_patience=patience, weight_decay=0.0,
                       device=device, alpha=0, beta=0)
-        acc.append(accuracy(tdata, model))
+        acc.append(accuracy(cl_data, model))
     acc_mean = mean(acc)
     if len(acc) == 1:
         acc_std = 0.

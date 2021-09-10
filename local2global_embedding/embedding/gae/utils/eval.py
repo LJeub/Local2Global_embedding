@@ -17,24 +17,29 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-
+import numpy as np
+from scipy.special import expit
 import torch
 import torch_geometric as tg
 from sklearn.metrics import roc_auc_score
+from local2global_embedding.network import Graph
 
 from local2global_embedding.embedding.gae.layers.decoders import DistanceDecoder
 
 
-def reconstruction_auc(coordinates, data, neg_edges=None, dist=False):
+def reconstruction_auc(coordinates, graph: Graph, dist=False, max_samples=int(1e6)):
     """
     Compute the network reconstruction auc score
 
     Args:
         coordinates (torch.tensor): embedding to evaluate
-        data (tg.utils.data.Data): network data
-        neg_edges: edge index for negative edges (optional)
+        graph: network data
         dist: if ``True``, use distance decoder to evaluate embedding, otherwise use inner-product decoder
               (default: ``False``)
+        max_samples: maximum number of edges to use for evaluation. If graph has less than ``max_samples``
+                     edges, all edges are used as positive examples,
+                     otherwise, max_samples edges are sampled with replacement. In both cases, the number of negative
+                     samples is the same as positive samples.
 
     Returns:
         ROC-AUC for correctly classifying true edges versus non-edges
@@ -44,13 +49,22 @@ def reconstruction_auc(coordinates, data, neg_edges=None, dist=False):
 
     """
     decoder = DistanceDecoder() if dist else tg.nn.InnerProductDecoder()
-    if neg_edges is None:
-        neg_edges = tg.utils.negative_sampling(data.edge_index, num_nodes=data.num_nodes)
-    with torch.no_grad():
-        z = torch.cat((decoder(coordinates, data.edge_index, sigmoid=True),
-                       decoder(coordinates, neg_edges, sigmoid=True)),
-                      dim=0).cpu().numpy()
-        y = torch.cat((torch.ones(data.edge_index.shape[1], device='cpu'),
-                       torch.zeros(neg_edges.shape[1], device='cpu')),
-                      dim=0).numpy()
+    if graph.num_edges > max_samples:
+        pos_edges = graph.sample_positive_edges(max_samples)
+        num_samples = max_samples
+    else:
+        pos_edges = graph.edge_index
+        num_samples = graph.num_edges
+    neg_edges = graph.sample_negative_edges(num_samples)
+    coordinates = np.asanyarray(coordinates)
+    if dist:
+        z = np.concatenate((np.linalg.norm(coordinates[pos_edges[0]]-coordinates[pos_edges[1]], axis=1),
+                            np.linalg.norm(coordinates[neg_edges[0]]-coordinates[neg_edges[1]], axis=1)))
+
+        z = np.exp(-z)
+    else:
+        z = np.concatenate((np.sum(coordinates[pos_edges[0]] * coordinates[pos_edges[1]], axis=1),
+                            np.sum(coordinates[neg_edges[0]] * coordinates[neg_edges[1]], axis=1)))
+        z = expit(z)
+        y = np.concatenate((np.ones(pos_edges.shape[1]), np.zeros(neg_edges.shape[1])))
     return roc_auc_score(y, z)

@@ -27,7 +27,6 @@ from filelock import SoftFileLock
 from local2global_embedding.patches import create_patch_data
 from local2global_embedding.run.utils import ScriptParser, patch_folder_name, load_data
 from local2global_embedding.clustering import louvain_clustering, metis_clustering, distributed_clustering, fennel_clustering
-from local2global_embedding.network import TGraph
 
 
 def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: int, data_root='/tmp',

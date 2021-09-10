@@ -18,9 +18,11 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from pathlib import Path
-import torch
 from typing import Optional
 import os
+
+import numpy as np
+import torch
 
 from local2global_embedding.embedding import train, VGAE, VGAE_loss, GAE, GAE_loss, DGI, DGILoss, reconstruction_auc
 from local2global_embedding.utils import speye, set_device
@@ -73,7 +75,8 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
     device = set_device(device)
     data_str = data
     model_str = model
-    print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ["CUDA_VISIBLE_DEVICES"]} and device={device}')
+
+    print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailiable")} and device={device}')
     data = torch.load(data).to(device)
     results_file = Path(results_file)
 
@@ -82,8 +85,8 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
 
     model_auc_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_auc_model.pt'))
     model_loss_file = model_auc_file.with_name(model_auc_file.name.replace('_auc_', '_loss_'))
-    coords_auc_file = model_auc_file.with_name(model_auc_file.name.replace('model', 'coords'))
-    coords_loss_file = model_auc_file.with_name(model_loss_file.name.replace('model', 'coords'))
+    coords_auc_file = model_auc_file.with_name(model_auc_file.name.replace('model.pt', 'coords.npy'))
+    coords_loss_file = model_auc_file.with_name(model_loss_file.name.replace('model.pt', 'coords.npy'))
     model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     loss_fun = select_loss(model)
 
@@ -107,10 +110,10 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
                 break
             if results.min('loss', dim) > loss:
                 torch.save(model.state_dict(), model_loss_file)
-                torch.save(coords, coords_loss_file)
+                np.save(coords_loss_file, coords.cpu().numpy())
             if results.max('auc', dim) < auc:
                 torch.save(model.state_dict(), model_auc_file)
-                torch.save(coords, coords_auc_file)
+                np.save(coords_auc_file, coords.cpu().numpy())
             results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr, 'num_epochs': num_epochs,
                                                               'patience': patience, 'dist': dist})
             runs_done = results.runs(dim)

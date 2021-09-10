@@ -26,22 +26,15 @@ from collections.abc import Iterable
 import argparse
 from inspect import signature
 import typing
-from tempfile import NamedTemporaryFile
-import shutil
 
+import torch
 from docstring_parser import parse as parse_doc
 from filelock import SoftFileLock
-import torch_geometric as tg
-import numpy as np
-from numpy.lib.format import open_memmap
-import numba
-from tqdm.auto import tqdm
 
-from local2global_embedding.network import NPGraph, TGraph
-import local2global_embedding.progress as progress
-
+from local2global_embedding.classfication import ClassificationProblem
 
 _dataloaders = {}  #: dataloaders
+_classification_loader = {}
 
 
 def dataloader(name):
@@ -58,155 +51,22 @@ def dataloader(name):
     return loader
 
 
-@dataloader('Cora')
-def _load_cora(root='/tmp'):
-    return TGraph.from_tg(tg.datasets.Planetoid(name='Cora', root=f'{root}/cora')[0])
+def classificationloader(name):
+    """
+    decorator for registering classification data loaders
+    Args:
+        name: data set name
+
+    Returns:
+
+    """
+    def loader(func):
+        _classification_loader[name] = func
+        return func
+    return loader
 
 
-@dataloader('PubMed')
-def _load_pubmed(root='/tmp'):
-    return TGraph.from_tg(tg.datasets.Planetoid(name='PubMed', root=f'{root}/pubmed')[0])
-
-
-@dataloader('AMZ_computers')
-def _load_amazon_computers(root='/tmp'):
-    return TGraph.from_tg(tg.datasets.Amazon(root=f'{root}/amazon', name='Computers')[0])
-
-
-@dataloader('AMZ_photo')
-def _load_amazon_photos(root='/tmp'):
-    return TGraph.from_tg(tg.datasets.Amazon(root=f'{root}/amazon', name='photo')[0])
-
-
-
-
-
-@numba.njit
-def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
-    with numba.objmode:
-        print('pass over edge source, forward')
-        progress.reset_progress(edge_index.shape[1])
-
-    for i, e in enumerate(edge_index[0]):
-        sort_index[i] = e * num_nodes
-        if i % 1000000 == 0 and i > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-
-    with numba.objmode:
-        progress.close_progress()
-        print('pass over edge source, backward')
-        progress.reset_progress(edge_index.shape[1])
-
-    for i, e in enumerate(edge_index[0]):
-        sort_index[i+edge_index.shape[1]] = e
-        if i % 1000000 == 0 and i > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-
-    with numba.objmode:
-        progress.close_progress()
-        print('\n pass over edge target, forward\n')
-        progress.reset_progress(edge_index.shape[1])
-
-    for i, e in enumerate(edge_index[1]):
-        sort_index[i] += e
-        if i % 1000000 == 0 and i > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-    with numba.objmode:
-        progress.close_progress()
-        print('\n pass over edge target, forward\n')
-        progress.reset_progress(edge_index.shape[1])
-
-    for i, e in enumerate(edge_index[1]):
-        sort_index[edge_index.shape[1]+i] += e * num_nodes
-        if i % 1000000 == 0 and i > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-
-    with numba.objmode:
-        progress.close_progress()
-        print('\n sorting edge_index\n')
-        sort_index.sort()
-        print('storing undirected edges')
-        progress.reset_progress(sort_index.size-1)
-
-    num_edges = 1
-    undir_index[:, 0] = divmod(sort_index[0], num_nodes)
-    for it, index in enumerate(sort_index[1:]):
-        if sort_index[it] != index:
-            # bidirectional edges in the original data will be duplicated and need to be removed
-            undir_index[:, num_edges] = divmod(sort_index[0], num_nodes)
-            num_edges += 1
-        if it % 1000000 == 0 and it > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-
-    with numba.objmode:
-        progress.close_progress()
-    return num_edges
-
-
-@dataloader('MAG240M')
-def _load_mag240(root='.'):
-    root = Path(root)
-    data_folder = root / 'mag240m_citations_undir'
-    if not data_folder.is_dir() or not (data_folder / 'processed').is_file():
-        data_folder.mkdir(parents=True, exist_ok=True)
-        from ogb.lsc import MAG240MDataset
-        base_data = MAG240MDataset(root=root)
-        num_nodes = base_data.num_papers
-        edge_index = np.load(root / 'mag240m_kddcup2021' / 'processed' / 'paper___cites___paper' / 'edge_index.npy',
-                             mmap_mode='r')
-        undir_index_file = data_folder / 'edge_index.npy'
-        if undir_index_file.is_file():
-            undir_index = open_memmap(undir_index_file, mode='r+')
-        else:
-            undir_index = open_memmap(undir_index_file, mode='w+',
-                                      shape=(edge_index.shape[0], 2*edge_index.shape[1]), dtype=np.int64,
-                                      fortran_order=True)
-        if np.array_equal(undir_index[:, -1], [0, 0]):
-            sort_index_file = NamedTemporaryFile(delete=False, suffix='.npy')
-            sort_index_file.close()
-            sort_index = open_memmap(sort_index_file.name, dtype='i8',
-                                     shape=(undir_index.shape[1],),
-                                     mode='w+')
-            num_edges = _transform_mag240m(edge_index, undir_index, sort_index, num_nodes)
-            undir_index = undir_index[:, :num_edges]
-            f = NamedTemporaryFile(delete=False)
-            np.save(f, undir_index)
-            f.close()
-            shutil.copy(f.name, undir_index_file)
-            del sort_index
-            Path(sort_index_file.name).unlink()
-            Path(f.name).unlink()
-
-        with open(data_folder / 'info.json', 'w') as f:
-            json.dump({'num_nodes': num_nodes, 'undir': True}, f)
-
-        feat_file = data_folder / 'node_feat.npy'
-        if not feat_file.is_file():
-            print('link node features')
-            (root / 'mag240m_kddcup2021' / 'processed' / 'paper' / 'node_feat.npy').link_to(feat_file)
-
-        label_file = data_folder / 'node_label.npy'
-        if not label_file.is_file():
-            print('link node labels')
-            (root / 'mag240m_kddcup2021' / 'processed' / 'paper' / 'node_label.npy').link_to(label_file)
-
-        (data_folder / 'processed').touch()
-
-    data = NPGraph.load(data_folder, mmap_mode='r')
-
-    index_file = data_folder / 'adj_index.npy'
-    if not index_file.is_file():
-        np.save(index_file, data.adj_index)
-
-    return data
-
-
-def load_data(name, root='/tmp', normalise=True, restrict_lcc=True):
+def load_data(name, root='/tmp', normalise=False, restrict_lcc=False):
     """
     load data set
 
@@ -215,7 +75,7 @@ def load_data(name, root='/tmp', normalise=True, restrict_lcc=True):
         root: root dir to store downloaded data (default '/tmp')
 
     Returns:
-        largest connected component of data set
+        graph data
 
     """
     data = _dataloaders[name](root)
@@ -229,6 +89,20 @@ def load_data(name, root='/tmp', normalise=True, restrict_lcc=True):
         data.x /= r_sum[:, None]
 
     return data
+
+
+def load_classification_problem(name, root='/tmp', restrict_lcc=False):
+    y, split = _classification_loader[name]()
+    if restrict_lcc:
+        graph = load_data(name, root, restrict_lcc=False)
+        index = graph.nodes_in_lcc()
+        index_map = torch.full(y.shape, -1, dtype=torch.long)
+        index_map[index] = torch.arange(len(index), dtype=torch.long)
+        y = y[index]
+        for key, value in split.items():
+            mapped_index = index_map[value]
+            split[key] = mapped_index[mapped_index >= 0]
+    return ClassificationProblem(y, split)
 
 
 load_data.__doc__ = load_data.__doc__.format(names=list(_dataloaders.keys()))

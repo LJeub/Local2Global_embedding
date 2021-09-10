@@ -17,4 +17,29 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-from . import loaders as _  # register data loaders
+import torch_geometric as tg
+
+from local2global_embedding.network import TGraph
+from local2global_embedding.run.utils import dataloader, classificationloader
+
+
+def _load_data(name):
+    def _load(root='/tmp'):
+        return TGraph.from_tg(tg.datasets.Planetoid(name=name, root=f'{root}/{name}')[0])
+    return _load
+
+
+def _load_class(name):
+    def _load(root='/tmp'):
+        data = tg.datasets.Planetoid(name=name, root=f'{root}/{name}', split='public')[0]
+        y = data.y
+        split = {'test': data.test_mask.nonzero().flatten(),
+                 'train': data.train_mask.nonzero().flatten(),
+                 'val': data.val_mask.nonzero().flatten()}
+        return y, split
+    return _load
+
+
+for name in ('Cora', 'CiteSeer', 'PubMed'):
+    dataloader(name)(_load_data(name))
+    classificationloader(name)(_load_class(name))
