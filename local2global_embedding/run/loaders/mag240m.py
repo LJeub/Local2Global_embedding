@@ -90,7 +90,7 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
     for it, index in enumerate(sort_index[1:]):
         if sort_index[it] != index:
             # bidirectional edges in the original data will be duplicated and need to be removed
-            undir_index[:, num_edges] = divmod(sort_index[0], num_nodes)
+            undir_index[:, num_edges] = divmod(sort_index[it], num_nodes)
             num_edges += 1
         if it % 1000000 == 0 and it > 0:
             with numba.objmode:
