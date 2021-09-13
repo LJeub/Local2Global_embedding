@@ -345,6 +345,7 @@ class NPGraph(Graph):
         return bfs_list
 
     def partition_graph(self, partition):
+        partition = np.asanyarray(partition)
         num_clusters = np.max(partition) + 1
         if isinstance(self.edge_index, np.memmap):
             with TemporaryFile() as f:
