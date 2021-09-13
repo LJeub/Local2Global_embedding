@@ -82,8 +82,6 @@ def _prepare_partition_graph_edge_index(edge_index, partition, workspace, num_cl
     return workspace
 
 
-
-
 class NPGraph(Graph):
     """
     numpy backed graph class with support for memmapped edge_index
