@@ -65,8 +65,9 @@ def _memmap_degree(edge_index, num_nodes):
         progress.close_progress()
     return degree
 
+
 @numba.njit
-def _memmap_partition_graph(edge_index, partition, workspace, num_clusters):
+def _prepare_partition_graph_edge_index(edge_index, partition, workspace, num_clusters):
     with numba.objmode:
         print('finding partition edges')
         progress.reset_progress(edge_index.shape[1])
@@ -78,10 +79,8 @@ def _memmap_partition_graph(edge_index, partition, workspace, num_clusters):
     with numba.objmode:
         progress.close_progress()
         print('find unique edges')
-    pe_index, pe_weight = np.unique(workspace, return_counts=True)
-    partition_edges = np.divmod(pe_index, num_clusters)
-    print('done')
-    return np.stack(partition_edges), pe_weight
+    return workspace
+
 
 
 
@@ -350,7 +349,10 @@ class NPGraph(Graph):
         if isinstance(self.edge_index, np.memmap):
             with TemporaryFile() as f:
                 workspace = np.memmap(f, dtype=np.int64, shape=(self.edge_index.shape[1],))
-                partition_edges, weights = _memmap_partition_graph(self.edge_index, partition, workspace, num_clusters)
+                workspace = _prepare_partition_graph_edge_index(self.edge_index, partition, workspace, num_clusters)
+                pe_index, weights = np.unique(workspace, return_counts=True)
+                partition_edges = np.divmod(pe_index, num_clusters)
+                partition_edges = np.stack(partition_edges)
         else:
             pe_index = partition[self.edge_index[0]]*num_clusters + partition[self.edge_index[1]]
             partition_edges, weights = np.unique(pe_index, return_counts=True)
