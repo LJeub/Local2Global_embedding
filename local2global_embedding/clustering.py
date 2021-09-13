@@ -110,7 +110,6 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
                      WSDM'14 (2014) doi: `10.1145/2556195.2556213 <https://doi.org/10.1145/2556195.2556213>`_.
 
     """
-
     if num_iters is None:
         num_iters = 1
 
@@ -130,22 +129,7 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
 
     load_limit *= num_nodes/num_clusters
 
-    def update_cluster(n, neighbours):
-        old_cluster = clusters[n]
-        if old_cluster >= 0:
-            partition_sizes[old_cluster] -= 1
-        deltas = - alpha * gamma * (partition_sizes ** (gamma - 1))
-        cluster_indices = clusters[neighbours]
-        cluster_indices = cluster_indices[cluster_indices >= 0]
-        if cluster_indices.size > 0:
-            for index in cluster_indices:
-                deltas[index] += 1
-            deltas[partition_sizes >= load_limit] = -np.inf
-        # ind = torch.multinomial((deltas == deltas.max()).float(), 1)
-        ind = np.argmax(deltas)
-        clusters[n] = ind
-        partition_sizes[ind] += 1
-        return ind != old_cluster
+    deltas = - alpha * gamma * (partition_sizes ** (gamma - 1))
 
     with numba.objmode:
         progress.reset_progress(num_nodes)
@@ -155,8 +139,28 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
 
         progress_it = 0
         for i in range(num_nodes):
-            neighbours = edge_index[1, adj_index[i]:adj_index[i+1]]
-            not_converged += update_cluster(i, neighbours)
+            cluster_indices = np.empty((adj_index[i+1]-adj_index[i],), dtype=np.int64)
+            for ni, index in enumerate(range(adj_index[i], adj_index[i+1])):
+                cluster_indices[ni] = clusters[edge_index[1, index]]
+            old_cluster = clusters[i]
+            if old_cluster >= 0:
+                partition_sizes[old_cluster] -= 1
+            cluster_indices = cluster_indices[cluster_indices >= 0]
+
+            if cluster_indices.size > 0:
+                c_size = np.zeros(num_clusters, dtype=np.int64)
+                for index in cluster_indices:
+                    c_size[index] += 1
+                ind = np.argmax(deltas + c_size)
+            else:
+                ind = np.argmax(deltas)
+            clusters[i] = ind
+            partition_sizes[ind] += 1
+            if partition_sizes[ind] == load_limit:
+                deltas[ind] = - np.inf
+            else:
+                deltas[ind] = - alpha * gamma * (partition_sizes[ind] ** (gamma - 1))
+            not_converged += ind != old_cluster
 
             if i % 10000 == 0 and i > 0:
                 progress_it = i
