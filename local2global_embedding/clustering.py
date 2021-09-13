@@ -152,12 +152,11 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
 
     for it in range(num_iters):
         not_converged = 0
-        current_node = 0
 
         progress_it = 0
         for i in range(num_nodes):
             neighbours = edge_index[1, adj_index[i]:adj_index[i+1]]
-            not_converged += update_cluster(current_node, neighbours)
+            not_converged += update_cluster(i, neighbours)
 
             if i % 10000 == 0 and i > 0:
                 progress_it = i
