@@ -67,19 +67,33 @@ def _memmap_degree(edge_index, num_nodes):
 
 
 @numba.njit
-def _prepare_partition_graph_edge_index(edge_index, partition, workspace, num_clusters):
+def _prepare_partition_graph_edge_index(edge_index, partition, num_clusters):
     with numba.objmode:
         print('finding partition edges')
         progress.reset_progress(edge_index.shape[1])
+    edges = {}
     for i, edge in enumerate(edge_index.T):
-        workspace[i] = partition[edge[0]]*num_clusters + partition[edge[1]]
+        e = partition[edge[0]]*num_clusters + partition[edge[1]]
+        if e in edges:
+            edges[e] += 1
+        else:
+            edges[e] = 1
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
                 progress.update_progress(1000000)
     with numba.objmode:
         progress.close_progress()
-        print('find unique edges')
-    return workspace
+        print('convert to array')
+
+    edge_array = np.empty((2, len(edges)), dtype=np.int64)
+    counts = np.empty(len(edges), dtype=np.int64)
+    for i, e in enumerate(sorted(edges.keys())):
+        source, target = divmod(e, num_clusters)
+        edge_array[0, i] = source
+        edge_array[1, i] = target
+        counts[i] = edges[e]
+
+    return edge_array, counts
 
 
 class NPGraph(Graph):
@@ -346,11 +360,7 @@ class NPGraph(Graph):
         num_clusters = np.max(partition) + 1
         if isinstance(self.edge_index, np.memmap):
             with TemporaryFile() as f:
-                workspace = np.memmap(f, dtype=np.int64, shape=(self.edge_index.shape[1],))
-                workspace = _prepare_partition_graph_edge_index(self.edge_index, partition, workspace, num_clusters)
-                pe_index, weights = np.unique(workspace, return_counts=True)
-                partition_edges = np.divmod(pe_index, num_clusters)
-                partition_edges = np.stack(partition_edges)
+                partition_edges, weights = _prepare_partition_graph_edge_index(self.edge_index, partition, num_clusters)
         else:
             pe_index = partition[self.edge_index[0]]*num_clusters + partition[self.edge_index[1]]
             partition_edges, weights = np.unique(pe_index, return_counts=True)
