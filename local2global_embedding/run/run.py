@@ -34,7 +34,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
               min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
               cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
               output='.', device: str = None, verbose=False, max_workers=1, cmd_prefix: str = None,
-              run_baseline=True, normalise=False, restrict_lcc=False, use_mmap=False, random_split=False):
+              run_baseline=True, normalise=False, restrict_lcc=False, use_mmap=False, random_split=False, use_tmp=False):
     """
     Run training example.
 
@@ -112,7 +112,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                        gamma=gamma,
                                                        verbose=False,
                                                        normalise=normalise,
-                                                       restrict_lcc=restrict_lcc))
+                                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp))
 
     # compute baseline full model if necessary
     baseline_info_file = output_folder / f'{train_basename}_full_info.json'

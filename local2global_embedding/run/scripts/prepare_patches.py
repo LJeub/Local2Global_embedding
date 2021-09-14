@@ -20,7 +20,9 @@
 
 from pathlib import Path
 from typing import Optional
+from tempfile import TemporaryFile
 
+import numpy as np
 import torch
 from filelock import SoftFileLock
 
@@ -32,7 +34,7 @@ from local2global_embedding.clustering import louvain_clustering, metis_clusteri
 def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: int, data_root='/tmp',
                     min_patch_size: int = None, cluster='metis', num_clusters=10, num_iters: Optional[int]=None, beta=0.1,
                     sparsify='resistance', target_patch_degree=4.0, gamma=0.0, normalise=False, restrict_lcc=False,
-                    verbose=False):
+                    verbose=False, use_tmp=False):
     """
     initialise patch data
 
@@ -77,21 +79,27 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
     with SoftFileLock(patch_folder.with_suffix('.lock'), timeout=10):  # make sure not to create patches twice
         if not (patch_folder / 'patch_graph.pt').is_file():
             print(f'creating patches in {patch_folder}')
-            graph = load_data(name, root=data_root, normalise=normalise, restrict_lcc=restrict_lcc)
+            with TemporaryFile() as buffer_f:
+                graph = load_data(name, root=data_root, normalise=normalise, restrict_lcc=restrict_lcc)
+                if use_tmp:
+                    if isinstance(graph.edge_index, np.memmap):
+                        edge_index = np.memmap(buffer_f, dtype=graph.edge_index.dtype, shape=graph.edge_index.shape)
+                        edge_index[:] = graph.edge_index
+                        graph.edge_index = edge_index
 
-            cluster_file = output_folder / f"{name}_{cluster_string}_clusters.pt"
-            if cluster_file.is_file():
-                clusters = torch.load(cluster_file, map_location='cpu')
-            else:
-                clusters = cluster_fun(graph)
-                torch.save(clusters, cluster_file)
+                cluster_file = output_folder / f"{name}_{cluster_string}_clusters.pt"
+                if cluster_file.is_file():
+                    clusters = torch.load(cluster_file, map_location='cpu')
+                else:
+                    clusters = cluster_fun(graph)
+                    torch.save(clusters, cluster_file)
 
-            patch_data, patch_graph = create_patch_data(graph, clusters, min_overlap, target_overlap, min_patch_size,
-                                                        sparsify, target_patch_degree, gamma, verbose)
-            patch_folder.mkdir(parents=True, exist_ok=True)
-            torch.save(patch_graph, patch_folder / 'patch_graph.pt')
-            for i, data in enumerate(patch_data):
-                torch.save(data, patch_folder / f'patch{i}_data.pt')
+                patch_data, patch_graph = create_patch_data(graph, clusters, min_overlap, target_overlap, min_patch_size,
+                                                            sparsify, target_patch_degree, gamma, verbose)
+                patch_folder.mkdir(parents=True, exist_ok=True)
+                torch.save(patch_graph, patch_folder / 'patch_graph.pt')
+                for i, data in enumerate(patch_data):
+                    torch.save(data, patch_folder / f'patch{i}_data.pt')
 
 
 if __name__ == '__main__':
