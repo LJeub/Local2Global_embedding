@@ -60,7 +60,7 @@ def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_
         if not new_nodes.numel():
             # no more connected nodes to add so add some remaining nodes by random sampling
             new_nodes = torch.nonzero(mask).flatten()
-            if new_nodes.size > reseed_samples:
+            if new_nodes.numel() > reseed_samples:
                 new_nodes = new_nodes[
                     torch.multinomial(torch.ones(new_nodes.shape), reseed_samples, replacement=False)]
         if overlap.numel() + new_nodes.numel() > target_overlap:
