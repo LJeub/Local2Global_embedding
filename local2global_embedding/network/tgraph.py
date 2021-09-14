@@ -81,14 +81,14 @@ class TGraph(Graph):
         """
         return list of edges where each edge is a tuple ``(source, target)``
         """
-        return ((e[0].item(), e[1].item()) for e in self.edge_index.T)
+        return ((self.edge_index[0, e].item(), self.edge_index[1, e].item()) for e in range(self.num_edges))
 
     def edges_weighted(self):
         """
         return list of edges where each edge is a tuple ``(source, target, weight)``
         """
-        return ((e[0].item(), e[1].item(), w[0].item() if w.numel() > 1 else w.item())
-                for e, w in zip(self.edge_index.T, self.weights))
+        return ((self.edge_index[0, e].item(), self.edge_index[1, e].item(), self.weights[e].cpu().numpy()
+                 if self.weights.ndim > 1 else self.weights[e].item()) for e in range(self.num_edges))
 
     def neighbourhood(self, nodes: torch.Tensor, hops: int = 1):
         """
