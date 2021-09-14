@@ -232,7 +232,7 @@ class NPGraph(Graph):
             all_nodes = np.concatenate((all_nodes, new_nodes))
         return all_nodes
 
-    def subgraph(self, nodes: torch.Tensor, relabel=False):
+    def subgraph(self, nodes: torch.Tensor, relabel=False, keep_x=True, keep_y=True):
         """
         find induced subgraph for a set of nodes
 
@@ -243,20 +243,22 @@ class NPGraph(Graph):
             subgraph
 
         """
-        index = np.concatenate([np.arange(self.adj_index[node], self.adj_index[node + 1], dtype=np.int64) for node in nodes])
-        node_mask = np.zeros(self.num_nodes, dtype=np.bool)
-        node_mask[nodes] = True
-        node_ids = np.zeros(self.num_nodes, dtype=np.int64)
-        node_ids[nodes] = np.arange(len(nodes))
-        index = index[node_mask[self.edge_index[1][index]]]
+        nodes = np.asanyarray(nodes)
+        edge_index, index = _subgraph_edges(self.edge_index, self.adj_index, self.degree, self.num_nodes, nodes)
         edge_attr = self.edge_attr
         if relabel:
             node_labels = None
         else:
             node_labels = [self.nodes[n] for n in nodes]
-        x = None if self.x is None else self.x[nodes, :]
-        y = None if self.y is None else self.y[nodes]
-        return self.__class__(edge_index=node_ids[self.edge_index[:, index]],
+        if self.x is not None and keep_x:
+            x = self.x[nodes, :]
+        else:
+            x = None
+        if self.y is not None and keep_y:
+            y = self.y[nodes]
+        else:
+            y = None
+        return self.__class__(edge_index=edge_index,
                               edge_attr=edge_attr[index] if edge_attr is not None else None,
                               num_nodes=len(nodes),
                               ensure_sorted=False,
@@ -368,3 +370,28 @@ class NPGraph(Graph):
         return self.edge_index[:, index]
 
 
+@numba.njit
+def _subgraph_edges(edge_index, adj_index, degs, num_nodes, sources):
+    max_edges = degs[sources].sum()
+    subgraph_edge_index = np.empty((2, max_edges), dtype=np.int64)
+    index = np.empty((max_edges,), dtype=np.int64)
+    target_index = np.full((num_nodes,), -1, np.int64)
+    target_index[sources] = np.arange(len(sources))
+    count = 0
+    with numba.objmode:
+        print("finding subgraph edges")
+        progress.reset_progress(len(sources))
+    for s in range(len(sources)):
+        for i in range(adj_index[sources[s]], adj_index[sources[s]+1]):
+            t = target_index[edge_index[1, i]]
+            if t >= 0:
+                subgraph_edge_index[0, count] = s
+                subgraph_edge_index[1, count] = t
+                index[count] = i
+                count += 1
+        if s % 100 == 0 and s > 0:
+            with numba.objmode:
+                progress.update_progress(100)
+    with numba.objmode:
+        progress.close_progress()
+    return subgraph_edge_index[:, :count], index[:count]

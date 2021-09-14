@@ -115,7 +115,7 @@ class TGraph(Graph):
             all_nodes.append(new_nodes)
         return torch.cat(all_nodes)
 
-    def subgraph(self, nodes: torch.Tensor, relabel=False):
+    def subgraph(self, nodes: torch.Tensor, relabel=False, keep_x=True, keep_y=True):
         """
         find induced subgraph for a set of nodes
 
@@ -137,8 +137,17 @@ class TGraph(Graph):
             node_labels = None
         else:
             node_labels = [self.nodes[n] for n in nodes]
-        x = None if self.x is None else self.x[nodes, :]
-        y = None if self.y is None else self.y[nodes]
+
+        if self.x is not None and keep_x:
+            x = self.x[nodes, :]
+        else:
+            x = None
+
+        if self.y is not None and keep_y:
+            y = self.y[nodes]
+        else:
+            y = None
+
         return self.__class__(edge_index=node_ids[self.edge_index[:, index]],
                               edge_attr=edge_attr[index] if edge_attr is not None else None,
                               num_nodes=len(nodes),

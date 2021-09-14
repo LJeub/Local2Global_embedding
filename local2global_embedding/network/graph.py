@@ -143,7 +143,7 @@ class Graph:
         raise NotImplementedError
 
     @abstractmethod
-    def subgraph(self, nodes: Iterable, relabel=False):
+    def subgraph(self, nodes: Iterable, relabel=False, keep_x=True, keep_y=True):
         """
         find induced subgraph for a set of nodes
 
