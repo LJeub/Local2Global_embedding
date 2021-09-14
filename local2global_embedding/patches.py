@@ -151,7 +151,7 @@ def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor
     parts = Partition(partition_tensor)
     patches = list(parts)
     print('enlarging patch overlaps')
-    for (i, j) in tqdm(patch_graph.edges()):
+    for (i, j) in tqdm(patch_graph.edges(), total=patch_graph.num_edges):
         part_i = parts[i]
         part_j = parts[j]
         nodes = torch.cat((part_i, part_j))
