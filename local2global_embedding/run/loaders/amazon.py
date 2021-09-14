@@ -49,6 +49,6 @@ def _load_class(name):
     return _load
 
 
-for name in ('Computers', 'Photo'):
-    dataloader(f'AMZ_{name}')(_load_data(name))
-    classificationloader(f'AMZ_{name}')(_load_class(name))
+for name in ('computers', 'photo'):
+    dataloader(f'AMZ{name}')(_load_data(name))
+    classificationloader(f'AMZ{name}')(_load_class(name))
