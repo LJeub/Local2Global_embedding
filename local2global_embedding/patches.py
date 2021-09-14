@@ -40,6 +40,7 @@ def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_
     Returns:
         index tensor of new nodes to add to patch
     """
+    subgraph = subgraph.to(TGraph)
     target_overlap = int(target_overlap)
     if subgraph.num_nodes - len(source_nodes) < min_overlap:
         print(f"Minimum overlap {min_overlap} > other nodes {subgraph.num_nodes - len(source_nodes)}")
