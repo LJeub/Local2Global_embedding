@@ -71,29 +71,19 @@ def _prepare_partition_graph_edge_index(edge_index, partition, num_clusters):
     with numba.objmode:
         print('finding partition edges')
         progress.reset_progress(edge_index.shape[1])
-    edges = {}
-    for i, edge in enumerate(edge_index.T):
-        e = partition[edge[0]]*num_clusters + partition[edge[1]]
-        if e in edges:
-            edges[e] += 1
-        else:
-            edges[e] = 1
+    edge_counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
+    for i, (source, target) in enumerate(edge_index.T):
+        source = partition[source]
+        target = partition[target]
+        if source != target:
+            edge_counts[source, target] += 1
         if i % 1000000 == 0 and i > 0:
             with numba.objmode:
                 progress.update_progress(1000000)
     with numba.objmode:
         progress.close_progress()
         print('convert to array')
-
-    edge_array = np.empty((2, len(edges)), dtype=np.int64)
-    counts = np.empty(len(edges), dtype=np.int64)
-    for i, e in enumerate(sorted(edges.keys())):
-        source, target = divmod(e, num_clusters)
-        edge_array[0, i] = source
-        edge_array[1, i] = target
-        counts[i] = edges[e]
-
-    return edge_array, counts
+    return edge_counts
 
 
 class NPGraph(Graph):
@@ -360,7 +350,10 @@ class NPGraph(Graph):
         num_clusters = np.max(partition) + 1
         if isinstance(self.edge_index, np.memmap):
             with TemporaryFile() as f:
-                partition_edges, weights = _prepare_partition_graph_edge_index(self.edge_index, partition, num_clusters)
+                counts = _prepare_partition_graph_edge_index(self.edge_index, partition, num_clusters)
+                index = np.nonzero(counts)
+                partition_edges = np.vstack(index)
+                weights = counts[index]
         else:
             pe_index = partition[self.edge_index[0]]*num_clusters + partition[self.edge_index[1]]
             partition_edges, weights = np.unique(pe_index, return_counts=True)
