@@ -7,6 +7,7 @@ import scipy as sc
 import scipy.sparse
 import scipy.sparse.linalg
 import torch
+from tqdm.auto import tqdm
 
 from local2global_embedding.network import TGraph, spanning_tree_mask, spanning_tree
 
@@ -103,16 +104,11 @@ def effective_resistances(graph: TGraph, **args):
 def _edge_node_incidence_matrix(graph: TGraph):
     indices = np.empty(2 * graph.num_edges, dtype=int)
     values = np.empty(2 * graph.num_edges, dtype=int)
-    indptr = np.empty(graph.num_edges + 1, dtype=int)
-
-    for i, e in enumerate(graph.edges()):
-        indptr[i] = 2 * i
-        indices[2 * i] = e[0]
-        values[2 * i] = 1
-        indices[2 * i + 1] = e[1]
-        values[2 * i + 1] = -1
-
-    indptr[-1] = 2 * graph.num_edges
+    indptr = 2 * np.arange(graph.num_edges+1, dtype=np.int64)
+    indices[::2] = graph.edge_index[0]
+    indices[1::2] = graph.edge_index[1]
+    values[::2] = 1
+    values[1::2] = -1
 
     return sc.sparse.csr_matrix((values, indices, indptr), shape=(graph.num_edges, graph.num_nodes))
 
