@@ -1,12 +1,29 @@
 """Dividing input data into overlapping patches"""
 from random import choice
+from collections.abc import Sequence
 
 import torch
 import torch_geometric as tg
 import torch_scatter as ts
 
 from local2global_embedding.network import TGraph, conductance
-from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree
+from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify
+
+
+class Partition(Sequence):
+    def __init__(self, partition_tensor):
+        self.num_parts = torch.max(partition_tensor) + 1
+        self.nodes = torch.argsort(partition_tensor)
+        self.part_index = torch.zeros(self.num_parts + 1, dtype=torch.long, device=partition_tensor.device)
+        ts.scatter(torch.ones(1, dtype=torch.long, device=partition_tensor.device).expand_as(partition_tensor),
+                   partition_tensor, out=self.part_index[1:])
+        self.part_index.cumsum_(0)
+
+    def __getitem__(self, item):
+        return self.nodes[self.part_index[item]:self.part_index[item+1]]
+
+    def __len__(self):
+        return self.num_parts
 
 
 def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_overlap, reseed_samples=10):
@@ -70,11 +87,7 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
     Returns:
         new partition tensor where small clusters are merged.
     """
-    num_parts = torch.max(partition_tensor) + 1
-    parts = [[] for _ in range(num_parts)]
-    for i, c in enumerate(partition_tensor):
-        parts[c].append(i)
-    parts = [torch.tensor(p, dtype=torch.long) for p in parts]
+    parts = Partition(partition_tensor)
     part_degs = torch.tensor([graph.degree[p].sum() for p in parts], device=graph.device)
     sizes = torch.tensor([p.numel() for p in parts], dtype=torch.long)
     smallest_id = torch.argmin(sizes)
@@ -206,6 +219,8 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
         pg = resistance_sparsify(pg, target_mean_degree=target_patch_degree)
     elif sparsify_method == 'rmst':
         pg = relaxed_spanning_tree(pg, maximise=True, gamma=gamma)
+    elif sparsify_method == 'sample':
+        pg = edge_sampling_sparsify(pg, target_patch_degree)
     elif sparsify_method == 'none':
         pass
     else:

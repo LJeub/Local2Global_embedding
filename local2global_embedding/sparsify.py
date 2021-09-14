@@ -223,3 +223,29 @@ def relaxed_spanning_tree(graph: TGraph, maximise=False, gamma=1):
     edge_index = torch.cat(rmst_edges, dim=1)
     edge_attr = torch.cat(rmst_weights)
     return TGraph(edge_index, edge_attr, graph.num_nodes, ensure_sorted=True, undir=graph.undir)
+
+
+def edge_sampling_sparsify(graph: TGraph, target_degree, ensure_connected=True):
+    if ensure_connected:
+        edge_mask = spanning_tree_mask(graph, maximise=True)
+    else:
+        edge_mask = torch.zeros_like(graph.edge_index, dtype=torch.bool)
+
+    if graph.undir:
+        reverse_edge_index = torch.argsort(graph.edge_index[1] * graph.num_nodes + graph.edge_index[0])
+        forward_edges = torch.nonzero(graph.edge_index[0] < graph.edge_index[1]).flatten()
+        reverse_edge_index = reverse_edge_index[forward_edges]
+        prob = target_degree * graph.weights[forward_edges]/ torch.minimum(graph.strength[graph.edge_index[0, forward_edges]],
+                                                         graph.strength[graph.edge_index[1, forward_edges]])
+        keep = torch.rand_like(prob) < prob
+        edge_mask[forward_edges[keep]] = True
+        edge_mask[reverse_edge_index[keep]] = True
+    else:
+        prob = target_degree * graph.weights / torch.minimum(graph.strength[graph.edge_index[0]],
+                                                             graph.strength[graph.edge_index[1]])
+
+        edge_mask[torch.rand_like(prob) < prob] = True
+    edge_index = graph.edge_index[:, edge_mask]
+    edge_attr = graph.edge_attr[edge_mask] if graph.weighted else None
+
+    return TGraph(edge_index=edge_index, edge_attr=edge_attr, num_nodes=graph.num_nodes, undir=graph.undir)

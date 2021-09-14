@@ -119,6 +119,8 @@ def patch_folder_name(name: str, min_overlap: int, target_overlap: int, cluster=
         sp_string = f"rmst_gamma{gamma}"
     elif sparsify == 'none':
         sp_string = "no_sparsify"
+    elif sparsify == 'sample':
+        sp_string = 'sample'
     else:
         raise RuntimeError(f"Unknown sparsification method '{sparsify}'.")
 
