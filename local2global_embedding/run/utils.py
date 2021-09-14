@@ -66,7 +66,7 @@ def classificationloader(name):
     return loader
 
 
-def load_data(name, root='/tmp', normalise=False, restrict_lcc=False):
+def load_data(name, root='/tmp', normalise=False, restrict_lcc=False, **kwargs):
     """
     load data set
 
@@ -79,7 +79,7 @@ def load_data(name, root='/tmp', normalise=False, restrict_lcc=False):
 
     """
     root = Path(root).expanduser()
-    data = _dataloaders[name](root)
+    data = _dataloaders[name](root, **kwargs)
 
     if restrict_lcc:
         data = data.lcc(relabel=True)
@@ -92,11 +92,11 @@ def load_data(name, root='/tmp', normalise=False, restrict_lcc=False):
     return data
 
 
-def load_classification_problem(name, root='/tmp', restrict_lcc=False):
+def load_classification_problem(name, root='/tmp', restrict_lcc=False, graph_args={}, class_args={}):
     root = Path(root).expanduser()
-    y, split = _classification_loader[name](root=root)
+    y, split = _classification_loader[name](root=root, **class_args)
     if restrict_lcc:
-        graph = load_data(name, root, restrict_lcc=False)
+        graph = load_data(name, root, restrict_lcc=False, **graph_args)
         index = graph.nodes_in_lcc()
         index_map = torch.full(y.shape, -1, dtype=torch.long)
         index_map[index] = torch.arange(len(index), dtype=torch.long)
