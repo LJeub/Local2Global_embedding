@@ -147,18 +147,13 @@ def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor
 
     """
     partition_tensor = partition_tensor.to(graph.device)
-    num_parts = torch.max(partition_tensor) + 1
-    partition_index = torch.argsort(partition_tensor)
-    part_index = torch.zeros(num_parts + 1, dtype=torch.long, device=graph.device)
-    ts.scatter(torch.ones(1, dtype=torch.long, device=graph.device).expand_as(partition_tensor),
-               partition_tensor, out=part_index[1:])
-    part_index.cumsum_(0)
-    patches = [partition_index[part_index[i]:part_index[i + 1]] for i in range(num_parts)]
+    parts = Partition(partition_tensor)
+    patches = list(parts)
     for (i, j) in patch_graph.edges():
-        part_i = partition_index[part_index[i]:part_index[i + 1]]
-        part_j = partition_index[part_index[j]:part_index[j + 1]]
+        part_i = parts[i]
+        part_j = parts[j]
         nodes = torch.cat((part_i, part_j))
-        subgraph = graph.subgraph(nodes)
+        subgraph = graph.subgraph(nodes, keep_x=False, keep_y=False)
         patches[i] = torch.cat((patches[i],
                                 nodes[geodesic_expand_overlap(
                                           subgraph,
