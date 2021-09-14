@@ -378,9 +378,7 @@ def _subgraph_edges(edge_index, adj_index, degs, num_nodes, sources):
     target_index = np.full((num_nodes,), -1, np.int64)
     target_index[sources] = np.arange(len(sources))
     count = 0
-    with numba.objmode:
-        print("finding subgraph edges")
-        progress.reset_progress(len(sources))
+
     for s in range(len(sources)):
         for i in range(adj_index[sources[s]], adj_index[sources[s]+1]):
             t = target_index[edge_index[1, i]]
@@ -389,9 +387,4 @@ def _subgraph_edges(edge_index, adj_index, degs, num_nodes, sources):
                 subgraph_edge_index[1, count] = t
                 index[count] = i
                 count += 1
-        if s % 100 == 0 and s > 0:
-            with numba.objmode:
-                progress.update_progress(100)
-    with numba.objmode:
-        progress.close_progress()
     return subgraph_edge_index[:, :count], index[:count]

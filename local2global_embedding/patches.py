@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import torch
 import torch_geometric as tg
 import torch_scatter as ts
+from tqdm.auto import tqdm
 
 from local2global_embedding.network import TGraph, conductance
 from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify
@@ -149,7 +150,8 @@ def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor
     partition_tensor = partition_tensor.to(graph.device)
     parts = Partition(partition_tensor)
     patches = list(parts)
-    for (i, j) in patch_graph.edges():
+    print('enlarging patch overlaps')
+    for (i, j) in tqdm(patch_graph.edges()):
         part_i = parts[i]
         part_j = parts[j]
         nodes = torch.cat((part_i, part_j))
