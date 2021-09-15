@@ -27,7 +27,7 @@ class Partition(Sequence):
         return self.num_parts
 
 
-def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_overlap, reseed_samples=10):
+def geodesic_expand_overlap(subgraph: TGraph, seed_mask, min_overlap, target_overlap, reseed_samples=10):
     """
     expand patch
 
@@ -43,13 +43,10 @@ def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_
     """
     subgraph = subgraph.to(TGraph)
     target_overlap = int(target_overlap)
-    if subgraph.num_nodes - len(source_nodes) < min_overlap:
-        print(f"Minimum overlap {min_overlap} > other nodes {subgraph.num_nodes - len(source_nodes)}")
-    mask = torch.ones(subgraph.num_nodes, dtype=torch.bool, device=subgraph.device)
-    mask[source_nodes] = False
-    new_nodes = torch.unique(torch.cat([subgraph.adj(node) for node in source_nodes]))
-    new_nodes = new_nodes[mask[new_nodes]]
-    mask[new_nodes] = False
+    if subgraph.num_nodes < min_overlap:
+        raise RuntimeError(f"Minimum overlap {min_overlap} > number of nodes {subgraph.num_nodes}")
+    mask = ~seed_mask
+    new_nodes = torch.nonzero(seed_mask).flatten()
     overlap = new_nodes
     if overlap.numel() > target_overlap:
         overlap = overlap[
@@ -151,15 +148,22 @@ def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor
     parts = Partition(partition_tensor)
     patches = list(parts)
     print('enlarging patch overlaps')
-    for (i, j) in tqdm(patch_graph.edges(), total=patch_graph.num_edges):
+    for i in tqdm(range(patch_graph.num_nodes)):
         part_i = parts[i]
-        part_j = parts[j]
-        nodes = torch.cat((part_i, part_j))
-        subgraph = graph.subgraph(nodes, keep_x=False, keep_y=False)
-        patches[i] = torch.cat((patches[i],
-                                nodes[geodesic_expand_overlap(
+        patch_index = torch.full((patch_graph.num_nodes,), -1, dtype=torch.int64)
+        patch_index[patch_graph.adj(i)] = torch.arange(patch_graph.degree[i])
+        source_mask = torch.zeros((part_i.numel(), patch_graph.degree[i]), dtype=torch.bool)
+        for index in range(len(part_i)):
+            pi = patch_index[partition_tensor[graph.adj(part_i[index])]]
+            pi = pi[pi >= 0]
+            source_mask[index, pi] = True
+
+        subgraph = graph.subgraph(part_i, keep_x=False, keep_y=False, relabel=True)
+
+        for it, j in enumerate(patch_graph.adj(i)):
+            patches[j] = torch.cat((patches[j], part_i[geodesic_expand_overlap(
                                           subgraph,
-                                          source_nodes=torch.arange(len(part_i), device=subgraph.device),
+                                          seed_mask=source_mask[:, it],
                                           min_overlap=min_overlap / 2,
                                           target_overlap=target_overlap / 2)]))
     return patches
