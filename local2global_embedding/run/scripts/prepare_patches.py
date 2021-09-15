@@ -25,6 +25,7 @@ from tempfile import TemporaryFile
 import numpy as np
 import torch
 from filelock import SoftFileLock
+from tqdm.auto import tqdm
 
 from local2global_embedding.patches import create_patch_data
 from local2global_embedding.run.utils import ScriptParser, patch_folder_name, load_data
@@ -79,13 +80,19 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
     with SoftFileLock(patch_folder.with_suffix('.lock'), timeout=10):  # make sure not to create patches twice
         if not (patch_folder / 'patch_graph.pt').is_file():
             print(f'creating patches in {patch_folder}')
-            with TemporaryFile() as buffer_f:
+            try:
                 graph = load_data(name, root=data_root, normalise=normalise, restrict_lcc=restrict_lcc)
                 if use_tmp:
+                    buffer_e = TemporaryFile()
+                    buffer_x = TemporaryFile()
                     if isinstance(graph.edge_index, np.memmap):
-                        edge_index = np.memmap(buffer_f, dtype=graph.edge_index.dtype, shape=graph.edge_index.shape)
+                        edge_index = np.memmap(buffer_e, dtype=graph.edge_index.dtype, shape=graph.edge_index.shape)
                         edge_index[:] = graph.edge_index
                         graph.edge_index = edge_index
+                    if isinstance(graph.x, np.memmap):
+                        x = np.memmap(buffer_x, dtype=graph.x.dtype, shape=graph.x.shape)
+                        x[:] = graph.x
+                        graph.x = x
 
                 cluster_file = output_folder / f"{name}_{cluster_string}_clusters.pt"
                 if cluster_file.is_file():
@@ -98,8 +105,13 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                             sparsify, target_patch_degree, gamma, verbose)
                 patch_folder.mkdir(parents=True, exist_ok=True)
                 torch.save(patch_graph, patch_folder / 'patch_graph.pt')
-                for i, data in enumerate(patch_data):
+                print("saving patch data")
+                for i, data in tqdm(enumerate(patch_data)):
                     torch.save(data, patch_folder / f'patch{i}_data.pt')
+            finally:
+                if use_tmp:
+                    buffer_e.close()
+                    buffer_x.close()
 
 
 if __name__ == '__main__':
