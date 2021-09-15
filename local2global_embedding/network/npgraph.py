@@ -26,12 +26,21 @@ from random import randrange
 import numpy as np
 import torch
 import numba
+from numba.experimental import jitclass
 
 from .graph import Graph
 from local2global_embedding import progress
 
 
 rng = np.random.default_rng()
+
+
+spec = [
+    ('edge_index', numba.int64[:, :]),
+    ('adj_index', numba.int64[:]),
+    ('degree', numba.int64[:]),
+
+]
 
 
 class NPGraph(Graph):
@@ -111,17 +120,12 @@ class NPGraph(Graph):
                 self.edge_index = self.edge_index[:, index]
                 if self.edge_attr is not None:
                     self.edge_attr = self.edge_attr[index]
-
         if self.adj_index is None:
-            if isinstance(self.edge_index, np.memmap):
-                self.degree = _memmap_degree(self.edge_index, self.num_nodes)
-            else:
-                self.degree = np.zeros(self.num_nodes, dtype=np.int64)
-                np.add.at(self.degree, self.edge_index[0], 1)
-            self.adj_index = np.zeros(self.num_nodes + 1, dtype=np.int64)  #: adjacency index such that edges starting at node ``i`` are given by ``edge_index[:, adj_index[i]:adj_index[i+1]]``
-            self.degree.cumsum(out=self.adj_index[1:])
-        else:
-            self.degree = self.adj_index[1:]-self.adj_index[:-1]
+            self.adj_index = np.empty((0,), dtype=np.int64)
+        self._jitgraph = JitGraph(self.edge_index, self.num_nodes, self.adj_index, None)
+        self.adj_index = self._jitgraph.adj_index
+        self.degree = self._jitgraph.degree
+        self.num_nodes = self._jitgraph.num_nodes
 
         if self.weighted:
             self.weights = self.edge_attr
@@ -156,7 +160,7 @@ class NPGraph(Graph):
                 for e, w in zip(self.edge_index.T, self.weights))
 
     def is_edge(self, source, target):
-        return _is_edge(self.edge_index, self.adj_index, self.degree, source, target)
+        return self._jitgraph.is_edge(source, target)
 
     def neighbourhood(self, nodes, hops: int = 1):
         """
@@ -195,7 +199,7 @@ class NPGraph(Graph):
 
         """
         nodes = np.asanyarray(nodes)
-        edge_index, index = _subgraph_edges(self.edge_index, self.adj_index, self.degree, self.num_nodes, nodes)
+        edge_index, index = self._jitgraph.subgraph_edges(nodes)
         edge_attr = self.edge_attr
         if relabel:
             node_labels = None
@@ -229,32 +233,7 @@ class NPGraph(Graph):
             tensor of node indeces
 
         """
-        components = np.full((self.num_nodes,), -1, dtype=np.int64)
-        not_visited = np.ones(self.num_nodes, dtype=np.bool)
-        component_id = 0
-        components[0] = component_id
-        not_visited[0] = False
-        bfs_list = [0]
-        i = 0
-        for _ in range(self.num_nodes):
-            if bfs_list:
-                node = bfs_list.pop()
-            else:
-                component_id += 1
-                for i in range(i, self.num_nodes):
-                    if not_visited[i]:
-                        break
-                node = i
-                not_visited[node] = False
-            components[node] = component_id
-            new_nodes = self.adj(node)
-            new_nodes = new_nodes[not_visited[new_nodes]]
-            not_visited[new_nodes] = False
-            bfs_list.extend(new_nodes)
-
-        component_id, inverse, component_size = np.unique(components, return_counts=True, return_inverse=True)
-        new_id = np.argsort(component_size)[::-1]
-        return new_id[inverse]
+        return self._jitgraph.connected_component_ids()
 
     def nodes_in_lcc(self):
         """List all nodes in the largest connected component"""
@@ -299,21 +278,11 @@ class NPGraph(Graph):
 
     def partition_graph(self, partition):
         partition = np.asanyarray(partition)
-        num_clusters = np.max(partition) + 1
-        if isinstance(self.edge_index, np.memmap):
-            with TemporaryFile() as f:
-                counts = _prepare_partition_graph_edge_index(self.edge_index, partition, num_clusters)
-                index = np.nonzero(counts)
-                partition_edges = np.vstack(index)
-                weights = counts[index]
-        else:
-            pe_index = partition[self.edge_index[0]]*num_clusters + partition[self.edge_index[1]]
-            partition_edges, weights = np.unique(pe_index, return_counts=True)
-            partition_edges = np.stack(np.divmod(np.unique(partition_edges), num_clusters))
-        return self.__class__(edge_index=partition_edges, edge_attr=weights, num_nodes=num_clusters, undir=self.undir)
+        partition_edges, weights = self._jitgraph.partition_graph_edges(partition)
+        return self.__class__(edge_index=partition_edges, edge_attr=weights, undir=self.undir)
 
     def sample_negative_edges(self, num_samples):
-        return _sample_neg_edges(self.edge_index, self.adj_index, num_samples, self.num_nodes)
+        return self._jitgraph.sample_negative_edges(num_samples)
 
     def sample_positive_edges(self, num_samples):
         index = rng.integers(self.num_edges, (num_samples,))
@@ -341,30 +310,6 @@ def _subgraph_edges(edge_index, adj_index, degs, num_nodes, sources):
 
 
 @numba.njit
-def _is_edge(edge_index, adj_index, degree, source, target):
-    index = np.searchsorted(edge_index[1, adj_index[source]:adj_index[source+1]], target)
-    if index < degree[source] and edge_index[1, adj_index[source]+index] == target:
-        return True
-    else:
-        return False
-
-
-@numba.njit
-def _sample_neg_edges(edge_index, adj_index, num_samples, num_nodes):
-    i = 0
-    sampled_edges = np.empty((2, num_samples), dtype=edge_index.dtype)
-    while i < num_samples:
-        source = randrange(num_nodes)
-        target = randrange(num_nodes)
-        neighbours = edge_index[1, adj_index[source:source+1]]
-        index = np.searchsorted(neighbours, target)
-        if index == len(neighbours) or neighbours[index] != target:
-            sampled_edges[0, i] = source
-            sampled_edges[1, i] = target
-    return sampled_edges
-
-
-@numba.njit
 def _memmap_degree(edge_index, num_nodes):
     degree = np.zeros(num_nodes, dtype=np.int64)
     with numba.objmode:
@@ -380,21 +325,167 @@ def _memmap_degree(edge_index, num_nodes):
     return degree
 
 
-@numba.njit
-def _prepare_partition_graph_edge_index(edge_index, partition, num_clusters):
-    with numba.objmode:
-        print('finding partition edges')
-        progress.reset_progress(edge_index.shape[1])
-    edge_counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
-    for i, (source, target) in enumerate(edge_index.T):
-        source = partition[source]
-        target = partition[target]
-        if source != target:
-            edge_counts[source, target] += 1
-        if i % 1000000 == 0 and i > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-    with numba.objmode:
-        progress.close_progress()
-        print('convert to array')
-    return edge_counts
+@jitclass(
+    [
+        ('edge_index', numba.int64[:, :]),
+        ('adj_index', numba.int64[:]),
+        ('degree', numba.int64[:]),
+        ('num_nodes', numba.int64)
+    ]
+)
+class JitGraph:
+    def __init__(self, edge_index, num_nodes=None, adj_index=np.empty((0,), dtype=np.int64), degree=None):
+        if num_nodes is None:
+            num_nodes = edge_index.max() + 1
+
+        if degree is None:
+            if adj_index.size == 0:
+                adj_index = np.zeros((num_nodes + 1,), dtype=np.int64)
+                degree = np.zeros((num_nodes,), dtype=np.int64)
+                for s in edge_index[0]:
+                    degree[s] += 1
+                adj_index[1:] = degree.cumsum()
+            else:
+                degree = adj_index[1:]-adj_index[:-1]
+
+        self.edge_index = edge_index
+        self.adj_index = adj_index
+        self.degree = degree
+        self.num_nodes = num_nodes
+
+    def is_edge(self, source, target):
+        if source not in range(self.num_nodes) or target not in range(self.num_nodes):
+            return False
+        index = np.searchsorted(self.edge_index[1, self.adj_index[source]:self.adj_index[source + 1]], target)
+        if index < self.degree[source] and self.edge_index[1, self.adj_index[source] + index] == target:
+            return True
+        else:
+            return False
+
+    def sample_negative_edges(self, num_samples):
+        i = 0
+        sampled_edges = np.empty((2, num_samples), dtype=np.int64)
+        while i < num_samples:
+            source = randrange(self.num_nodes)
+            target = randrange(self.num_nodes)
+            if not self.is_edge(source, target):
+                sampled_edges[0, i] = source
+                sampled_edges[1, i] = target
+                i += 1
+        return sampled_edges
+
+    def adj(self, node):
+        return self.edge_index[1, self.adj_index[node]:self.adj_index[node+1]]
+
+    def neighbours(self, nodes):
+        size = self.degree[nodes].sum()
+        out = np.empty((size,), dtype=np.int64)
+        it = 0
+        for node in nodes:
+            out[it:it+self.degree[node]] = self.adj(node)
+            it += self.degree[node]
+        return np.unique(out)
+
+    def sample_positive_edges(self, num_samples):
+        index = np.random.randint(self.num_edges, (num_samples,))
+        return self.edge_index[:, index]
+
+    def subgraph_edges(self, sources):
+        max_edges = self.degree[sources].sum()
+        subgraph_edge_index = np.empty((2, max_edges), dtype=np.int64)
+        index = np.empty((max_edges,), dtype=np.int64)
+        target_index = np.full((self.num_nodes,), -1, np.int64)
+        target_index[sources] = np.arange(len(sources))
+        count = 0
+
+        for s in range(len(sources)):
+            for i in self.adj(sources[s]):
+                t = target_index[i]
+                if t >= 0:
+                    subgraph_edge_index[0, count] = s
+                    subgraph_edge_index[1, count] = t
+                    index[count] = i
+                    count += 1
+        return subgraph_edge_index[:, :count], index[:count]
+
+    def subgraph(self, sources):
+        edge_index, _ = self.subgraph_edges(sources)
+        return JitGraph(edge_index, len(sources), np.empty((0,), dtype=np.int64), None)
+
+    def partition_graph_edges(self, partition):
+        with numba.objmode:
+            print('finding partition edges')
+            progress.reset_progress(self.num_edges)
+        num_clusters = partition.max()+1
+        edge_counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
+        for i, (source, target) in enumerate(self.edge_index.T):
+            source = partition[source]
+            target = partition[target]
+            if source != target:
+                edge_counts[source, target] += 1
+            if i % 1000000 == 0 and i > 0:
+                with numba.objmode:
+                    progress.update_progress(1000000)
+        with numba.objmode:
+            progress.close_progress()
+            print('convert to array')
+        index = np.nonzero(edge_counts)
+        partition_edges = np.vstack(index)
+        weights = edge_counts[index]
+        return partition_edges, weights
+
+    def partition_graph(self, partition):
+        edge_index, _ = self.partition_graph_edges(partition)
+        return JitGraph(edge_index, None, np.empty((0,), dtype=np.int64), None)
+
+    def connected_component_ids(self):
+        """
+                return nodes in breadth-first-search order
+
+                Args:
+                    start: index of starting node (default: 0)
+
+                Returns:
+                    tensor of node indeces
+
+                """
+        components = np.full((self.num_nodes,), -1, dtype=np.int64)
+        not_visited = np.ones(self.num_nodes, dtype=np.bool)
+        component_id = 0
+        components[0] = component_id
+        not_visited[0] = False
+        bfs_list = [0]
+        i = 0
+        for _ in range(self.num_nodes):
+            if bfs_list:
+                node = bfs_list.pop()
+            else:
+                component_id += 1
+                for i in range(i, self.num_nodes):
+                    if not_visited[i]:
+                        break
+                node = i
+                not_visited[node] = False
+            components[node] = component_id
+            new_nodes = self.adj(node)
+            new_nodes = new_nodes[not_visited[new_nodes]]
+            not_visited[new_nodes] = False
+            bfs_list.extend(new_nodes)
+
+        num_components = components.max()+1
+        component_size = np.zeros((num_components,), dtype=np.int64)
+        for i in components:
+            component_size[i] += 1
+        new_id = np.argsort(component_size)[::-1]
+        inverse = np.empty_like(new_id)
+        inverse[new_id] = np.arange(num_components)
+        return inverse[components]
+
+    def nodes_in_lcc(self):
+        """List all nodes in the largest connected component"""
+        return np.flatnonzero(self.connected_component_ids() == 0)
+
+    @property
+    def num_edges(self):
+        return self.edge_index.shape[1]
+

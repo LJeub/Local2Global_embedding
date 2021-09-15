@@ -2,12 +2,17 @@
 from random import choice
 from collections.abc import Sequence
 
+import numpy
 import torch
+import numpy as np
 import torch_geometric as tg
 import torch_scatter as ts
 from tqdm.auto import tqdm
 
-from local2global_embedding.network import TGraph, conductance
+import numba
+
+from local2global_embedding.network import TGraph, conductance, NPGraph
+from local2global_embedding.network.npgraph import JitGraph
 from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify
 
 
@@ -27,7 +32,8 @@ class Partition(Sequence):
         return self.num_parts
 
 
-def geodesic_expand_overlap(subgraph: TGraph, seed_mask, min_overlap, target_overlap, reseed_samples=10):
+@numba.njit
+def geodesic_expand_overlap(subgraph, seed_mask, min_overlap, target_overlap, reseed_samples=10):
     """
     expand patch
 
@@ -41,33 +47,27 @@ def geodesic_expand_overlap(subgraph: TGraph, seed_mask, min_overlap, target_ove
     Returns:
         index tensor of new nodes to add to patch
     """
-    subgraph = subgraph.to(TGraph)
-    target_overlap = int(target_overlap)
     if subgraph.num_nodes < min_overlap:
-        raise RuntimeError(f"Minimum overlap {min_overlap} > number of nodes {subgraph.num_nodes}")
+        raise RuntimeError("Minimum overlap > number of nodes")
     mask = ~seed_mask
-    new_nodes = torch.nonzero(seed_mask).flatten()
+    new_nodes = np.flatnonzero(seed_mask)
     overlap = new_nodes
-    if overlap.numel() > target_overlap:
-        overlap = overlap[
-            torch.multinomial(torch.ones(overlap.shape), target_overlap, replacement=False)]
-    while overlap.numel() < min_overlap:
-        new_nodes = torch.unique(torch.cat([subgraph.adj(node) for node in new_nodes]))
+    if overlap.size > target_overlap:
+        overlap = np.random.choice(overlap, target_overlap, replace=False)
+    while overlap.size < min_overlap:
+        new_nodes = subgraph.neighbours(new_nodes)
         new_nodes = new_nodes[mask[new_nodes]]
-        if not new_nodes.numel():
+        if not new_nodes.size:
             # no more connected nodes to add so add some remaining nodes by random sampling
-            new_nodes = torch.nonzero(mask).flatten()
-            if new_nodes.numel() > reseed_samples:
-                new_nodes = new_nodes[
-                    torch.multinomial(torch.ones(new_nodes.shape), reseed_samples, replacement=False)]
-        if overlap.numel() + new_nodes.numel() > target_overlap:
-            new_nodes = new_nodes[
-                torch.multinomial(torch.ones(new_nodes.shape), target_overlap - overlap.numel(), replacement=False)]
-        if not new_nodes.numel():
+            new_nodes = np.flatnonzero(mask)
+            if new_nodes.size > reseed_samples:
+                new_nodes = np.random.choice(new_nodes, reseed_samples, replace=False)
+        if overlap.size + new_nodes.size > target_overlap:
+            new_nodes = np.random.choice(new_nodes, target_overlap - overlap.size, replace=False)
+        if not new_nodes.size:
             raise RuntimeError("Could not reach minimum overlap.")
         mask[new_nodes] = False
-        overlap = torch.cat((overlap, new_nodes))
-
+        overlap = numpy.concatenate((overlap, new_nodes))
     return overlap
 
 
@@ -126,7 +126,8 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
     return partition_tensor
 
 
-def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor, patch_graph: TGraph, min_overlap,
+
+def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_graph, min_overlap,
                                target_overlap):
     """
     Create overlapping patches from a hard partition of an input graph
@@ -144,28 +145,53 @@ def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor
         list of node-index tensors for patches
 
     """
-    partition_tensor = partition_tensor.to(graph.device)
+    graph = graph.to(NPGraph)._jitgraph
+    patch_graph = patch_graph.to(NPGraph)._jitgraph
     parts = Partition(partition_tensor)
-    patches = list(parts)
+    patches = numba.typed.List(np.asanyarray(p) for p in parts)
+    partition_tensor = np.asanyarray(partition_tensor)
     print('enlarging patch overlaps')
     for i in tqdm(range(patch_graph.num_nodes)):
-        part_i = parts[i]
-        patch_index = torch.full((patch_graph.num_nodes,), -1, dtype=torch.int64)
-        patch_index[patch_graph.adj(i)] = torch.arange(patch_graph.degree[i])
-        source_mask = torch.zeros((part_i.numel(), patch_graph.degree[i]), dtype=torch.bool)
-        for index in range(len(part_i)):
-            pi = patch_index[partition_tensor[graph.adj(part_i[index])]]
-            pi = pi[pi >= 0]
-            source_mask[index, pi] = True
+        part_i = np.asanyarray(parts[i])
+        part_i.sort()
+        patches = _patch_overlaps(i, part_i, partition_tensor, patches, graph, patch_graph, int(min_overlap / 2), int(target_overlap / 2))
 
-        subgraph = graph.subgraph(part_i, keep_x=False, keep_y=False, relabel=True)
+    return patches
 
-        for it, j in enumerate(patch_graph.adj(i)):
-            patches[j] = torch.cat((patches[j], part_i[geodesic_expand_overlap(
-                                          subgraph,
-                                          seed_mask=source_mask[:, it],
-                                          min_overlap=min_overlap / 2,
-                                          target_overlap=target_overlap / 2)]))
+
+@numba.njit
+def _patch_overlaps(i, part, partition, patches, graph, patch_graph, min_overlap, target_overlap):
+    max_edges = graph.degree[part].sum()
+    edge_index = np.empty((2, max_edges), dtype=np.int64)
+    adj_index = np.zeros((len(part)+1,), dtype=np.int64)
+    part_index = np.full((graph.num_nodes,), -1, dtype=np.int64)
+    part_index[part] = np.arange(len(part))
+
+    patch_index = np.full((patch_graph.num_nodes,), -1, dtype=np.int64)
+    patch_index[patch_graph.adj(i)] = np.arange(patch_graph.degree[i])
+    source_mask = np.zeros((part.size, patch_graph.degree[i]), dtype=np.bool_)  # track source nodes for different patches
+    edge_count = 0
+    for index in range(len(part)):
+        targets = graph.adj(part[index])
+        for t in part_index[targets]:
+            if t >= 0:
+                edge_index[0, edge_count] = index
+                edge_index[1, edge_count] = t
+                edge_count += 1
+        adj_index[index+1] = edge_count
+        pi = patch_index[partition[targets]]
+        pi = pi[pi >= 0]
+        source_mask[index][pi] = True
+    edge_index = edge_index[:, :edge_count]
+    subgraph = JitGraph(edge_index, len(part), adj_index, None)
+
+    for it, j in enumerate(patch_graph.adj(i)):
+        patches[j] = np.concatenate((patches[j],
+                                     part[geodesic_expand_overlap(
+                                         subgraph,
+                                         seed_mask=source_mask[:, it],
+                                         min_overlap=min_overlap,
+                                         target_overlap=target_overlap)]))
     return patches
 
 
