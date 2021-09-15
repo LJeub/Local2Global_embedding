@@ -126,6 +126,10 @@ class Graph:
         raise NotImplementedError
 
     @abstractmethod
+    def is_edge(self, source, target):
+        raise NotImplementedError
+
+    @abstractmethod
     def neighbourhood(self, nodes, hops: int = 1):
         """
         find the neighbourhood of a set of source nodes

@@ -90,6 +90,13 @@ class TGraph(Graph):
         return ((self.edge_index[0, e].item(), self.edge_index[1, e].item(), self.weights[e].cpu().numpy()
                  if self.weights.ndim > 1 else self.weights[e].item()) for e in range(self.num_edges))
 
+    def is_edge(self, source, target):
+        index = torch.bucketize(target, self.edge_index[1, self.adj_index[source]:self.adj_index[source+1]])
+        if index < self.degree[source] and self.edge_index[1, self.adj_index[source]+index] == target:
+            return True
+        else:
+            return False
+
     def neighbourhood(self, nodes: torch.Tensor, hops: int = 1):
         """
         find the neighbourhood of a set of source nodes

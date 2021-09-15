@@ -17,14 +17,13 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+
 import json
 from pathlib import Path
 from tempfile import TemporaryFile
 from random import randrange
 
-import networkx as nx
 import numpy as np
-from numpy.lib.format import open_memmap
 import torch
 import numba
 
@@ -33,57 +32,6 @@ from local2global_embedding import progress
 
 
 rng = np.random.default_rng()
-
-
-@numba.njit
-def _sample_neg_edges(edge_index, adj_index, num_samples, num_nodes):
-    i = 0
-    sampled_edges = np.empty((2, num_samples), dtype=edge_index.dtype)
-    while i < num_samples:
-        source = randrange(num_nodes)
-        target = randrange(num_nodes)
-        neighbours = edge_index[1, adj_index[source:source+1]]
-        index = np.searchsorted(neighbours, target)
-        if index == len(neighbours) or neighbours[index] != target:
-            sampled_edges[0, i] = source
-            sampled_edges[1, i] = target
-    return sampled_edges
-
-
-@numba.njit
-def _memmap_degree(edge_index, num_nodes):
-    degree = np.zeros(num_nodes, dtype=np.int64)
-    with numba.objmode:
-        print('computing degrees')
-        progress.reset_progress(edge_index.shape[1])
-    for it, source in enumerate(edge_index[0]):
-        degree[source] += 1
-        if it % 1000000 == 0 and it > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-    with numba.objmode:
-        progress.close_progress()
-    return degree
-
-
-@numba.njit
-def _prepare_partition_graph_edge_index(edge_index, partition, num_clusters):
-    with numba.objmode:
-        print('finding partition edges')
-        progress.reset_progress(edge_index.shape[1])
-    edge_counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
-    for i, (source, target) in enumerate(edge_index.T):
-        source = partition[source]
-        target = partition[target]
-        if source != target:
-            edge_counts[source, target] += 1
-        if i % 1000000 == 0 and i > 0:
-            with numba.objmode:
-                progress.update_progress(1000000)
-    with numba.objmode:
-        progress.close_progress()
-        print('convert to array')
-    return edge_counts
 
 
 class NPGraph(Graph):
@@ -204,8 +152,11 @@ class NPGraph(Graph):
         """
         return list of edges where each edge is a tuple ``(source, target, weight)``
         """
-        return [(e[0], e[1], w[0] if w.size > 1 else w)
-                for e, w in zip(self.edge_index.T, self.weights)]
+        return ((e[0], e[1], w[0] if w.size > 1 else w)
+                for e, w in zip(self.edge_index.T, self.weights))
+
+    def is_edge(self, source, target):
+        return _is_edge(self.edge_index, self.adj_index, self.degree, source, target)
 
     def neighbourhood(self, nodes, hops: int = 1):
         """
@@ -283,7 +234,6 @@ class NPGraph(Graph):
         component_id = 0
         components[0] = component_id
         not_visited[0] = False
-        append_pointer = 1
         bfs_list = [0]
         i = 0
         for _ in range(self.num_nodes):
@@ -388,3 +338,63 @@ def _subgraph_edges(edge_index, adj_index, degs, num_nodes, sources):
                 index[count] = i
                 count += 1
     return subgraph_edge_index[:, :count], index[:count]
+
+
+@numba.njit
+def _is_edge(edge_index, adj_index, degree, source, target):
+    index = np.searchsorted(edge_index[1, adj_index[source]:adj_index[source+1]], target)
+    if index < degree[source] and edge_index[1, adj_index[source]+index] == target:
+        return True
+    else:
+        return False
+
+
+@numba.njit
+def _sample_neg_edges(edge_index, adj_index, num_samples, num_nodes):
+    i = 0
+    sampled_edges = np.empty((2, num_samples), dtype=edge_index.dtype)
+    while i < num_samples:
+        source = randrange(num_nodes)
+        target = randrange(num_nodes)
+        neighbours = edge_index[1, adj_index[source:source+1]]
+        index = np.searchsorted(neighbours, target)
+        if index == len(neighbours) or neighbours[index] != target:
+            sampled_edges[0, i] = source
+            sampled_edges[1, i] = target
+    return sampled_edges
+
+
+@numba.njit
+def _memmap_degree(edge_index, num_nodes):
+    degree = np.zeros(num_nodes, dtype=np.int64)
+    with numba.objmode:
+        print('computing degrees')
+        progress.reset_progress(edge_index.shape[1])
+    for it, source in enumerate(edge_index[0]):
+        degree[source] += 1
+        if it % 1000000 == 0 and it > 0:
+            with numba.objmode:
+                progress.update_progress(1000000)
+    with numba.objmode:
+        progress.close_progress()
+    return degree
+
+
+@numba.njit
+def _prepare_partition_graph_edge_index(edge_index, partition, num_clusters):
+    with numba.objmode:
+        print('finding partition edges')
+        progress.reset_progress(edge_index.shape[1])
+    edge_counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
+    for i, (source, target) in enumerate(edge_index.T):
+        source = partition[source]
+        target = partition[target]
+        if source != target:
+            edge_counts[source, target] += 1
+        if i % 1000000 == 0 and i > 0:
+            with numba.objmode:
+                progress.update_progress(1000000)
+    with numba.objmode:
+        progress.close_progress()
+        print('convert to array')
+    return edge_counts
