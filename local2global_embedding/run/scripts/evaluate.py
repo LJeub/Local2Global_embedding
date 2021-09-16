@@ -31,8 +31,8 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
              device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=1000,
              mmap_mode: Optional[str] = None, random_split=False):
     print(f'evaluating {embedding_file} with {runs} classification runs.')
-    graph = load_data(name, root=data_root, restrict_lcc=restrict_lcc)
-    cl_data = load_classification_problem(name, root=data_root, restrict_lcc=restrict_lcc)
+    graph = load_data(name, root=data_root, mmap_mode=mmap_mode, restrict_lcc=restrict_lcc, load_features=False)
+    cl_data = load_classification_problem(name, graph_args={'mmap_mode': mmap_mode}, root=data_root, restrict_lcc=restrict_lcc)
     num_labels = cl_data.num_labels
     coords = np.load(embedding_file, mmap_mode=mmap_mode)
     cl_data.x = coords

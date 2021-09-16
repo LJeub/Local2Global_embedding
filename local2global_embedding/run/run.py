@@ -112,7 +112,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                        gamma=gamma,
                                                        verbose=False,
                                                        normalise=normalise,
-                                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp))
+                                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp, mmap_mode=mmap_mode))
 
     # compute baseline full model if necessary
     baseline_info_file = output_folder / f'{train_basename}_full_info.json'
