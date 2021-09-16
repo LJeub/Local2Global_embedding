@@ -258,5 +258,4 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
         print(f"average patch degree: {pg.num_edges / pg.num_nodes}")
 
     patches = create_overlapping_patches(graph, partition_tensor, pg, min_overlap, target_overlap)
-    patch_data = (graph.subgraph(patch, relabel=False).to(TGraph) for patch in patches)
-    return patch_data, pg
+    return patches, pg
