@@ -92,11 +92,13 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
         buffer_e = None
         if use_tmp:
             if isinstance(graph.edge_index, np.memmap):
+                print('copying edge_index to local storage')
                 buffer_e = TemporaryFile()
                 edge_index = np.memmap(buffer_e, dtype=graph.edge_index.dtype, shape=graph.edge_index.shape)
                 edge_index[:] = graph.edge_index
                 graph.edge_index = edge_index
             if isinstance(graph.x, np.memmap):
+                print('copying features to local storage')
                 buffer_x = TemporaryFile()
                 x = np.memmap(buffer_x, dtype=graph.x.dtype, shape=graph.x.shape)
                 x[:] = graph.x
