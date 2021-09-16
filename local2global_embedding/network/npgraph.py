@@ -314,14 +314,14 @@ def _memmap_degree(edge_index, num_nodes):
     degree = np.zeros(num_nodes, dtype=np.int64)
     with numba.objmode:
         print('computing degrees')
-        progress.reset_progress(edge_index.shape[1])
+        progress.reset(edge_index.shape[1])
     for it, source in enumerate(edge_index[0]):
         degree[source] += 1
         if it % 1000000 == 0 and it > 0:
             with numba.objmode:
-                progress.update_progress(1000000)
+                progress.update(1000000)
     with numba.objmode:
-        progress.close_progress()
+        progress.close()
     return degree
 
 
@@ -415,8 +415,8 @@ class JitGraph:
     def partition_graph_edges(self, partition):
         with numba.objmode:
             print('finding partition edges')
-            progress.reset_progress(self.num_edges)
         num_clusters = partition.max()+1
+            progress.reset(num_edges)
         edge_counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
         for i, (source, target) in enumerate(self.edge_index.T):
             source = partition[source]
@@ -425,10 +425,9 @@ class JitGraph:
                 edge_counts[source, target] += 1
             if i % 1000000 == 0 and i > 0:
                 with numba.objmode:
-                    progress.update_progress(1000000)
+                    progress.update(1000000)
         with numba.objmode:
-            progress.close_progress()
-            print('convert to array')
+            progress.close()
         index = np.nonzero(edge_counts)
         partition_edges = np.vstack(index)
         weights = edge_counts[index]

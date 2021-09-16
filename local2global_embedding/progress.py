@@ -21,14 +21,15 @@
 from tqdm.auto import tqdm
 
 
-def reset_progress(total):
+def reset(total):
     global pbar
     pbar = tqdm(total=total)
 
 
-def update_progress(iterations):
+def update(iterations):
     pbar.update(iterations)
 
 
-def close_progress():
+def close():
+    pbar.update(pbar.total - pbar.n)
     pbar.close()

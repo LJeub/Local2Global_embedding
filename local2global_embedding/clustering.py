@@ -132,7 +132,7 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
     deltas = - alpha * gamma * (partition_sizes ** (gamma - 1))
 
     with numba.objmode:
-        progress.reset_progress(num_nodes)
+        progress.reset(num_nodes)
 
     for it in range(num_iters):
         not_converged = 0
@@ -165,9 +165,9 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
             if i % 10000 == 0 and i > 0:
                 progress_it = i
                 with numba.objmode:
-                    progress.update_progress(10000)
+                    progress.update(10000)
         with numba.objmode:
-            progress.update_progress(num_nodes-progress_it)
+            progress.update(num_nodes - progress_it)
 
         print('iteration: ' + str(it) + ', not converged: ' + str(not_converged))
 
@@ -175,7 +175,7 @@ def _fennel_clustering(edge_index, adj_index, num_nodes, num_clusters, load_limi
             print(f'converged after ' + str(it) + ' iterations.')
             break
     with numba.objmode:
-        progress.close_progress()
+        progress.close()
 
     return clusters
 
