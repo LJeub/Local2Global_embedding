@@ -501,7 +501,6 @@ class JitGraph:
         return self.edge_index.shape[1]
 
 
-@numba.njit
 def extract_data(x, nodes):
     out = np.empty((nodes.size, x.shape[1]), dtype=x.dtype)
     for i, n in enumerate(nodes):
