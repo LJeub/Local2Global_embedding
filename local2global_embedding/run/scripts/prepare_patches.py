@@ -35,7 +35,7 @@ from local2global_embedding.clustering import louvain_clustering, metis_clusteri
 def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: int, data_root='/tmp',
                     min_patch_size: int = None, cluster='metis', num_clusters=10, num_iters: Optional[int]=None, beta=0.1,
                     sparsify='resistance', target_patch_degree=4.0, gamma=0.0, normalise=False, restrict_lcc=False,
-                    verbose=False, use_tmp=False, mmap_mode: Optional[str] = None):
+                    verbose=False, use_tmp=False, mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None):
     """
     initialise patch data
 
@@ -81,7 +81,8 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
         if not (patch_folder / 'patch_graph.pt').is_file():
             print(f'creating patches in {patch_folder}')
             try:
-                graph = load_data(name, root=data_root, mmap_mode=mmap_mode, normalise=normalise, restrict_lcc=restrict_lcc)
+                graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
+                                  normalise=normalise, restrict_lcc=restrict_lcc)
                 if use_tmp:
                     buffer_e = TemporaryFile()
                     buffer_x = TemporaryFile()
@@ -117,4 +118,4 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
 if __name__ == '__main__':
     parser = ScriptParser(prepare_patches)
     args, kwargs = parser.parse()
-    prepare_patches(*args, **kwargs)
+    prepare_patches(**kwargs)

@@ -102,7 +102,7 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
 
 
 @dataloader('MAG240M')
-def _load_mag240(root='.', mmap_mode='r', load_features=True, **kwargs):
+def _load_mag240(root='.', mmap_features='r', mmap_edges='r', load_features=True, **kwargs):
     root = Path(root)
     data_folder = root / 'mag240m_citations_undir'
     if not data_folder.is_dir() or not (data_folder / 'processed').is_file():
@@ -153,9 +153,9 @@ def _load_mag240(root='.', mmap_mode='r', load_features=True, **kwargs):
     index_file = data_folder / 'adj_index.npy'
 
     if load_features:
-        data = NPGraph.load(data_folder, mmap_mode=mmap_mode)
+        data = NPGraph.load(data_folder, mmap_edges=mmap_edges, mmap_features=mmap_features)
     else:
-        edge_index = np.load(data_folder / 'edge_index.npy', mmap_mode=mmap_mode)
+        edge_index = np.load(data_folder / 'edge_index.npy', mmap_mode=mmap_edges)
         if index_file.is_file():
             adj_index = np.load(data_folder / '')
         else:

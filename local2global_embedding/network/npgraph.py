@@ -55,15 +55,15 @@ class NPGraph(Graph):
             return np.asanyarray(input)
 
     @classmethod
-    def load(cls, folder, mmap_mode=None):
+    def load(cls, folder, mmap_edges=None, mmap_features=None):
         folder = Path(folder)
         kwargs = {}
 
-        kwargs['edge_index'] = np.load(folder / 'edge_index.npy', mmap_mode=mmap_mode)
+        kwargs['edge_index'] = np.load(folder / 'edge_index.npy', mmap_mode=mmap_edges)
 
         attr_file = folder / 'edge_attr.npy'
         if attr_file.is_file():
-            kwargs['edge_attr'] = np.load(attr_file, mmap_mode=mmap_mode)
+            kwargs['edge_attr'] = np.load(attr_file, mmap_mode=mmap_edges)
 
         info_file = folder / 'info.json'
         if info_file.is_file():
@@ -73,7 +73,7 @@ class NPGraph(Graph):
 
         feat_file = folder / 'node_feat.npy'
         if feat_file.is_file():
-            kwargs['x'] = np.load(feat_file, mmap_mode=mmap_mode)
+            kwargs['x'] = np.load(feat_file, mmap_mode=mmap_features)
 
         label_file = folder / 'node_label.npy'
         if label_file.is_file():

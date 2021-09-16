@@ -34,7 +34,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
               min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
               cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
               output='.', device: str = None, verbose=False, max_workers=1, cmd_prefix: str = None,
-              run_baseline=True, normalise=False, restrict_lcc=False, use_mmap=False, random_split=False, use_tmp=False):
+              run_baseline=True, normalise=False, restrict_lcc=False, mmap_edges=False, mmap_features=False,
+              random_split=False, use_tmp=False):
     """
     Run training example.
 
@@ -91,7 +92,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     print(f'Results will be placed in {output_folder}.')
     print(f'Data root is {data_root}')
 
-    mmap_mode = 'r' if use_mmap else None
+    mmap_edges = 'r' if mmap_edges else None
+    mmap_features = 'r' if mmap_features else None
 
     train_basename = f'{name}_{model}'
     eval_basename = f'{name}_{model}'
@@ -112,7 +114,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                        gamma=gamma,
                                                        verbose=False,
                                                        normalise=normalise,
-                                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp, mmap_mode=mmap_mode))
+                                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp, mmap_edges=mmap_edges,
+                                                       mmap_features=mmap_features))
 
     # compute baseline full model if necessary
     baseline_info_file = output_folder / f'{train_basename}_full_info.json'
@@ -121,7 +124,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     if run_baseline:
         data_file = output_folder / f'{name}_data.pt'
         if not data_file.is_file():
-            data = load_data(name, data_root, restrict_lcc=restrict_lcc, normalise=normalise)
+            data = load_data(name, data_root, restrict_lcc=restrict_lcc, normalise=normalise, mmap_edges=mmap_edges,
+                             mmap_features=mmap_features)
             torch.save(data, data_file)
         for d in dims:
             with ResultsDict(baseline_info_file) as baseline_data:
@@ -204,7 +208,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_mode,
+                                   mmap_mode=mmap_edges,
                                    )
                     )
                 )
@@ -224,7 +228,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_mode,
+                                   mmap_mode=mmap_edges,
                                    )
                     )
                 )
@@ -251,7 +255,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_mode,
+                                   mmap_mode=mmap_edges,
                                    )
                     )
                 )
@@ -272,7 +276,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_mode,
+                                   mmap_mode=mmap_edges,
                                    )
                     )
                 )
@@ -294,7 +298,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_mode,
+                                   mmap_mode=mmap_edges,
                                    )
                     )
                 )
@@ -315,7 +319,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_mode,
+                                   mmap_mode=mmap_edges,
                                    )
                     )
                 )

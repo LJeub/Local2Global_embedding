@@ -29,12 +29,14 @@ from local2global_embedding.run.utils import ResultsDict, ScriptParser, load_cla
 
 def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str, results_file: str, dist=False,
              device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=1000,
-             mmap_mode: Optional[str] = None, random_split=False):
+             mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False):
     print(f'evaluating {embedding_file} with {runs} classification runs.')
-    graph = load_data(name, root=data_root, mmap_mode=mmap_mode, restrict_lcc=restrict_lcc, load_features=False)
-    cl_data = load_classification_problem(name, graph_args={'mmap_mode': mmap_mode}, root=data_root, restrict_lcc=restrict_lcc)
+    graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
+                      restrict_lcc=restrict_lcc, load_features=False)
+    cl_data = load_classification_problem(name, graph_args={'mmap_edges': mmap_edges, 'mmap_features': mmap_features},
+                                          root=data_root, restrict_lcc=restrict_lcc)
     num_labels = cl_data.num_labels
-    coords = np.load(embedding_file, mmap_mode=mmap_mode)
+    coords = np.load(embedding_file, mmap_mode=mmap_features)
     cl_data.x = coords
     dim = coords.shape[1]
     auc = reconstruction_auc(coords, graph, dist=dist)
@@ -58,4 +60,4 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
 if __name__ == '__main__':
     parser = ScriptParser(evaluate)
     args, kwargs = parser.parse()
-    evaluate(*args, **kwargs)
+    evaluate(**kwargs)
