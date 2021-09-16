@@ -35,7 +35,7 @@ from local2global_embedding.clustering import louvain_clustering, metis_clusteri
 def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: int, data_root='/tmp',
                     min_patch_size: int = None, cluster='metis', num_clusters=10, num_iters: Optional[int]=None, beta=0.1,
                     sparsify='resistance', target_patch_degree=4.0, gamma=0.0, normalise=False, restrict_lcc=False,
-                    verbose=False, use_tmp=False, mmap_mode=None):
+                    verbose=False, use_tmp=False, mmap_mode: Optional[str] = None):
     """
     initialise patch data
 
