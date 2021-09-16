@@ -334,24 +334,30 @@ def _memmap_degree(edge_index, num_nodes):
     ]
 )
 class JitGraph:
-    def __init__(self, edge_index, num_nodes=None, adj_index=np.empty((0,), dtype=np.int64), degree=None):
+    def __init__(self, edge_index, num_nodes=None, adj_index=None, degree=None):
         if num_nodes is None:
-            num_nodes = edge_index.max() + 1
+            num_nodes_int = edge_index.max() + 1
+        else:
+            num_nodes_int = num_nodes
+
+        if adj_index is None:
+            adj_index_ar = np.zeros((num_nodes_int+1,), dtype=np.int64)
+        else:
+            adj_index_ar = adj_index
 
         if degree is None:
-            if adj_index.size == 0:
-                adj_index = np.zeros((num_nodes + 1,), dtype=np.int64)
-                degree = np.zeros((num_nodes,), dtype=np.int64)
+            if adj_index is None:
+                degree = np.zeros((num_nodes_int,), dtype=np.int64)
                 for s in edge_index[0]:
                     degree[s] += 1
-                adj_index[1:] = degree.cumsum()
+                adj_index_ar[1:] = degree.cumsum()
             else:
-                degree = adj_index[1:]-adj_index[:-1]
+                degree = adj_index_ar[1:]-adj_index_ar[:-1]
 
         self.edge_index = edge_index
-        self.adj_index = adj_index
+        self.adj_index = adj_index_ar
         self.degree = degree
-        self.num_nodes = num_nodes
+        self.num_nodes = num_nodes_int
 
     def is_edge(self, source, target):
         if source not in range(self.num_nodes) or target not in range(self.num_nodes):
@@ -410,13 +416,14 @@ class JitGraph:
 
     def subgraph(self, sources):
         edge_index, _ = self.subgraph_edges(sources)
-        return JitGraph(edge_index, len(sources), np.empty((0,), dtype=np.int64), None)
+        return JitGraph(edge_index, len(sources), None, None)
 
     def partition_graph_edges(self, partition):
+        num_edges = self.num_edges
         with numba.objmode:
             print('finding partition edges')
-        num_clusters = partition.max()+1
             progress.reset(num_edges)
+        num_clusters = partition.max() + 1
         edge_counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
         for i, (source, target) in enumerate(self.edge_index.T):
             source = partition[source]
@@ -430,12 +437,14 @@ class JitGraph:
             progress.close()
         index = np.nonzero(edge_counts)
         partition_edges = np.vstack(index)
-        weights = edge_counts[index]
+        weights = np.empty((len(index[0]),), dtype=np.int64)
+        for it, (i, j) in enumerate(zip(*index)):
+            weights[it] = edge_counts[i][j]
         return partition_edges, weights
 
     def partition_graph(self, partition):
         edge_index, _ = self.partition_graph_edges(partition)
-        return JitGraph(edge_index, None, np.empty((0,), dtype=np.int64), None)
+        return JitGraph(edge_index, None, None, None)
 
     def connected_component_ids(self):
         """
@@ -487,4 +496,3 @@ class JitGraph:
     @property
     def num_edges(self):
         return self.edge_index.shape[1]
-
