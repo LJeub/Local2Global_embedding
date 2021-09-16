@@ -35,13 +35,13 @@ from local2global_embedding.classfication import random_split
 
 
 def _load_data(name):
-    def _load(root='/tmp'):
+    def _load(root='/tmp', **kwargs):
         return TGraph.from_tg(tg.datasets.Amazon(root=f'{root}/amazon', name=name)[0])
     return _load
 
 
 def _load_class(name):
-    def _load(root='/tmp'):
+    def _load(root='/tmp', **kwargs):
         data = tg.datasets.Amazon(root=f'{root}/amazon', name=name)[0]
         y = data.y
         split = random_split(y)

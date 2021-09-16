@@ -24,13 +24,13 @@ from local2global_embedding.run.utils import dataloader, classificationloader
 
 
 def _load_data(name):
-    def _load(root='/tmp'):
+    def _load(root='/tmp', **kwargs):
         return TGraph.from_tg(tg.datasets.Planetoid(name=name, root=f'{root}/{name}')[0])
     return _load
 
 
 def _load_class(name):
-    def _load(root='/tmp'):
+    def _load(root='/tmp', **kwargs):
         data = tg.datasets.Planetoid(name=name, root=f'{root}/{name}', split='public')[0]
         y = data.y
         split = {'test': data.test_mask.nonzero().flatten(),

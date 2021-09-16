@@ -102,7 +102,7 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
 
 
 @dataloader('MAG240M')
-def _load_mag240(root='.'):
+def _load_mag240(root='.', mmap_mode='r', load_features=True, **kwargs):
     root = Path(root)
     data_folder = root / 'mag240m_citations_undir'
     if not data_folder.is_dir() or not (data_folder / 'processed').is_file():
@@ -150,9 +150,21 @@ def _load_mag240(root='.'):
 
         (data_folder / 'processed').touch()
 
-    data = NPGraph.load(data_folder, mmap_mode='r')
-
     index_file = data_folder / 'adj_index.npy'
+
+    if load_features:
+        data = NPGraph.load(data_folder, mmap_mode=mmap_mode)
+    else:
+        edge_index = np.load(data_folder / 'edge_index.npy', mmap_mode=mmap_mode)
+        if index_file.is_file():
+            adj_index = np.load(data_folder / '')
+        else:
+            adj_index = None
+
+        with open(data_folder / 'info.json') as f:
+            kwargs = json.load(f)
+        data = NPGraph(edge_index=edge_index, adj_index=adj_index, ensure_sorted=False, **kwargs)
+
     if not index_file.is_file():
         np.save(index_file, data.adj_index)
 
@@ -160,7 +172,7 @@ def _load_mag240(root='.'):
 
 
 @classificationloader
-def _load_mag240m_classification(root='/tmp', num_val=10000):
+def _load_mag240m_classification(root='/tmp', num_val=10000, **kwargs):
     from ogb.lsc import MAG240MDataset
     base_data = MAG240MDataset(root=root)
     y = base_data.all_paper_label
