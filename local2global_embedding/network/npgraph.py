@@ -206,7 +206,7 @@ class NPGraph(Graph):
         else:
             node_labels = [self.nodes[n] for n in nodes]
         if self.x is not None and keep_x:
-            x = self.x[nodes, :]
+            x = extract_data(self.x, nodes)
         else:
             x = None
         if self.y is not None and keep_y:
@@ -381,7 +381,10 @@ class JitGraph:
         return sampled_edges
 
     def adj(self, node):
-        return self.edge_index[1, self.adj_index[node]:self.adj_index[node+1]]
+        out = np.empty((self.degree[node],), dtype=np.int64)
+        for i, index in enumerate(range(self.adj_index[node], self.adj_index[node+1])):
+            out[i] = self.edge_index[1][i]
+        return out
 
     def neighbours(self, nodes):
         size = self.degree[nodes].sum()
@@ -496,3 +499,11 @@ class JitGraph:
     @property
     def num_edges(self):
         return self.edge_index.shape[1]
+
+
+@numba.njit
+def extract_data(x, nodes):
+    out = np.empty((nodes.size, x.shape[1]), dtype=x.dtype)
+    for i, n in enumerate(nodes):
+        out[i, :] = x[n, :]
+    return out
