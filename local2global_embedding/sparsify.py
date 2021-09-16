@@ -222,7 +222,7 @@ def relaxed_spanning_tree(graph: TGraph, maximise=False, gamma=1):
 
 
 def edge_sampling_sparsify(graph: TGraph, target_degree, ensure_connected=True):
-    weights = graph.weights / torch.minimum((graph.strength[graph.edge_index[0]], graph.strength[graph.edge_index[1]]))
+    weights = graph.weights / torch.minimum(graph.strength[graph.edge_index[0]], graph.strength[graph.edge_index[1]])
     cgraph = TGraph(graph.edge_index, edge_attr=weights, adj_index=graph.adj_index, num_nodes=graph.num_nodes,
                    ensure_sorted=False, undir=graph.undir)  # convert weights to conductance value
     if ensure_connected:
