@@ -18,12 +18,12 @@ from local2global_embedding.sparsify import resistance_sparsify, relaxed_spannin
 
 class Partition(Sequence):
     def __init__(self, partition_tensor):
-        self.num_parts = torch.max(partition_tensor) + 1
-        self.nodes = torch.argsort(partition_tensor)
-        self.part_index = torch.zeros(self.num_parts + 1, dtype=torch.long, device=partition_tensor.device)
-        ts.scatter(torch.ones(1, dtype=torch.long, device=partition_tensor.device).expand_as(partition_tensor),
-                   partition_tensor, out=self.part_index[1:])
-        self.part_index.cumsum_(0)
+        partition_tensor = np.asanyarray(partition_tensor)
+        self.num_parts = np.max(partition_tensor) + 1
+        self.nodes = np.argsort(partition_tensor)
+        self.part_index = np.zeros(self.num_parts + 1, dtype=np.int64)
+        np.add.at(self.part_index[1:], partition_tensor, 1)
+        np.cumsum(self.part_index, out=self.part_index)
 
     def __getitem__(self, item):
         return self.nodes[self.part_index[item]:self.part_index[item+1]]
@@ -88,7 +88,7 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
     """
     parts = Partition(partition_tensor)
     part_degs = torch.tensor([graph.degree[p].sum() for p in parts], device=graph.device)
-    sizes = torch.tensor([p.numel() for p in parts], dtype=torch.long)
+    sizes = torch.tensor([len(p) for p in parts], dtype=torch.long)
     smallest_id = torch.argmin(sizes)
     while sizes[smallest_id] < min_size:
         out_neighbour_fraction = torch.zeros(num_parts, device=graph.device)
@@ -126,7 +126,6 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
     return partition_tensor
 
 
-
 def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_graph, min_overlap,
                                target_overlap):
     """
@@ -145,11 +144,11 @@ def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_
         list of node-index tensors for patches
 
     """
+    partition_tensor = np.asanyarray(partition_tensor)
     graph = graph.to(NPGraph)._jitgraph
     patch_graph = patch_graph.to(NPGraph)._jitgraph
     parts = Partition(partition_tensor)
     patches = numba.typed.List(np.asanyarray(p) for p in parts)
-    partition_tensor = np.asanyarray(partition_tensor)
     print('enlarging patch overlaps')
     for i in tqdm(range(patch_graph.num_nodes)):
         part_i = np.asanyarray(parts[i])
