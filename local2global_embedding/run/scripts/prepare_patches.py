@@ -86,6 +86,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                      gamma)
 
     def load_graph():
+        print('loading data')
         graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
                           normalise=normalise, restrict_lcc=restrict_lcc)
         buffer_x = None
@@ -121,9 +122,13 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
 
                 if isinstance(graph.edge_index, np.memmap):
                     print('using memory-mapped edge index')
+                    if buffer_e is not None:
+                        print('edge_index is on local storage')
 
                 if isinstance(graph.x, np.memmap):
                     print('using memory-mapped features')
+                    if buffer_x is not None:
+                        print('features are on local storage')
 
                 cluster_file = output_folder / f"{name}_{cluster_string}_clusters.pt"
                 if cluster_file.is_file():

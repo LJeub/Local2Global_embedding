@@ -91,6 +91,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     print(f'Started experiment for data set {name}.')
     print(f'Results will be placed in {output_folder}.')
     print(f'Data root is {data_root}')
+    if use_tmp:
+        print('Any memmappped data will be moved to local storage.')
 
     mmap_edges = 'r' if mmap_edges else None
     mmap_features = 'r' if mmap_features else None
