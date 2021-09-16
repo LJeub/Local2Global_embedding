@@ -222,23 +222,24 @@ def relaxed_spanning_tree(graph: TGraph, maximise=False, gamma=1):
 
 
 def edge_sampling_sparsify(graph: TGraph, target_degree, ensure_connected=True):
+    weights = graph.weights / torch.minimum((graph.strength[graph.edge_index[0]], graph.strength[graph.edge_index[1]]))
+    cgraph = TGraph(graph.edge_index, edge_attr=weights, adj_index=graph.adj_index, num_nodes=graph.num_nodes,
+                   ensure_sorted=False, undir=graph.undir)  # convert weights to conductance value
     if ensure_connected:
-        edge_mask = spanning_tree_mask(graph, maximise=True)
+        edge_mask = spanning_tree_mask(cgraph, maximise=True)
     else:
-        edge_mask = torch.zeros_like(graph.edge_index, dtype=torch.bool)
+        edge_mask = torch.zeros_like(cgraph.edge_index, dtype=torch.bool)
 
-    if graph.undir:
-        reverse_edge_index = torch.argsort(graph.edge_index[1] * graph.num_nodes + graph.edge_index[0])
-        forward_edges = torch.nonzero(graph.edge_index[0] < graph.edge_index[1]).flatten()
+    if cgraph.undir:
+        reverse_edge_index = torch.argsort(cgraph.edge_index[1] * cgraph.num_nodes + cgraph.edge_index[0])
+        forward_edges = torch.nonzero(cgraph.edge_index[0] < cgraph.edge_index[1]).flatten()
         reverse_edge_index = reverse_edge_index[forward_edges]
-        prob = target_degree * graph.weights[forward_edges]/ torch.minimum(graph.strength[graph.edge_index[0, forward_edges]],
-                                                         graph.strength[graph.edge_index[1, forward_edges]])
+        prob = target_degree * cgraph.weights[forward_edges]
         keep = torch.rand_like(prob) < prob
         edge_mask[forward_edges[keep]] = True
         edge_mask[reverse_edge_index[keep]] = True
     else:
-        prob = target_degree * graph.weights / torch.minimum(graph.strength[graph.edge_index[0]],
-                                                             graph.strength[graph.edge_index[1]])
+        prob = target_degree * cgraph.weights
 
         edge_mask[torch.rand_like(prob) < prob] = True
     edge_index = graph.edge_index[:, edge_mask]
