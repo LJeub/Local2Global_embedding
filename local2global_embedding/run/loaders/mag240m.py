@@ -176,6 +176,7 @@ def _load_mag240m_classification(root='/tmp', num_val=10000, **kwargs):
     from ogb.lsc import MAG240MDataset
     base_data = MAG240MDataset(root=root)
     y = base_data.all_paper_label
+    y[np.isnan(y)] = -1
     train = base_data.get_idx_split('train')
     val_test = base_data.get_idx_split('valid')
     rng.shuffle(val_test)
