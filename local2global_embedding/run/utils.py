@@ -341,16 +341,16 @@ class ResultsDict:
 class Throttler:
     def __init__(self, min_interval=0):
         self.min_interval=min_interval
-        self.last_run = time.monotonic()-min_interval
+        self.next_run = time.monotonic()
 
     async def submit_ok(self):
         now = time.monotonic()
-        if now > self.last_run + self.min_interval:
-            self.last_run = now
+        if now > self.next_run + self.min_interval:
+            self.next_run = now
             return
         else:
-            await asyncio.sleep(self.last_run+self.min_interval-now)
-            self.last_run = time.monotonic()
+            self.next_run += self.min_interval
+            await asyncio.sleep(self.next_run-now)
             return
 
 
