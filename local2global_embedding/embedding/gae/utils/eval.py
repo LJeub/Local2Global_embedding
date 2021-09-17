@@ -48,7 +48,9 @@ def reconstruction_auc(coordinates, graph: Graph, dist=False, max_samples=int(1e
     corresponds to random classification.
 
     """
-    decoder = DistanceDecoder() if dist else tg.nn.InnerProductDecoder()
+    if isinstance(coordinates, torch.Tensor):
+        coordinates = coordinates.cpu().numpy()
+
     if graph.num_edges > max_samples:
         pos_edges = graph.sample_positive_edges(max_samples)
         num_samples = max_samples
@@ -56,6 +58,15 @@ def reconstruction_auc(coordinates, graph: Graph, dist=False, max_samples=int(1e
         pos_edges = graph.edge_index
         num_samples = graph.num_edges
     neg_edges = graph.sample_negative_edges(num_samples)
+
+    if isinstance(pos_edges, torch.Tensor):
+        pos_edges = pos_edges.cpu().numpy()
+
+    if isinstance(neg_edges, torch.Tensor):
+        neg_edges = neg_edges.cpu().numpy()
+
+    pos_edges = np.asanyarray(pos_edges)
+    neg_edges = np.asanyarray(neg_edges)
     coordinates = np.asanyarray(coordinates)
     if dist:
         z = np.concatenate((np.linalg.norm(coordinates[pos_edges[0]]-coordinates[pos_edges[1]], axis=1),
