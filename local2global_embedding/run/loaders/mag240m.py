@@ -171,7 +171,7 @@ def _load_mag240(root='.', mmap_features='r', mmap_edges='r', load_features=True
     return data
 
 
-@classificationloader
+@classificationloader('MAG240M')
 def _load_mag240m_classification(root='/tmp', num_val=10000, **kwargs):
     from ogb.lsc import MAG240MDataset
     base_data = MAG240MDataset(root=root)
