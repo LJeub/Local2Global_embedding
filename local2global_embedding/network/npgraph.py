@@ -381,10 +381,7 @@ class JitGraph:
         return sampled_edges
 
     def adj(self, node):
-        out = np.empty((self.degree[node],), dtype=np.int64)
-        for i, index in enumerate(range(self.adj_index[node], self.adj_index[node+1])):
-            out[i] = self.edge_index[1][i]
-        return out
+        return self.edge_index[1][self.adj_index[node]:self.adj_index[node+1]]
 
     def neighbours(self, nodes):
         size = self.degree[nodes].sum()
@@ -408,12 +405,12 @@ class JitGraph:
         count = 0
 
         for s in range(len(sources)):
-            for i in self.adj(sources[s]):
-                t = target_index[i]
+            for ei in range(self.adj_index[sources[s]], self.adj_index[sources[s]+1]):
+                t = target_index[self.edge_index[1][ei]]
                 if t >= 0:
                     subgraph_edge_index[0, count] = s
                     subgraph_edge_index[1, count] = t
-                    index[count] = i
+                    index[count] = ei
                     count += 1
         return subgraph_edge_index[:, :count], index[:count]
 
