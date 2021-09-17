@@ -26,6 +26,7 @@ from collections.abc import Iterable
 import argparse
 from inspect import signature
 import typing
+import time
 
 import torch
 from docstring_parser import parse as parse_doc
@@ -337,7 +338,23 @@ class ResultsDict:
                 return 0
 
 
-async def run_script(script_name, cmd_prefix=None, task_queue: asyncio.Queue = None, **kwargs):
+class Throttler:
+    def __init__(self, min_interval=0):
+        self.min_interval=min_interval
+        self.last_run = time.monotonic()-min_interval
+
+    async def submit_ok(self):
+        now = time.monotonic()
+        if now > self.last_run + self.min_interval:
+            self.last_run = now
+            return
+        else:
+            await asyncio.sleep(self.last_run+self.min_interval-now)
+            self.last_run = time.monotonic()
+            return
+
+
+async def run_script(script_name, cmd_prefix=None, task_queue: asyncio.Queue = None, throttler: Throttler = None, **kwargs):
     args = []
     if cmd_prefix is not None:
         args.extend(cmd_prefix.split())
@@ -346,6 +363,8 @@ async def run_script(script_name, cmd_prefix=None, task_queue: asyncio.Queue = N
     if task_queue is not None:
         await task_queue.put(args)
         print(task_queue.qsize())
+    if throttler is not None:
+        await throttler.submit_ok()
     proc = await asyncio.create_subprocess_exec(*args)
     await proc.communicate()
     if task_queue is not None:
