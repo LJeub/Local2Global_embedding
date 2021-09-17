@@ -31,12 +31,13 @@ from filelock import SoftFileLock
 from tqdm.auto import tqdm
 
 from local2global_embedding.patches import create_patch_data
+from local2global_embedding.network import TGraph
 from local2global_embedding.run.utils import ScriptParser, patch_folder_name, load_data
 from local2global_embedding.clustering import louvain_clustering, metis_clustering, distributed_clustering, fennel_clustering
 
 
 def save_patch_data(graph, patch, filename):
-    patch_graph = graph.subgraph(patch, relabel=False)
+    patch_graph = graph.subgraph(patch, relabel=False).to(TGraph)
     torch.save(patch_graph, filename)
 
 
