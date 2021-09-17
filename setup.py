@@ -27,5 +27,6 @@ setup(
         'local2global @ git+https://github.com/LJeub/Local2Global.git@master',
         'filelock',
         'docstring-parser',
+        'tqdm >= 4.62'
     ],
 )
