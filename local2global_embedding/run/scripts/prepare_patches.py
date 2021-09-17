@@ -24,6 +24,7 @@ from tempfile import TemporaryFile
 import mmap
 from itertools import repeat
 from concurrent.futures import ThreadPoolExecutor
+import sys
 
 import numpy as np
 import torch
@@ -142,12 +143,12 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                          sparsify, target_patch_degree, gamma, verbose)
                 patch_folder.mkdir(parents=True, exist_ok=True)
 
-                print('saving patch index')
+                print('saving patch index', file=sys.stderr)
                 for i, patch in tqdm(enumerate(patches)):
                     np.save(patch_folder / f'patch{i}_index.npy', patch)
                 torch.save(patch_graph, patch_folder / 'patch_graph.pt')
 
-                print("saving patch data")
+                print("saving patch data", file=sys.stderr)
                 # with ThreadPoolExecutor() as executor:
                 #     executor.map(save_patch_data, repeat(graph), patches, (patch_folder / f'patch{i}_data.pt' for i in len(patches)))
                 for i, patch in tqdm(enumerate(patches)):
@@ -155,7 +156,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
 
             else:
                 patch_graph = torch.load(patch_folder / 'patch_graph.pt')
-                print('checking patch data')
+                print('checking patch data', file=sys.stderr)
                 for i in tqdm(range(patch_graph.num_nodes)):
                     if not (patch_folder / f'patch{i}_data.pt').is_file():
                         if graph is None:
