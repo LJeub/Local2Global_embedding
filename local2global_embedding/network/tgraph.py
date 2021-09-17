@@ -204,7 +204,7 @@ class TGraph(Graph):
             nxgraph.add_edges_from(self.edges())
         return nxgraph
 
-    def to(self, *args, graph_cls=None, device=None):
+    def to(self, *args, graph_cls=None, **kwargs):
         """
         Convert to different graph type or move to device
 
@@ -216,25 +216,22 @@ class TGraph(Graph):
 
         """
         if args:
-            if not (graph_cls is None and device is None):
-                raise ValueError("Both positional and keyword arguments specified.")
-            arg, = args
-            if isinstance(arg, type) and issubclass(arg, Graph):
-                graph_cls = arg
-            else:
-                device = arg
+            if not (graph_cls is None):
+                raise ValueError("Both positional and graph_cls keyword argument specified.")
+            elif len(args) == 1:
+                arg = args[0]
+                if isinstance(arg, type) and issubclass(arg, Graph):
+                    graph_cls = arg
+                    if kwargs:
+                        raise ValueError("Cannot specify additional keyword arguments when converting between graph classes.")
 
-            if not (graph_cls is None or device is None):
-                raise ValueError("Can only specify one of `device` or `graph_cls`")
-
-            if device is not None:
-                for key, value in self.__dict__.items():
-                    if isinstance(value, torch.Tensor):
-                        self.__dict__[key] = value.to(device)
-                return self
-
-            if graph_cls is not None:
-                return super().to(graph_cls)
+        if graph_cls is not None:
+            return super().to(graph_cls)
+        else:
+            for key, value in self.__dict__.items():
+                if isinstance(value, torch.Tensor):
+                    self.__dict__[key] = value.to(*args, **kwargs)
+            return self
 
     def bfs_order(self, start=0):
         """
