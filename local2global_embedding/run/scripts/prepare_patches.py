@@ -160,7 +160,6 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                     if not (patch_folder / f'patch{i}_data.pt').is_file():
                         if graph is None:
                             graph, buffer_x, buffer_e = load_graph()
-                        print(f'saving missing patch {i}')
                         patch = np.load(patch_folder / f'patch{i}_index.npy')
                         save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
         finally:

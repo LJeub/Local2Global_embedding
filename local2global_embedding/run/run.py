@@ -23,8 +23,10 @@
 from pathlib import Path
 import asyncio
 from typing import List
+import sys
 
 import torch
+from tqdm.asyncio import tqdm_asyncio
 
 from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, run_script, patch_folder_name
 
@@ -176,7 +178,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    device=device, runs=runs)))
 
     # local2global alignment of patch embeddings
-    await asyncio.gather(*patch_tasks)
+    print('running patch tasks', file=sys.stderr)
+    await tqdm_asyncio.gather(*patch_tasks, total=len(patch_tasks))
     alignment_tasks = []
     l2g_dims_to_evaluate = set()
     for d in dims:
@@ -189,7 +192,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                patch_folder=patch_folder, basename=train_basename, dim=d)))
 
     # evaluate embeddings
-    await asyncio.gather(*baseline_tasks)  # make sure baseline data is available
+    print('running baseline tasks', file=sys.stderr)
+    await tqdm_asyncio.gather(*baseline_tasks, total=len(baseline_tasks))  # make sure baseline data is available
     eval_tasks = []
     baseline_loss_eval_file = output_folder / f'{eval_basename}_full_loss_eval.json'
     baseline_auc_eval_file = baseline_loss_eval_file.with_name(baseline_loss_eval_file.name.replace('_loss_','_auc_'))
@@ -237,8 +241,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    )
                     )
                 )
-
-    await asyncio.gather(*alignment_tasks)  # make sure aligned coordinates are available
+    print('running alignment tasks', file=sys.stderr)
+    await tqdm_asyncio.gather(*alignment_tasks, total=len(alignment_tasks))  # make sure aligned coordinates are available
     l2g_loss_eval_file = patch_folder / f'{eval_basename}_l2g_loss_eval.json'
     l2g_auc_eval_file = l2g_loss_eval_file.with_name(l2g_loss_eval_file.name.replace('_loss_', '_auc_'))
     nt_loss_eval_file = patch_folder / f'{eval_basename}_nt_loss_eval.json'
@@ -332,8 +336,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    )
                     )
                 )
-
-    await asyncio.gather(*eval_tasks)
+    print('evaluating embeddings', file=sys.stderr)
+    await tqdm_asyncio.gather(*eval_tasks, total=len(eval_tasks))
 
 
 if __name__ == '__main__':
