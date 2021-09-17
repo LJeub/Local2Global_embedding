@@ -157,7 +157,7 @@ def _load_mag240(root='.', mmap_features='r', mmap_edges='r', load_features=True
     else:
         edge_index = np.load(data_folder / 'edge_index.npy', mmap_mode=mmap_edges)
         if index_file.is_file():
-            adj_index = np.load(data_folder / '')
+            adj_index = np.load(index_file)
         else:
             adj_index = None
 
