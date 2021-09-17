@@ -20,6 +20,7 @@
 from pathlib import Path
 from typing import Optional
 import os
+import sys
 
 import numpy as np
 import torch
@@ -76,7 +77,8 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
     data_str = data
     model_str = model
 
-    print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailiable")} and device={device}')
+    print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailiable")} and device={device}',
+          file=sys.stderr)
     data = torch.load(data).to(device)
     results_file = Path(results_file)
 
@@ -107,7 +109,8 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
         loss = float(loss_fun(model, data))
 
         with ResultsDict(results_file) as results:
-            print(f'Training for run {results.runs(dim)+1} of {data_str} and model {model_str}_d{dim} stopped after {ep_count.count} epochs')
+            print(f'Training for run {results.runs(dim)+1} of {data_str} and model {model_str}_d{dim} stopped after {ep_count.count} epochs',
+                  file=sys.stderr)
             if results.runs(dim) >= runs:
                 break
             if results.min('loss', dim) > loss:

@@ -179,8 +179,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    device=device, runs=runs)))
 
     # local2global alignment of patch embeddings
-    print('running patch tasks', file=sys.stderr)
-    await tqdm_asyncio.gather(*patch_tasks, total=len(patch_tasks))
+    print('running patch tasks')
+    await tqdm_asyncio.gather(*patch_tasks, total=len(patch_tasks), file=sys.stdout)
     alignment_tasks = []
     l2g_dims_to_evaluate = set()
     for d in dims:
@@ -193,8 +193,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                patch_folder=patch_folder, basename=train_basename, dim=d)))
 
     # evaluate embeddings
-    print('running baseline tasks', file=sys.stderr)
-    await tqdm_asyncio.gather(*baseline_tasks, total=len(baseline_tasks))  # make sure baseline data is available
+    print('running baseline tasks')
+    await tqdm_asyncio.gather(*baseline_tasks, total=len(baseline_tasks), file=sys.stdout)  # make sure baseline data is available
     eval_tasks = []
     if run_baseline:
         baseline_loss_eval_file = output_folder / f'{eval_basename}_full_loss_eval.json'
@@ -244,8 +244,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                         )
                     )
 
-    print('running alignment tasks', file=sys.stderr)
-    await tqdm_asyncio.gather(*alignment_tasks, total=len(alignment_tasks))  # make sure aligned coordinates are available
+    print('running alignment tasks')
+    await tqdm_asyncio.gather(*alignment_tasks, total=len(alignment_tasks),  file=sys.stdout)  # make sure aligned coordinates are available
     l2g_loss_eval_file = patch_folder / f'{eval_basename}_l2g_loss_eval.json'
     l2g_auc_eval_file = l2g_loss_eval_file.with_name(l2g_loss_eval_file.name.replace('_loss_', '_auc_'))
     nt_loss_eval_file = patch_folder / f'{eval_basename}_nt_loss_eval.json'
@@ -339,8 +339,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    )
                     )
                 )
-    print('evaluating embeddings', file=sys.stderr)
-    await tqdm_asyncio.gather(*eval_tasks, total=len(eval_tasks))
+    print('evaluating embeddings')
+    await tqdm_asyncio.gather(*eval_tasks, total=len(eval_tasks),  file=sys.stdout)
 
 
 if __name__ == '__main__':

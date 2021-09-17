@@ -143,26 +143,29 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                          sparsify, target_patch_degree, gamma, verbose)
                 patch_folder.mkdir(parents=True, exist_ok=True)
 
-                print('saving patch index', file=sys.stderr)
-                for i, patch in tqdm(enumerate(patches)):
+                print('saving patch index')
+                for i, patch in tqdm(enumerate(patches), file=sys.stdout):
                     np.save(patch_folder / f'patch{i}_index.npy', patch)
                 torch.save(patch_graph, patch_folder / 'patch_graph.pt')
 
-                print("saving patch data", file=sys.stderr)
+                print("saving patch data")
                 # with ThreadPoolExecutor() as executor:
                 #     executor.map(save_patch_data, repeat(graph), patches, (patch_folder / f'patch{i}_data.pt' for i in len(patches)))
-                for i, patch in tqdm(enumerate(patches)):
+                for i, patch in tqdm(enumerate(patches), file=sys.stdout):
                     save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
 
             else:
                 patch_graph = torch.load(patch_folder / 'patch_graph.pt')
-                print('checking patch data', file=sys.stderr)
-                for i in tqdm(range(patch_graph.num_nodes)):
-                    if not (patch_folder / f'patch{i}_data.pt').is_file():
-                        if graph is None:
-                            graph, buffer_x, buffer_e = load_graph()
-                        patch = np.load(patch_folder / f'patch{i}_index.npy')
-                        save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
+                print('checking patch data')
+                with tqdm(total=patch_graph.num_nodes, file=sys.stdout) as pbar:
+                    for i in range(patch_graph.num_nodes):
+                        if not (patch_folder / f'patch{i}_data.pt').is_file():
+                            pbar.display(f'saving missing patch data for patch {i}', pos=1)
+                            if graph is None:
+                                graph, buffer_x, buffer_e = load_graph()
+                            patch = np.load(patch_folder / f'patch{i}_index.npy')
+                            save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
+                        pbar.update()
         finally:
             if buffer_e is not None:
                 buffer_e.close()
