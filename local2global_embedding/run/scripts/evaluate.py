@@ -37,7 +37,7 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
                                           root=data_root, restrict_lcc=restrict_lcc)
     num_labels = cl_data.num_labels
     coords = np.load(embedding_file, mmap_mode=mmap_features)
-    cl_data.x = coords
+    cl_data.x = torch.as_tensor(coords, dtype=torch.float32)
     dim = coords.shape[1]
     auc = reconstruction_auc(coords, graph, dist=dist)
     acc = []
