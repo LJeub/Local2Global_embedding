@@ -210,7 +210,9 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_edges,
+                                   mmap_edges=mmap_edges,
+                                   mmap_features=mmap_features,
+
                                    )
                     )
                 )
@@ -230,7 +232,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_edges,
+                                   mmap_edges=mmap_edges,
+                                   mmap_features=mmap_features,
                                    )
                     )
                 )
@@ -257,7 +260,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_edges,
+                                   mmap_edges=mmap_edges,
+                                   mmap_features=mmap_features,
                                    )
                     )
                 )
@@ -278,7 +282,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_edges,
+                                   mmap_edges=mmap_edges,
+                                   mmap_features=mmap_features,
                                    )
                     )
                 )
@@ -300,7 +305,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_edges,
+                                   mmap_edges=mmap_edges,
+                                   mmap_features=mmap_features,
                                    )
                     )
                 )
@@ -321,7 +327,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                    lr=cl_lr,
                                    runs=cl_runs,
                                    random_split=random_split,
-                                   mmap_mode=mmap_edges,
+                                   mmap_edges=mmap_edges,
+                                   mmap_features=mmap_features,
                                    )
                     )
                 )
