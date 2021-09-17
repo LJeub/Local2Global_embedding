@@ -10,7 +10,7 @@ import numpy as np
 from tqdm.auto import tqdm
 import numba
 
-from local2global_embedding.network import TGraph
+from local2global_embedding.network import TGraph, NPGraph
 from local2global_embedding import progress
 
 
@@ -72,13 +72,12 @@ def distributed_clustering(graph: TGraph, beta, rounds=None, patience=3, min_sam
 
 
 def fennel_clustering(graph, num_clusters, load_limit=1.1, alpha=None, gamma=1.5, num_iters=1, clusters=None):
-    edge_index = graph.edge_index
-    if isinstance(edge_index, torch.Tensor):
-        edge_index = edge_index.cpu().numpy()
+    graph = graph.to(NPGraph)
+
     if clusters is None:
-        clusters = _fennel_clustering(edge_index, graph.adj_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters)
+        clusters = _fennel_clustering(graph.edge_index, graph.adj_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters)
     else:
-        clusters = _fennel_clustering(edge_index, graph.adj_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters,
+        clusters = _fennel_clustering(graph.edge_index, graph.adj_index, graph.num_nodes, num_clusters, load_limit, alpha, gamma, num_iters,
                                       clusters)
     return torch.as_tensor(clusters)
 
