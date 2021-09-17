@@ -178,6 +178,5 @@ def _load_mag240m_classification(root='/tmp', num_val=10000, **kwargs):
     y = base_data.all_paper_label
     train = base_data.get_idx_split('train')
     val_test = base_data.get_idx_split('valid')
-    val = rng.choice(val_test, size=num_val, replace=False, shuffle=False)
-    test = np.delete(val_test, val)
-    return y, {'train': train, 'val': val, 'test': test}
+    rng.shuffle(val_test)
+    return y, {'train': train, 'val': val_test[:num_val], 'test': val_test[num_val:]}
