@@ -153,9 +153,10 @@ def spanning_tree_mask(graph: Graph, maximise=False):
     # find positions of reverse edges
     if graph.undir:
         reverse_edge_index = np.argsort(graph.edge_index[1]*graph.num_nodes+graph.edge_index[0])
-        edges = graph.edge_index[:, graph.edge_index[0] < graph.edge_index[1]]
-        weights = graph.weights[graph.edge_index[0] < graph.edge_index[1]]
-        reverse_edge_index = reverse_edge_index[graph.edge_index[0] < graph.edge_index[1]]
+        forward_edge_index = np.flatnonzero(graph.edge_index[0] < graph.edge_index[1])
+        edges = graph.edge_index[:, forward_edge_index]
+        weights = graph.weights[forward_edge_index]
+        reverse_edge_index = reverse_edge_index[forward_edge_index]
     else:
         edges = graph.edge_index
         weights = graph.weights
@@ -166,21 +167,21 @@ def spanning_tree_mask(graph: Graph, maximise=False):
         index = index[::-1]
 
     edge_mask = np.zeros(graph.num_edges, dtype=np.bool)
-    edge_mask = _spanning_tree_mask(edge_mask, edges, index, graph.num_nodes, reverse_edge_index)
+    edge_mask = _spanning_tree_mask(edge_mask, edges, index, graph.num_nodes, forward_edge_index, reverse_edge_index)
     if convert_to_tensor:
         edge_mask = torch.as_tensor(edge_mask)
     return edge_mask
 
 
 @numba.njit
-def _spanning_tree_mask(edge_mask, edges, index, num_nodes, reverse_edge_index):
+def _spanning_tree_mask(edge_mask, edges, index, num_nodes, forward_edge_index, reverse_edge_index):
     subtrees = UnionFind(num_nodes)
     for it in range(len(index)):
         i = index[it]
         u = edges[0, i]
         v = edges[1, i]
         if subtrees.find(u) != subtrees.find(v):
-            edge_mask[i] = True
+            edge_mask[forward_edge_index[i]] = True
             if reverse_edge_index is not None:
                 edge_mask[reverse_edge_index[i]] = True
             subtrees.union(u, v)
