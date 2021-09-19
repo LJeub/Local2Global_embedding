@@ -144,14 +144,14 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                 patch_folder.mkdir(parents=True, exist_ok=True)
 
                 print('saving patch index')
-                for i, patch in tqdm(enumerate(patches), file=sys.stdout):
+                for i, patch in tqdm(enumerate(patches), total=len(patches), file=sys.stdout):
                     np.save(patch_folder / f'patch{i}_index.npy', patch)
                 torch.save(patch_graph, patch_folder / 'patch_graph.pt')
 
                 print("saving patch data")
                 # with ThreadPoolExecutor() as executor:
                 #     executor.map(save_patch_data, repeat(graph), patches, (patch_folder / f'patch{i}_data.pt' for i in len(patches)))
-                for i, patch in tqdm(enumerate(patches), file=sys.stdout):
+                for i, patch in tqdm(enumerate(patches), total=patch_graph.num_nodes, file=sys.stdout):
                     save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
 
             else:
