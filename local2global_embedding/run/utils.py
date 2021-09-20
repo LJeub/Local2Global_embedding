@@ -105,7 +105,7 @@ def load_classification_problem(name, root='/tmp', restrict_lcc=False, graph_arg
         for key, value in split.items():
             mapped_index = index_map[value]
             split[key] = mapped_index[mapped_index >= 0]
-    return ClassificationProblem(y, split)
+    return ClassificationProblem(y, split=split)
 
 
 load_data.__doc__ = load_data.__doc__.format(names=list(_dataloaders.keys()))
