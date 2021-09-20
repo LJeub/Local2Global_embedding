@@ -180,7 +180,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
 
     # local2global alignment of patch embeddings
     print('running patch tasks')
-    await tqdm_asyncio.gather(*patch_tasks, total=len(patch_tasks), file=sys.stdout)
+    await tqdm_asyncio.gather(*patch_tasks, total=len(patch_tasks), file=sys.stdout, smoothing=0)
     alignment_tasks = []
     l2g_dims_to_evaluate = set()
     for d in dims:
@@ -194,7 +194,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
 
     # evaluate embeddings
     print('running baseline tasks')
-    await tqdm_asyncio.gather(*baseline_tasks, total=len(baseline_tasks), file=sys.stdout)  # make sure baseline data is available
+    await tqdm_asyncio.gather(*baseline_tasks, total=len(baseline_tasks), file=sys.stdout, smoothing=0)  # make sure baseline data is available
     eval_tasks = []
     if run_baseline:
         baseline_loss_eval_file = output_folder / f'{eval_basename}_full_loss_eval.json'
@@ -245,7 +245,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                     )
 
     print('running alignment tasks')
-    await tqdm_asyncio.gather(*alignment_tasks, total=len(alignment_tasks),  file=sys.stdout)  # make sure aligned coordinates are available
+    await tqdm_asyncio.gather(*alignment_tasks, total=len(alignment_tasks),  file=sys.stdout, smoothing=0)  # make sure aligned coordinates are available
     l2g_loss_eval_file = patch_folder / f'{eval_basename}_l2g_loss_eval.json'
     l2g_auc_eval_file = l2g_loss_eval_file.with_name(l2g_loss_eval_file.name.replace('_loss_', '_auc_'))
     nt_loss_eval_file = patch_folder / f'{eval_basename}_nt_loss_eval.json'
@@ -340,7 +340,7 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                     )
                 )
     print('evaluating embeddings')
-    await tqdm_asyncio.gather(*eval_tasks, total=len(eval_tasks),  file=sys.stdout)
+    await tqdm_asyncio.gather(*eval_tasks, total=len(eval_tasks),  file=sys.stdout, smoothing=0)
 
 
 if __name__ == '__main__':
