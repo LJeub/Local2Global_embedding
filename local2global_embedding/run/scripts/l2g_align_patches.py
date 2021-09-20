@@ -24,7 +24,7 @@ import torch
 import numpy as np
 from numpy.lib.format import open_memmap
 from filelock import SoftFileLock
-import tqdm
+from tqdm import tqdm
 
 from local2global import WeightedAlignmentProblem, Patch
 from local2global_embedding.run.utils import ScriptParser
