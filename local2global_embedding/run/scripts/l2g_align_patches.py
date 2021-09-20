@@ -44,12 +44,17 @@ def main(patch_folder: str, basename: str, dim: int, mmap=False):
         with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
             print('loading patch data')
             for i in tqdm(range(patch_graph.num_nodes)):
-                patch_file = patch_folder / f'patch{i}_data.pt'
-                patch = torch.load(patch_file, map_location='cpu')
+                node_file = patch_folder / f'patch{i}_index.npy'
+                if node_file.is_file():
+                    nodes = np.load(node_file)
+                else:
+                    patch_file = patch_folder / f'patch{i}_data.pt'
+                    patch = torch.load(patch_file, map_location='cpu')
+                    nodes = patch.nodes
                 with SoftFileLock(f'{basename}_patch{i}_info.lock', timeout=10):
                     coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy',
                                      mmap_mode=mmap_load)
-                patch_list.append(Patch(patch.nodes, coords))
+                patch_list.append(Patch(nodes, coords))
 
             print('initialising alignment problem')
             prob = WeightedAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False)
