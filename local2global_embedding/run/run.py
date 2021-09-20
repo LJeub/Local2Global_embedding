@@ -110,7 +110,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
         if model != 'DGI':
             train_basename += '_dist'
 
-    patch_create_task = asyncio.create_task(run_script('prepare_patches', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+    patch_create_task = asyncio.create_task(run_script('prepare_patches', _cmd_prefix=cmd_prefix,
+                                                       _task_queue=work_queue, _throttler=throttler,
                                                        output_folder=output_folder, name=name, data_root=data_root,
                                                        min_overlap=min_overlap, target_overlap=target_overlap,
                                                        cluster=cluster,
@@ -119,7 +120,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                                                        gamma=gamma,
                                                        verbose=False,
                                                        normalise=normalise,
-                                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp, mmap_edges=mmap_edges,
+                                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp,
+                                                       mmap_edges=mmap_edges,
                                                        mmap_features=mmap_features))
 
     # compute baseline full model if necessary
@@ -138,9 +140,9 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
 
             if r < runs:
                 baseline_dims_to_evaluate.add(d)
-                print(f'training full model for {runs - r} runs and d={d}')
                 baseline_tasks.append(
-                    asyncio.create_task(run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                    asyncio.create_task(run_script('train', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                                   _throttler=throttler, _stderr=True,
                                                    data=data_file, model=model,
                                                    lr=lr, num_epochs=num_epochs,
                                                    patience=patience, verbose=verbose,
@@ -166,10 +168,10 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                 r = patch_results.runs(d)
             if r < runs:
                 compute_alignment_for_dims.add(d)
-                print(f'training {patch_id} for {runs - r} runs and d={d}')
                 patch_tasks.append(
                     asyncio.create_task(
-                        run_script('train', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                        run_script('train', _cmd_prefix=cmd_prefix, _task_queue=work_queue, _throttler=throttler,
+                                   _stderr=True,
                                    data=patch_data_file, model=model,
                                    lr=lr, num_epochs=num_epochs,
                                    patience=patience, verbose=verbose,
@@ -189,7 +191,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
         if d in compute_alignment_for_dims or not all(coords_file.is_file() for coords_file in coords_files):
             l2g_dims_to_evaluate.add(d)
             alignment_tasks.append(
-                asyncio.create_task(run_script('l2g_align_patches', cmd_prefix=cmd_prefix, task_queue=work_queue,  throttler=throttler,
+                asyncio.create_task(run_script('l2g_align_patches', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                               _throttler=throttler, _stderr=True,
                                                patch_folder=patch_folder, basename=train_basename, dim=d)))
 
     # evaluate embeddings
@@ -205,7 +208,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                     coords_file = output_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
                     eval_tasks.append(
                         asyncio.create_task(
-                            run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                            run_script('evaluate', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                       _throttler=throttler, _stderr=True,
                                        name=name,
                                        data_root=data_root,
                                        restrict_lcc=restrict_lcc,
@@ -227,7 +231,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                     coords_file = output_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
                     eval_tasks.append(
                         asyncio.create_task(
-                            run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                            run_script('evaluate', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                       _throttler=throttler, _stderr=True,
                                        name=name,
                                        data_root=data_root,
                                        restrict_lcc=restrict_lcc,
@@ -256,7 +261,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                 coords_file = patch_folder / f'{train_basename}_d{d}_loss_coords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
-                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                        run_script('evaluate', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                   _throttler=throttler, _stderr=True,
                                    name=name,
                                    data_root=data_root,
                                    restrict_lcc=restrict_lcc,
@@ -278,7 +284,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                 coords_file = patch_folder / f'{train_basename}_d{d}_auc_coords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
-                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                        run_script('evaluate', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                   _throttler=throttler, _stderr=True,
                                    name=name,
                                    data_root=data_root,
                                    restrict_lcc=restrict_lcc,
@@ -301,7 +308,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                 coords_file = patch_folder / f'{train_basename}_d{d}_loss_ntcoords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
-                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                        run_script('evaluate', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                   _throttler=throttler, _stderr=False,
                                    name=name,
                                    data_root=data_root,
                                    restrict_lcc=restrict_lcc,
@@ -323,7 +331,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
                 coords_file = patch_folder / f'{train_basename}_d{d}_auc_ntcoords.npy'
                 eval_tasks.append(
                     asyncio.create_task(
-                        run_script('evaluate', cmd_prefix=cmd_prefix, task_queue=work_queue, throttler=throttler,
+                        run_script('evaluate', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                   _throttler=throttler, _stderr=True,
                                    name=name,
                                    data_root=data_root,
                                    restrict_lcc=restrict_lcc,

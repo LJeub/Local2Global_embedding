@@ -354,22 +354,27 @@ class Throttler:
             return
 
 
-async def run_script(script_name, cmd_prefix=None, task_queue: asyncio.Queue = None, throttler: Throttler = None, **kwargs):
+async def run_script(script_name, _cmd_prefix=None, _task_queue: asyncio.Queue = None, _throttler: Throttler = None,
+                     _stderr=False,
+                     **kwargs):
     args = []
-    if cmd_prefix is not None:
-        args.extend(cmd_prefix.split())
+    if _cmd_prefix is not None:
+        args.extend(_cmd_prefix.split())
     args.extend(['python', '-m', f'local2global_embedding.run.scripts.{script_name}'])
     args.extend(f'--{key}={value}' for key, value in kwargs.items())
-    if task_queue is not None:
-        await task_queue.put(args)
-        print(task_queue.qsize())
-    if throttler is not None:
-        await throttler.submit_ok()
-    proc = await asyncio.create_subprocess_exec(*args)
+    if _task_queue is not None:
+        await _task_queue.put(args)
+    if _throttler is not None:
+        await _throttler.submit_ok()
+    if _stderr:
+        stdout = sys.stderr
+    else:
+        stdout = None
+    proc = await asyncio.create_subprocess_exec(*args, stdout=stdout)
     await proc.communicate()
-    if task_queue is not None:
-        await task_queue.get()
-        task_queue.task_done()
+    if _task_queue is not None:
+        await _task_queue.get()
+        _task_queue.task_done()
 
 
 class CSVList:
