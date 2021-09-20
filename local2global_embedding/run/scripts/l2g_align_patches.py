@@ -28,7 +28,7 @@ from numpy.lib.format import open_memmap
 from filelock import SoftFileLock
 from tqdm import tqdm
 
-from local2global.utils import WeightedAlignmentProblem, Patch, FilePatch
+from local2global.utils import WeightedAlignmentProblem, Patch, FilePatch, SVDAlignmentProblem
 from local2global_embedding.run.utils import ScriptParser
 
 
@@ -67,7 +67,7 @@ def main(patch_folder: str, basename: str, dim: int, mmap=False, use_tmp=False):
                     patch_list.append(Patch(nodes, coords))
 
             print('initialising alignment problem')
-            prob = WeightedAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False)
+            prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False)
             patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
             patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
             if mmap is not None:
