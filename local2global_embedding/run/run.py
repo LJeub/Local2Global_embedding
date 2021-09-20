@@ -193,7 +193,8 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
             alignment_tasks.append(
                 asyncio.create_task(run_script('l2g_align_patches', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
                                                _throttler=throttler, _stderr=True,
-                                               patch_folder=patch_folder, basename=train_basename, dim=d, mmap=mmap_features)))
+                                               patch_folder=patch_folder, basename=train_basename, dim=d,
+                                               mmap=mmap_features is not None)))
 
     # evaluate embeddings
     print('running baseline tasks')

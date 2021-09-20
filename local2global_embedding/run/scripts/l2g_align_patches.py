@@ -27,35 +27,37 @@ from numpy.lib.format import open_memmap
 from filelock import SoftFileLock
 from tqdm import tqdm
 
-from local2global import WeightedAlignmentProblem, Patch
+from local2global.utils import WeightedAlignmentProblem, Patch, FilePatch
 from local2global_embedding.run.utils import ScriptParser
 
 
 criterions = ['auc', 'loss']
 
 
-def main(patch_folder: str, basename: str, dim: int, mmap:Optional[str] = None):
+def main(patch_folder: str, basename: str, dim: int, mmap=False):
     print(f'computing aligned embedding for {patch_folder}/{basename}_d{dim}')
     patch_list = []
     patch_folder = Path(patch_folder)
     patch_graph = torch.load(patch_folder / 'patch_graph.pt', map_location='cpu')
 
-    mmap_load = 'r' if mmap else None
     for criterion in criterions:
         with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
             print('loading patch data')
             for i in tqdm(range(patch_graph.num_nodes)):
                 node_file = patch_folder / f'patch{i}_index.npy'
+                coords_file = patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'
                 if node_file.is_file():
                     nodes = np.load(node_file)
                 else:
                     patch_file = patch_folder / f'patch{i}_data.pt'
                     patch = torch.load(patch_file, map_location='cpu')
                     nodes = patch.nodes
-                with SoftFileLock(f'{basename}_patch{i}_info.lock', timeout=10):
-                    coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy',
-                                     mmap_mode=mmap_load)
-                patch_list.append(Patch(nodes, coords))
+                if mmap:
+                    patch_list.append(FilePatch(nodes, coords_file))
+                else:
+                    with SoftFileLock(f'{basename}_patch{i}_info.lock', timeout=10):
+                        coords = np.load(coords_file)
+                    patch_list.append(Patch(nodes, coords))
 
             print('initialising alignment problem')
             prob = WeightedAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False)
