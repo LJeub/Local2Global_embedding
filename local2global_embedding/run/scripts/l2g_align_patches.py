@@ -19,6 +19,7 @@
 #  SOFTWARE.
 
 from pathlib import Path
+from typing import Optional
 
 import torch
 import numpy as np
@@ -33,7 +34,7 @@ from local2global_embedding.run.utils import ScriptParser
 criterions = ['auc', 'loss']
 
 
-def main(patch_folder: str, basename: str, dim: int, mmap=False):
+def main(patch_folder: str, basename: str, dim: int, mmap:Optional[str] = None):
     print(f'computing aligned embedding for {patch_folder}/{basename}_d{dim}')
     patch_list = []
     patch_folder = Path(patch_folder)
@@ -60,7 +61,7 @@ def main(patch_folder: str, basename: str, dim: int, mmap=False):
             prob = WeightedAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False)
             patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
             patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
-            if mmap:
+            if mmap is not None:
                 print('computing ntcoords using mmap')
                 out = open_memmap(patched_embedding_file_nt, mode='w+', shape=(prob.n_nodes, prob.dim),
                                   dtype=np.float32)
@@ -72,7 +73,7 @@ def main(patch_folder: str, basename: str, dim: int, mmap=False):
                 ntcoords = prob.mean_embedding(out)
                 np.save(patched_embedding_file_nt, ntcoords)
 
-            if mmap:
+            if mmap is not None:
                 print('computing aligned coords using mmap')
                 out = open_memmap(patched_embedding_file, mode='w+', shape=(prob.n_nodes, prob.dim), dtype=np.float32)
                 prob.align_patches().mean_embedding(out)
