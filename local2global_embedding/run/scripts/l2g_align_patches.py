@@ -44,7 +44,7 @@ def main(patch_folder: str, basename: str, dim: int, mmap=False, use_tmp=False):
     for criterion in criterions:
         with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
             print('loading patch data')
-            for i in tqdm(range(patch_graph.num_nodes)):
+            for i in tqdm(range(patch_graph.num_nodes), smoothing=0):
                 node_file = patch_folder / f'patch{i}_index.npy'
                 coords_file = patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'
                 if node_file.is_file():
@@ -73,6 +73,7 @@ def main(patch_folder: str, basename: str, dim: int, mmap=False, use_tmp=False):
             if mmap is not None:
                 print('computing ntcoords using mmap')
                 if use_tmp:
+                    print('using tmp buffer')
                     with TemporaryFile() as f:
                         buffer = np.memmap(f, dtype=np.float32, shape=(prob.n_nodes, prob.dim))
                         prob.mean_embedding(buffer)
