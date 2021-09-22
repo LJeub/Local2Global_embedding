@@ -67,7 +67,7 @@ def main(patch_folder: str, basename: str, dim: int, mmap=False, use_tmp=False):
                     patch_list.append(Patch(nodes, coords))
 
             print('initialising alignment problem')
-            prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False)
+            prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=True)
             patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
             patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
             if mmap is not None:
