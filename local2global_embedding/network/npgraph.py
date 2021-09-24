@@ -285,7 +285,7 @@ class NPGraph(Graph):
         return self._jitgraph.sample_negative_edges(num_samples)
 
     def sample_positive_edges(self, num_samples):
-        index = rng.integers(self.num_edges, (num_samples,))
+        index = rng.integers(self.num_edges, size=(num_samples,))
         return self.edge_index[:, index]
 
 
