@@ -111,7 +111,7 @@ def _load_mag240(root='.', mmap_features='r', mmap_edges='r', load_features=True
         base_data = MAG240MDataset(root=root)
         num_nodes = base_data.num_papers
         edge_index = np.load(root / 'mag240m_kddcup2021' / 'processed' / 'paper___cites___paper' / 'edge_index.npy',
-                             mmap_mode='r')
+                             mmap_mode=mmap_edges)
         undir_index_file = data_folder / 'edge_index.npy'
         if undir_index_file.is_file():
             undir_index = open_memmap(undir_index_file, mode='r+')
