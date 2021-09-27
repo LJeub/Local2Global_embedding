@@ -363,11 +363,11 @@ async def run_script(script_name, _cmd_prefix=None, _task_queue: asyncio.Queue =
     args.extend(['python', '-m', f'local2global_embedding.run.scripts.{script_name}'])
     args.extend(f'--{key}={value}' for key, value in kwargs.items())
     if _task_queue is not None:
-        await _task_queue.put(args)
+        await _task_queue.put(args)  # limit number of simultaneous tasks
     if _throttler is not None:
-        await _throttler.submit_ok()
+        await _throttler.submit_ok()  # limit task creation frequency
     if _stderr:
-        stdout = sys.stderr
+        stdout = sys.stderr  # redirect all output to stderr
     else:
         stdout = None
     proc = await asyncio.create_subprocess_exec(*args, stdout=stdout)
@@ -396,16 +396,16 @@ class Union:
     def __init__(self, types):
         self.types = types
 
-    def __call__(self, input: str):
-        if input == 'None' and type(None) in self.types:
+    def __call__(self, value: str):
+        if value == 'None' and type(None) in self.types:
             return None
 
         for t in self.types:
             try:
-                return t(input)
+                return t(value)
             except Exception:
                 pass
-        raise RuntimeError(f'Cannot parse argument {input}')
+        raise RuntimeError(f'Cannot parse argument {value}')
 
 
 class ArgDefault:
