@@ -25,6 +25,7 @@ from tempfile import NamedTemporaryFile
 
 import numba
 import numpy as np
+import torch
 from numpy.lib.format import open_memmap
 
 from local2global_embedding import progress as progress
@@ -177,6 +178,7 @@ def _load_mag240m_classification(root='/tmp', num_val=10000, **kwargs):
     base_data = MAG240MDataset(root=root)
     y = base_data.all_paper_label
     y[np.isnan(y)] = -1
+    y = torch.as_tensor(y, dtype=torch.long)
     train = base_data.get_idx_split('train')
     val_test = base_data.get_idx_split('valid')
     rng.shuffle(val_test)
