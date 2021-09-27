@@ -186,15 +186,17 @@ async def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', nu
     alignment_tasks = []
     l2g_dims_to_evaluate = set()
     for d in dims:
-        coords_files = [patch_folder / f'{train_basename}_d{d}_{criterion}_{nt}coords.npy'
-                        for criterion in ('auc', 'loss') for nt in ('', 'nt')]
-        if d in compute_alignment_for_dims or not all(coords_file.is_file() for coords_file in coords_files):
-            l2g_dims_to_evaluate.add(d)
-            alignment_tasks.append(
-                asyncio.create_task(run_script('l2g_align_patches', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
-                                               _throttler=throttler, _stderr=True,
-                                               patch_folder=patch_folder, basename=train_basename, dim=d,
-                                               mmap=mmap_features is not None, use_tmp=use_tmp)))
+        for criterion in ('auc', 'loss'):
+            coords_files = [patch_folder / f'{train_basename}_d{d}_{criterion}_{nt}coords.npy'
+                            for nt in ('', 'nt')]
+            if d in compute_alignment_for_dims or not all(coords_file.is_file() for coords_file in coords_files):
+                l2g_dims_to_evaluate.add(d)
+                alignment_tasks.append(
+                    asyncio.create_task(run_script('l2g_align_patches', _cmd_prefix=cmd_prefix, _task_queue=work_queue,
+                                                   _throttler=throttler, _stderr=True,
+                                                   patch_folder=patch_folder, basename=train_basename, dim=d,
+                                                   criterion=criterion,
+                                                   mmap=mmap_features is not None, use_tmp=use_tmp)))
 
     # evaluate embeddings
     print('running baseline tasks')

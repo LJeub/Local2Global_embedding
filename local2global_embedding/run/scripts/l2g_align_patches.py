@@ -32,79 +32,76 @@ from local2global.utils import WeightedAlignmentProblem, Patch, FilePatch, SVDAl
 from local2global_embedding.run.utils import ScriptParser
 
 
-criterions = ['auc', 'loss']
-
-
-def main(patch_folder: str, basename: str, dim: int, mmap=False, use_tmp=False):
+def main(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False, use_tmp=False):
     print(f'computing aligned embedding for {patch_folder}/{basename}_d{dim}')
-    patch_list = []
+
     patch_folder = Path(patch_folder)
     patch_graph = torch.load(patch_folder / 'patch_graph.pt', map_location='cpu')
 
-    for criterion in criterions:
-        with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
-            print('loading patch data')
-            for i in tqdm(range(patch_graph.num_nodes), smoothing=0):
-                node_file = patch_folder / f'patch{i}_index.npy'
-                coords_file = patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'
-                if node_file.is_file():
-                    nodes = np.load(node_file)
-                else:
-                    patch_file = patch_folder / f'patch{i}_data.pt'
-                    patch = torch.load(patch_file, map_location='cpu')
-                    nodes = patch.nodes
-                if mmap:
-                    if use_tmp:
-                        coords = np.load(coords_file, mmap_mode='r')
-                        coords_file = NamedTemporaryFile(delete=False)
-                        np.save(coords_file, coords)
-                        coords_file.close()
-                        coords_file = coords_file.name
-                    patch_list.append(FilePatch(nodes, coords_file))
-                else:
-                    with SoftFileLock(f'{basename}_patch{i}_info.lock', timeout=10):
-                        coords = np.load(coords_file)
-                    patch_list.append(Patch(nodes, coords))
-
-            print('initialising alignment problem')
-            prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=True)
-            patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
-            patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
-            if mmap is not None:
-                print('computing ntcoords using mmap')
-                if use_tmp:
-                    print('using tmp buffer')
-                    with TemporaryFile() as f:
-                        buffer = np.memmap(f, dtype=np.float32, shape=(prob.n_nodes, prob.dim))
-                        prob.mean_embedding(buffer)
-                        np.save(patched_embedding_file_nt, buffer)
-                else:
-                    out = open_memmap(patched_embedding_file_nt, mode='w+', shape=(prob.n_nodes, prob.dim),
-                                      dtype=np.float32)
-                    prob.mean_embedding(out)
-                    out.flush()
+    with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
+        patch_list = []
+        print('loading patch data')
+        for i in tqdm(range(patch_graph.num_nodes), smoothing=0):
+            node_file = patch_folder / f'patch{i}_index.npy'
+            coords_file = patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'
+            if node_file.is_file():
+                nodes = np.load(node_file)
             else:
-                print('computing ntcoords')
-                out = np.empty(shape=(prob.n_nodes, prob.dim), dtype=np.float32)
-                ntcoords = prob.mean_embedding(out)
-                np.save(patched_embedding_file_nt, ntcoords)
-
-            if mmap is not None:
-                print('computing aligned coords using mmap')
+                patch_file = patch_folder / f'patch{i}_data.pt'
+                patch = torch.load(patch_file, map_location='cpu')
+                nodes = patch.nodes
+            if mmap:
                 if use_tmp:
-                    with TemporaryFile() as f:
-                        buffer = np.memmap(f, dtype=np.float32, shape=(prob.n_nodes, prob.dim))
-                        prob.align_patches().mean_embedding(buffer)
-                        np.save(patched_embedding_file, buffer)
-                else:
-                    out = open_memmap(patched_embedding_file, mode='w+', shape=(prob.n_nodes, prob.dim), dtype=np.float32)
-                    prob.align_patches().mean_embedding(out)
-                    out.flush()
+                    coords = np.load(coords_file, mmap_mode='r')
+                    coords_file = NamedTemporaryFile(delete=False)
+                    np.save(coords_file, coords)
+                    coords_file.close()
+                    coords_file = coords_file.name
+                patch_list.append(FilePatch(nodes, coords_file))
             else:
-                print('computing aligned coords')
-                out = np.empty(shape=(prob.n_nodes, prob.dim), dtype=np.float32)
-                coords = prob.align_patches().mean_embedding(out)
-                np.save(patched_embedding_file, coords)
+                with SoftFileLock(f'{basename}_patch{i}_info.lock', timeout=10):
+                    coords = np.load(coords_file)
+                patch_list.append(Patch(nodes, coords))
+
+        print('initialising alignment problem')
+        prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=True)
+        patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
+        patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
+        if mmap is not None:
+            print('computing ntcoords using mmap')
+            if use_tmp:
+                print('using tmp buffer')
+                with TemporaryFile() as f:
+                    buffer = np.memmap(f, dtype=np.float32, shape=(prob.n_nodes, prob.dim))
+                    prob.mean_embedding(buffer)
+                    np.save(patched_embedding_file_nt, buffer)
+            else:
+                out = open_memmap(patched_embedding_file_nt, mode='w+', shape=(prob.n_nodes, prob.dim),
+                                  dtype=np.float32)
+                prob.mean_embedding(out)
+                out.flush()
+        else:
+            print('computing ntcoords')
+            out = np.empty(shape=(prob.n_nodes, prob.dim), dtype=np.float32)
+            ntcoords = prob.mean_embedding(out)
+            np.save(patched_embedding_file_nt, ntcoords)
+
+        if mmap is not None:
+            print('computing aligned coords using mmap')
+            if use_tmp:
+                with TemporaryFile() as f:
+                    buffer = np.memmap(f, dtype=np.float32, shape=(prob.n_nodes, prob.dim))
+                    prob.align_patches().mean_embedding(buffer)
+                    np.save(patched_embedding_file, buffer)
+            else:
+                out = open_memmap(patched_embedding_file, mode='w+', shape=(prob.n_nodes, prob.dim), dtype=np.float32)
+                prob.align_patches().mean_embedding(out)
+                out.flush()
+        else:
+            print('computing aligned coords')
+            out = np.empty(shape=(prob.n_nodes, prob.dim), dtype=np.float32)
+            coords = prob.align_patches().mean_embedding(out)
+            np.save(patched_embedding_file, coords)
 
 
 if __name__ == '__main__':
