@@ -67,7 +67,7 @@ def main(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
         prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=True)
         patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
         patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
-        if mmap is not None:
+        if mmap:
             print('computing ntcoords using mmap')
             if use_tmp:
                 print('using tmp buffer')
@@ -86,7 +86,7 @@ def main(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
             ntcoords = prob.mean_embedding(out)
             np.save(patched_embedding_file_nt, ntcoords)
 
-        if mmap is not None:
+        if mmap:
             print('computing aligned coords using mmap')
             if use_tmp:
                 with TemporaryFile() as f:
