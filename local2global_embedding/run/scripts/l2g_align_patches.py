@@ -81,7 +81,7 @@ def main(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
                 out.flush()
         else:
             print('computing ntcoords')
-            out = np.empty(shape=(prob.n_nodes, prob.dim), dtype=np.float32)
+            out = np.zeros(shape=(prob.n_nodes, prob.dim), dtype=np.float32)
             ntcoords = prob.mean_embedding(out)
             np.save(patched_embedding_file_nt, ntcoords)
 

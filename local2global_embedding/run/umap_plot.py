@@ -18,6 +18,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from pathlib import Path
+from typing import Optional
+from datetime import datetime
 
 import umap
 import umap.plot
@@ -32,10 +34,12 @@ from local2global_embedding.run.utils import ScriptParser, load_classification_p
 rng = np.random.default_rng()
 
 
-def plot_embedding(filename, name, mmap_mode=None, max_points=50000, restrict_lcc=False, size=2.0, dpi=300,
-                   shader_dpi=75):
+def plot_embedding(filename, name, mmap_mode: Optional[str] = None, max_points=50000, restrict_lcc=False, size=2.0, dpi=300,
+                   shader_dpi=75, data_root='/tmp', min_dist=0.0, metric='euclidean', verbose=True):
     filename = Path(filename)
-    cl = load_classification_problem(name, restrict_lcc=restrict_lcc)
+    print(f'loading data started at {datetime.now()}')
+    cl = load_classification_problem(name, restrict_lcc=restrict_lcc, root=data_root)
+    print(f'classificaton problem loaded at {datetime.now()}')
     fig = plt.figure(figsize=(size, size), dpi=shader_dpi)
     ax = fig.add_axes([0, 0, 1, 1])
     y = np.asanyarray(cl.y)
@@ -46,14 +50,15 @@ def plot_embedding(filename, name, mmap_mode=None, max_points=50000, restrict_lc
         coords = np.asanyarray(torch.load(filename, map_location='cpu'))
     else:
         coords = np.load(filename, mmap_mode=mmap_mode)[nodes]
-    mapper = umap.UMAP().fit(coords)
+    print(f'embedding loaded at {datetime.now()}')
+    mapper = umap.UMAP(min_dist=min_dist, metric=metric, verbose=verbose).fit(coords)
     num_labels = y.max() + 1
     if num_labels <= 8:
         colors = plt.get_cmap('Set2')
         color_key = {i: matplotlib.colors.to_hex(colors.colors[i]) for i in range(num_labels)}
         color_key_cmap = None
     else:
-        color_key_cmap = 'plasma'
+        color_key_cmap = None
         color_key = None
 
     umap.plot.points(mapper, ax=ax, labels=y[nodes], color_key_cmap=color_key_cmap, color_key=color_key,
