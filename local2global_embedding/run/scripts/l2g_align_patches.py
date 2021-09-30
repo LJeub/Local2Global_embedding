@@ -51,12 +51,11 @@ def main(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
                 patch = torch.load(patch_file, map_location='cpu')
                 nodes = patch.nodes
             if mmap:
-                if use_tmp:
-                    coords = np.load(coords_file, mmap_mode='r')
-                    coords_file = NamedTemporaryFile(delete=False)
-                    np.save(coords_file, coords)
-                    coords_file.close()
-                    coords_file = coords_file.name
+                coords = np.load(coords_file, mmap_mode='r')
+                coords_file = NamedTemporaryFile(delete=False)
+                np.save(coords_file, coords)
+                coords_file.close()
+                coords_file = coords_file.name
                 patch_list.append(FilePatch(nodes, coords_file))
             else:
                 with SoftFileLock(f'{basename}_patch{i}_info.lock', timeout=10):
