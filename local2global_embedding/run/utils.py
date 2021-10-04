@@ -31,6 +31,7 @@ import time
 import torch
 from docstring_parser import parse as parse_doc
 from filelock import SoftFileLock
+from atomicwrites import atomic_write
 
 from local2global_embedding.classfication import ClassificationProblem
 
@@ -167,7 +168,7 @@ class ResultsDict:
 
         """
         with self._lock:
-            with open(self.filename, 'w') as f:
+            with atomic_write(self.filename) as f:  # this should avoid any chance of loosing existing data
                 json.dump(self._data, f)
 
     def __init__(self, filename, replace=False):
@@ -180,10 +181,11 @@ class ResultsDict:
         self._lock = SoftFileLock(self.filename.with_suffix('.lock'), timeout=10)
         with self._lock:
             if not self.filename.is_file():
-                with open(self.filename, 'w') as f:
-                    json.dump({'dims': [], 'runs': []}, f)
+                self._data = {'dims': [], 'runs': []}
+                self.save()
+            else:
+                self.load()
         self.replace = replace  #: if ``True``, updates replace existing data, if ``False``, updates append data
-        self.load()
 
     def __enter__(self):
         self._lock.acquire()
