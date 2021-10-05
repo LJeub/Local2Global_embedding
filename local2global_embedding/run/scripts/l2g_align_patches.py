@@ -32,7 +32,7 @@ from local2global.utils import WeightedAlignmentProblem, Patch, FilePatch, SVDAl
 from local2global_embedding.run.utils import ScriptParser
 
 
-def main(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False, use_tmp=False):
+def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False, use_tmp=False):
     print(f'computing aligned embedding for {patch_folder}/{basename}_d{dim}')
 
     patch_folder = Path(patch_folder)
@@ -104,4 +104,4 @@ def main(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
 
 
 if __name__ == '__main__':
-    ScriptParser(main).run()
+    ScriptParser(l2g_align_patches).run()

@@ -25,27 +25,27 @@ import sys
 import numpy as np
 import torch
 
-from local2global_embedding.embedding import train, VGAE, VGAE_loss, GAE, GAE_loss, DGI, DGILoss, reconstruction_auc
+import local2global_embedding.embedding as emb
 from local2global_embedding.utils import speye, set_device
 from local2global_embedding.run.utils import ResultsDict, ScriptParser
 
 
 def select_loss(model):
-    if isinstance(model, VGAE):
-        return VGAE_loss
-    elif isinstance(model, GAE):
-        return GAE_loss
-    elif isinstance(model, DGI):
-        return DGILoss()
+    if isinstance(model, emb.VGAE):
+        return emb.VGAE_loss
+    elif isinstance(model, emb.GAE):
+        return emb.GAE_loss
+    elif isinstance(model, emb.DGI):
+        return emb.DGILoss()
 
 
 def create_model(model, dim, hidden_dim, num_features, dist):
     if model == 'VGAE':
-        return VGAE(dim, hidden_dim, num_features, dist)
+        return emb.VGAE(dim, hidden_dim, num_features, dist)
     elif model == 'GAE':
-        return GAE(dim, hidden_dim, num_features, dist)
+        return emb.GAE(dim, hidden_dim, num_features, dist)
     elif model == 'DGI':
-        return DGI(num_features, dim)
+        return emb.DGI(num_features, dim)
 
 
 class Count:
@@ -56,9 +56,9 @@ class Count:
         self.count += 1
 
 
-def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, results_file: str,
-         dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
-         device: Optional[str] = None, runs=1):
+def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, results_file: str,
+          dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
+          device: Optional[str] = None, runs=1):
     """
     train model on data
 
@@ -101,11 +101,11 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
         model.reset_parameters()
 
         ep_count = Count()
-        model = train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose, logger=ep_count)
+        model = emb.train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose, logger=ep_count)
 
         coords = model.embed(data)
 
-        auc = reconstruction_auc(coords, data, dist=dist)
+        auc = emb.reconstruction_auc(coords, data, dist=dist)
         loss = float(loss_fun(model, data))
 
         with ResultsDict(results_file) as results:
@@ -125,4 +125,4 @@ def main(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, 
 
 
 if __name__ == '__main__':
-    ScriptParser(main).run()
+    ScriptParser(train).run()
