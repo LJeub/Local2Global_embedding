@@ -168,7 +168,7 @@ class ResultsDict:
 
         """
         with self._lock:
-            with atomic_write(self.filename) as f:  # this should avoid any chance of loosing existing data
+            with atomic_write(self.filename, overwrite=True) as f:  # this should avoid any chance of loosing existing data
                 json.dump(self._data, f)
 
     def __init__(self, filename, replace=False):
