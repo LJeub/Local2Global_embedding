@@ -3,7 +3,6 @@ import sys
 from random import choice
 from collections.abc import Sequence
 
-import numpy
 import torch
 import numpy as np
 import torch_geometric as tg
@@ -19,12 +18,12 @@ from local2global_embedding.sparsify import resistance_sparsify, relaxed_spannin
 
 class Partition(Sequence):
     def __init__(self, partition_tensor):
-        partition_tensor = np.asanyarray(partition_tensor)
-        self.num_parts = np.max(partition_tensor) + 1
-        self.nodes = np.argsort(partition_tensor)
-        self.part_index = np.zeros(self.num_parts + 1, dtype=np.int64)
-        np.add.at(self.part_index[1:], partition_tensor, 1)
-        np.cumsum(self.part_index, out=self.part_index)
+        partition_tensor = torch.as_tensor(partition_tensor)
+        counts = torch.bincount(partition_tensor)
+        self.num_parts = len(counts)
+        self.nodes = torch.argsort(partition_tensor)
+        self.part_index = torch.zeros(self.num_parts + 1, dtype=torch.long)
+        self.part_index[1:] = torch.cumsum(counts, dim=0)
 
     def __getitem__(self, item):
         return self.nodes[self.part_index[item]:self.part_index[item+1]]
@@ -68,7 +67,7 @@ def geodesic_expand_overlap(subgraph, seed_mask, min_overlap, target_overlap, re
         if not new_nodes.size:
             raise RuntimeError("Could not reach minimum overlap.")
         mask[new_nodes] = False
-        overlap = numpy.concatenate((overlap, new_nodes))
+        overlap = np.concatenate((overlap, new_nodes))
     return overlap
 
 
@@ -87,7 +86,8 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
     Returns:
         new partition tensor where small clusters are merged.
     """
-    parts = Partition(partition_tensor)
+    parts = [torch.as_tensor(p, device=graph.device) for p in Partition(partition_tensor)]
+    num_parts = len(parts)
     part_degs = torch.tensor([graph.degree[p].sum() for p in parts], device=graph.device)
     sizes = torch.tensor([len(p) for p in parts], dtype=torch.long)
     smallest_id = torch.argmin(sizes)
@@ -96,7 +96,7 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
         p = parts[smallest_id]
         for node in p:
             other = partition_tensor[graph.adj(node)]
-            out_neighbour_fraction.scatter_add_(0, other, torch.ones(1).expand(other.shape, device=graph.device))
+            out_neighbour_fraction.scatter_add_(0, other, torch.ones(1, device=graph.device).expand(other.shape))
         if out_neighbour_fraction.sum() == 0:
             merge = torch.argsort(sizes)[1]
         else:
@@ -145,13 +145,15 @@ def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_
         list of node-index tensors for patches
 
     """
-    partition_tensor = np.asanyarray(partition_tensor)
+    if isinstance(partition_tensor, torch.Tensor):
+        partition_tensor = partition_tensor.cpu()
     graph = graph.to(NPGraph)._jitgraph
     patch_graph = patch_graph.to(NPGraph)._jitgraph
     parts = Partition(partition_tensor)
+    partition_tensor = partition_tensor.numpy()
     patches = numba.typed.List(np.asanyarray(p) for p in parts)
     for i in tqdm(range(patch_graph.num_nodes), position=0, desc='enlarging patch overlaps', leave=False, file=sys.stdout):
-        part_i = np.asanyarray(parts[i])
+        part_i = parts[i].numpy()
         part_i.sort()
         patches = _patch_overlaps(i, part_i, partition_tensor, patches, graph, patch_graph, int(min_overlap / 2), int(target_overlap / 2))
 
