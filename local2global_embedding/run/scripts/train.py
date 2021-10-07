@@ -58,7 +58,7 @@ class Count:
 
 def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, results_file: str,
           dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
-          device: Optional[str] = None, runs=1):
+          device: Optional[str] = None, runs=1, normalise_features=False):
     """
     train model on data
 
@@ -86,6 +86,10 @@ def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool,
         data.x = speye(data.num_nodes).to(device)
     else:
         data.x = data.x.to(torch.float32)
+        if normalise_features:
+            r_sum = data.x.sum(dim=1)
+            r_sum[r_sum == 0] = 1.0  # avoid division by zero
+            data.x /= r_sum[:, None]
 
     model_auc_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_auc_model.pt'))
     model_loss_file = model_auc_file.with_name(model_auc_file.name.replace('_auc_', '_loss_'))

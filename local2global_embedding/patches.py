@@ -1,4 +1,5 @@
 """Dividing input data into overlapping patches"""
+import sys
 from random import choice
 from collections.abc import Sequence
 
@@ -149,8 +150,7 @@ def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_
     patch_graph = patch_graph.to(NPGraph)._jitgraph
     parts = Partition(partition_tensor)
     patches = numba.typed.List(np.asanyarray(p) for p in parts)
-    print('enlarging patch overlaps')
-    for i in tqdm(range(patch_graph.num_nodes)):
+    for i in tqdm(range(patch_graph.num_nodes), position=0, desc='enlarging patch overlaps', leave=False, file=sys.stdout):
         part_i = np.asanyarray(parts[i])
         part_i.sort()
         patches = _patch_overlaps(i, part_i, partition_tensor, patches, graph, patch_graph, int(min_overlap / 2), int(target_overlap / 2))

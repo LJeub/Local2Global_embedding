@@ -18,3 +18,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
+from .evaluate import evaluate
+from .l2g_align_patches import l2g_align_patches
+from .prepare_patches import prepare_patches
+from .train import train

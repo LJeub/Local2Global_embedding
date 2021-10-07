@@ -68,7 +68,7 @@ def classificationloader(name):
     return loader
 
 
-def load_data(name, root='/tmp', normalise=False, restrict_lcc=False, **kwargs):
+def load_data(name, root='/tmp', restrict_lcc=False, **kwargs):
     """
     load data set
 
@@ -85,11 +85,6 @@ def load_data(name, root='/tmp', normalise=False, restrict_lcc=False, **kwargs):
 
     if restrict_lcc:
         data = data.lcc(relabel=True)
-
-    if normalise:
-        r_sum = data.x.sum(dim=1)
-        r_sum[r_sum == 0] = 1.0  # avoid division by zero
-        data.x /= r_sum[:, None]
 
     return data
 

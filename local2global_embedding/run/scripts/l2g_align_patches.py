@@ -32,7 +32,8 @@ from local2global.utils import WeightedAlignmentProblem, Patch, FilePatch, SVDAl
 from local2global_embedding.run.utils import ScriptParser
 
 
-def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False, use_tmp=False):
+def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str, mmap=False, use_tmp=False,
+                      verbose=False):
     print(f'computing aligned embedding for {patch_folder}/{basename}_d{dim}')
 
     patch_folder = Path(patch_folder)
@@ -40,8 +41,7 @@ def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str
 
     with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
         patch_list = []
-        print('loading patch data')
-        for i in tqdm(range(patch_graph.num_nodes), smoothing=0):
+        for i in tqdm(range(patch_graph.num_nodes),position=0, leave=False, desc='loading patch data', smoothing=0):
             node_file = patch_folder / f'patch{i}_index.npy'
             coords_file = patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'
             if node_file.is_file():
@@ -63,7 +63,7 @@ def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str
                 patch_list.append(Patch(nodes, coords))
 
         print('initialising alignment problem')
-        prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=True)
+        prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=verbose)
         patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
         patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
         if mmap:
