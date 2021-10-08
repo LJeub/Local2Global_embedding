@@ -66,7 +66,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
         output='.', device: str = None, verbose=False,
         run_baseline=True, normalise=False, restrict_lcc=False, mmap_edges=False, mmap_features=False,
-        random_split=False, use_tmp=False, cluster_init=None):
+        random_split=False, use_tmp=False, cluster_init=False):
     """
     Run training example.
 
@@ -115,8 +115,9 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    if cluster_init is not None:
-        kwargs = run_path(cluster_init)
+    if cluster_init:
+        cluster_init_path = Path().home() / '.config' / 'dask' / 'cluster_init.py'
+        kwargs = run_path(cluster_init_path)
         client = Client(kwargs['cluster'])
     else:
         client = Client()
