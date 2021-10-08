@@ -135,6 +135,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         print('features will be normalised before training')
 
     manager = enlighten.get_manager(threaded=True)
+    patch_create_progress = manager.counter(desc='create patches', total=0, file=sys.stdout)
     baseline_progress = manager.counter(desc='baseline', total=0, file=sys.stdout)
     patch_progress = manager.counter(desc='patch', total=0, file=sys.stdout)
     align_progress = manager.counter(desc='align',  total=0, file=sys.stdout)
@@ -183,6 +184,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                       mmap_edges=mmap_edges,
                                       mmap_features=mmap_features)
     all_tasks.append(patch_create_task)
+    patch_create_task.add_done_callback(progress_callback(patch_create_progress))
 
     # compute baseline full model if necessary
     baseline_info_file = output_folder / f'{train_basename}_full_info.json'
@@ -265,7 +267,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     patch_tasks = [[] for _ in dims]
     patch_graph = patch_create_task.result()  # make sure patch data is available
-    total_progress.update()
     compute_alignment_for_dims = set()
     for d, tasks in zip(dims, patch_tasks):
         for pi in range(patch_graph.num_nodes):
