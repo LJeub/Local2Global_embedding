@@ -27,6 +27,8 @@ setup(
         'filelock',
         'docstring-parser',
         'tqdm >= 4.62',
-        'atomicwrites >= 1.4'
+        'atomicwrites >= 1.4',
+        'dask >= 2021.9.1',
+        'enlighten >= 1.10',
     ],
 )
