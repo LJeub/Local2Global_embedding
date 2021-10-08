@@ -166,6 +166,10 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         if model != 'DGI':
             train_basename += '_dist'
 
+    if normalise:
+        eval_basename += '_norm'
+        train_basename += '_norm'
+
     patch_create_task = client.submit(func.prepare_patches, pure=False,
                                       output_folder=output_folder, name=name, data_root=data_root,
                                       min_overlap=min_overlap, target_overlap=target_overlap,
