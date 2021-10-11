@@ -20,6 +20,7 @@
 
 from pathlib import Path
 from typing import Optional
+from shutil import copyfile
 from tempfile import NamedTemporaryFile, TemporaryFile
 
 import torch
@@ -41,7 +42,7 @@ def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str
 
     with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
         patch_list = []
-        for i in tqdm(range(patch_graph.num_nodes),position=0, leave=False, desc='loading patch data', smoothing=0):
+        for i in tqdm(range(patch_graph.num_nodes), position=0, leave=False, desc='loading patch data', smoothing=0):
             node_file = patch_folder / f'patch{i}_index.npy'
             coords_file = patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'
             if node_file.is_file():
@@ -52,11 +53,10 @@ def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str
                 nodes = patch.nodes
             if mmap:
                 if use_tmp:
-                    coords = np.load(coords_file, mmap_mode='r')
-                    coords_file = NamedTemporaryFile(delete=False)
-                    np.save(coords_file, coords)
-                    coords_file.close()
-                    coords_file = coords_file.name
+                    coords_file_tmp = NamedTemporaryFile(delete=False)
+                    coords_file_tmp.close()
+                    copyfile(coords_file, coords_file_tmp.name)
+                    coords_file = coords_file_tmp.name
                 patch_list.append(FilePatch(nodes, coords_file))
             else:
                 with SoftFileLock(f'{basename}_patch{i}_info.lock', timeout=10):
