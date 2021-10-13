@@ -222,6 +222,7 @@ def metis_clustering(graph: TGraph, num_clusters):
                     George Karypis and Vipin Kumar.
                     SIAM Journal on Scientific Computing, Vol. 20, No. 1, pp. 359—392, 1999.
     """
-    adj_list = [graph.adj(i).cpu().numpy() for i in range(graph.num_nodes)]
-    n_cuts, memberships = pymetis.part_graph(num_clusters, adjacency=adj_list)
+    graph = graph.to(NPGraph)
+    n_cuts, memberships = pymetis.part_graph(num_clusters, adjncy=graph.edge_index[1], xadj=graph.adj_index,
+                                             eweights=graph.edge_attr)
     return torch.as_tensor(memberships, dtype=torch.long, device=graph.device)
