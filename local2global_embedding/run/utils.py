@@ -81,26 +81,28 @@ def load_data(name, root='/tmp', restrict_lcc=False, **kwargs):
 
     """
     root = Path(root).expanduser()
-    data = _dataloaders[name](root, **kwargs)
+    with SoftFileLock(root / f'{name}.lock', timeout=1200) as lock:
+        data = _dataloaders[name](root, **kwargs)
 
-    if restrict_lcc:
-        data = data.lcc(relabel=True)
+        if restrict_lcc:
+            data = data.lcc(relabel=True)
 
     return data
 
 
 def load_classification_problem(name, root='/tmp', restrict_lcc=False, graph_args={}, class_args={}):
     root = Path(root).expanduser()
-    y, split = _classification_loader[name](root=root, **class_args)
-    if restrict_lcc:
-        graph = load_data(name, root, restrict_lcc=False, **graph_args)
-        index = graph.nodes_in_lcc()
-        index_map = torch.full(y.shape, -1, dtype=torch.long)
-        index_map[index] = torch.arange(len(index), dtype=torch.long)
-        y = y[index]
-        for key, value in split.items():
-            mapped_index = index_map[value]
-            split[key] = mapped_index[mapped_index >= 0]
+    with SoftFileLock(root / f'{name}_cl.lock', timeout=1200) as lock:
+        y, split = _classification_loader[name](root=root, **class_args)
+        if restrict_lcc:
+            graph = load_data(name, root, restrict_lcc=False, **graph_args)
+            index = graph.nodes_in_lcc()
+            index_map = torch.full(y.shape, -1, dtype=torch.long)
+            index_map[index] = torch.arange(len(index), dtype=torch.long)
+            y = y[index]
+            for key, value in split.items():
+                mapped_index = index_map[value]
+                split[key] = mapped_index[mapped_index >= 0]
     return ClassificationProblem(y, split=split)
 
 
