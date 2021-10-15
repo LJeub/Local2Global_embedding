@@ -29,7 +29,8 @@ from numpy.lib.format import open_memmap
 from filelock import SoftFileLock
 from tqdm import tqdm
 
-from local2global.utils import WeightedAlignmentProblem, Patch, FilePatch, SVDAlignmentProblem
+from local2global.utils import WeightedAlignmentProblem, SVDAlignmentProblem, FilePatch
+from local2global import Patch
 from local2global_embedding.run.utils import ScriptParser
 
 

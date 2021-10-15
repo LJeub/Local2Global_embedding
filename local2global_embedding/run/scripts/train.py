@@ -100,7 +100,9 @@ def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool,
 
     with ResultsDict(results_file) as results:
         runs_done = results.runs(dim)
-        
+
+    updated_auc = False
+    updated_loss = False
     while runs_done < runs:
         model.reset_parameters()
 
@@ -118,14 +120,18 @@ def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool,
             if results.runs(dim) >= runs:
                 break
             if results.min('loss', dim) > loss:
+                updated_loss = True
                 torch.save(model.state_dict(), model_loss_file)
                 np.save(coords_loss_file, coords.cpu().numpy())
             if results.max('auc', dim) < auc:
+                updated_auc = True
                 torch.save(model.state_dict(), model_auc_file)
                 np.save(coords_auc_file, coords.cpu().numpy())
             results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr, 'num_epochs': num_epochs,
                                                               'patience': patience, 'dist': dist})
             runs_done = results.runs(dim)
+
+    return coords_auc_file, updated_auc, coords_loss_file, updated_loss
 
 
 if __name__ == '__main__':

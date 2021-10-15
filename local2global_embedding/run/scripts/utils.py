@@ -17,10 +17,21 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+from pathlib import Path
 
-from .evaluate import evaluate
-from .l2g_align_patches import l2g_align_patches
-from .prepare_patches import prepare_patches
-from .train import train
-from .hierarchical_l2g_align_patches import hierarchical_l2g_align_patches
-from .no_transform_embedding import no_transform_embedding
+import numpy as np
+
+from local2global.utils import FilePatch
+from local2global import Patch
+
+
+def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True):
+    patches = []
+    for i in range(patch_graph.num_nodes):
+        nodes = np.load(patch_folder / f'patch{i}_index.npy')
+        if lazy:
+            patches.append(FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'))
+        else:
+            coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+            patches.append(Patch(nodes, coords))
+    return patches

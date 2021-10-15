@@ -59,15 +59,20 @@ def plot_all(folder=None):
         print(file)
         with open(file) as f:
             data = json.load(f)
+        base_name_parts = file.name.split('_hc', 1)
+        if len(base_name_parts) > 1:
+            base_name = base_name_parts[0] + '_' + base_name_parts[1].split('_', 1)[1]
+        else:
+            base_name = base_name_parts[0]
 
-        baseline = folder / file.name.replace('_l2g_', '_full_')
+        baseline = folder / base_name.replace('_l2g_', '_full_')
         if baseline.is_file():
             baseline_data = ResultsDict(baseline)
             baseline_data.reduce_to_dims(data['dims'])
         else:
             baseline_data = None
 
-        nt = file.with_name(file.name.replace('_l2g_', '_nt_'))
+        nt = file.with_name(base_name.replace('_l2g_', '_nt_'))
         if nt.is_file():
             with open(nt) as f:
                 nt_data = json.load(f)
