@@ -20,6 +20,7 @@
 from typing import Sequence, Collection, Iterable
 import networkx as nx
 from abc import ABC, abstractmethod
+import numpy as np
 
 
 class Graph:
@@ -41,6 +42,29 @@ class Graph:
                    x=data.x,
                    y=data.y,
                    num_nodes=data.num_nodes)
+
+    @classmethod
+    def from_networkx(cls, nx_graph: nx.Graph, weight=None):
+        undir = not nx_graph.is_directed()
+        if undir:
+            nx_graph = nx_graph.to_directed(as_view=True)
+        num_nodes = nx_graph.number_of_nodes()
+        num_edges = nx_graph.number_of_edges()
+        edge_index = np.empty((2, num_edges), dtype=np.int64)
+        weights = []
+        for i, (*e, w) in enumerate(nx_graph.edges(data=weight)):
+            edge_index[:, i] = e
+            if w is not None:
+                weights.append(w)
+        if weights and len(weights) != num_edges:
+            raise RuntimeError('some edges have missing weight')
+
+        if weight is not None:
+            weights = np.array(weights)
+        else:
+            weights = None
+
+        return cls(edge_index, weights, num_nodes=num_nodes, ensure_sorted=True, undir=undir)
 
     @abstractmethod
     def __init__(self, edge_index, edge_attr=None, x=None, y=None, num_nodes=None, adj_index=None,
