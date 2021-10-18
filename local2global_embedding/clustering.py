@@ -226,3 +226,38 @@ def metis_clustering(graph: TGraph, num_clusters):
     n_cuts, memberships = pymetis.part_graph(num_clusters, adjncy=graph.edge_index[1], xadj=graph.adj_index,
                                              eweights=graph.edge_attr)
     return torch.as_tensor(memberships, dtype=torch.long, device=graph.device)
+
+
+def spread_clustering(graph, num_clusters, max_degree_init=True):
+    clusters = torch.full((graph.num_nodes,), -1, dtype=torch.long, device=graph.device)
+    if max_degree_init:
+        seeds = torch.topk(torch.as_tensor(graph.degree), k=num_clusters).indices
+    else:
+        seeds = torch.multinomial(torch.as_tensor(graph.degree), num_clusters, replacement=False)
+
+    clusters[seeds] = torch.arange(num_clusters)
+    spread_weights = torch.zeros((num_clusters, graph.num_nodes), dtype=torch.double, device=graph.device)
+    spread_weights[:, seeds] = -1
+    unassigned = clusters < 0
+    for seed in seeds:
+        c = clusters[seed]
+        inds, weights = graph.adj_weighted(seed)
+        keep = unassigned[inds]
+        spread_weights[c, inds[keep]] += weights[keep] / graph.strength[inds[keep]]
+
+    num_unassigned = graph.num_nodes - num_clusters
+
+    while num_unassigned > 0:
+        for c in range(num_clusters):
+            node = torch.argmax(spread_weights[c])
+            if spread_weights[c, node] > 0:
+                # make sure node is actually connected to cluster
+                clusters[node] = c
+                spread_weights[:, node] = -1  # should not be chosen again
+                unassigned[node] = False
+                num_unassigned -= 1
+                inds, weights = graph.adj_weighted(node)
+                keep = unassigned[inds]
+                spread_weights[c, inds[keep]] += weights[keep] / graph.strength[inds[keep]]
+    return clusters
+
