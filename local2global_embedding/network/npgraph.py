@@ -109,8 +109,6 @@ class NPGraph(Graph):
 
         if self.num_nodes is None:
             self.num_nodes = np.max(self.edge_index) + 1
-        else:
-            self.num_nodes = self.num_nodes
 
         if ensure_sorted:
             if isinstance(self.edge_index, np.memmap):
@@ -120,8 +118,6 @@ class NPGraph(Graph):
                 self.edge_index = self.edge_index[:, index]
                 if self.edge_attr is not None:
                     self.edge_attr = self.edge_attr[index]
-        if self.adj_index is None:
-            self.adj_index = np.empty((0,), dtype=np.int64)
         self._jitgraph = JitGraph(self.edge_index, self.num_nodes, self.adj_index, None)
         self.adj_index = self._jitgraph.adj_index
         self.degree = self._jitgraph.degree
