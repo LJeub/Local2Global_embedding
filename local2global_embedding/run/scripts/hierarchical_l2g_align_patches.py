@@ -23,21 +23,22 @@ import numpy as np
 from numpy.lib.format import open_memmap
 from dask.distributed import get_client, secede, rejoin
 
-from local2global.utils import SVDAlignmentProblem, MeanAggregatorPatch
-from local2global_embedding.clustering import metis_clustering
+from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch
+from local2global_embedding.clustering import spread_clustering
 from local2global_embedding.patches import Partition
 
 from .utils import load_patches
 from local2global_embedding.run.utils import ScriptParser
 
+
 def get_aligned_embedding(patch_graph, patches, levels, verbose=True):
     if levels == 1:
-        prob = SVDAlignmentProblem(patches, patch_graph.edges(), copy_data=True, verbose=verbose)
+        prob = WeightedAlignmentProblem(patches, patch_graph.edges(), copy_data=True, verbose=verbose)
         prob.align_patches(scale=False)
         return MeanAggregatorPatch(prob.patches)
     else:
         num_clusters = int(patch_graph.num_nodes ** (1 / levels))
-        clusters = metis_clustering(patch_graph, num_clusters)
+        clusters = spread_clustering(patch_graph, num_clusters)
         reduced_patch_graph = patch_graph.partition_graph(clusters)
         parts = Partition(clusters)
         reduced_patches = []
@@ -56,7 +57,7 @@ def get_aligned_embedding(patch_graph, patches, levels, verbose=True):
         reduced_patches = client.gather(reduced_patches)
         rejoin()
         print('initialising alignment problem')
-        prob = SVDAlignmentProblem(reduced_patches, patch_edges=reduced_patch_graph.edges(), copy_data=False,
+        prob = WeightedAlignmentProblem(reduced_patches, patch_edges=reduced_patch_graph.edges(), copy_data=False,
                                    verbose=verbose)
         return MeanAggregatorPatch(prob.align_patches(scale=False).patches)
 
