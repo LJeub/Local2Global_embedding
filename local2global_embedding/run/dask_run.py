@@ -294,7 +294,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 all_tasks.add(task)
                 del task
 
-        a_tasks = []
         for criterion in ('auc', 'loss'):
             if levels == 1:
                 l2g_coords_file = patch_folder / f'{train_basename}_d{d}_l2g_{criterion}_coords.npy'
@@ -356,7 +355,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             with ResultsDict(nt_eval_file, replace=True) as nt_eval:
                 if nt_task or not nt_eval.contains_dim(d):
-                    task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=a_tasks,
+                    task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=nt_task,
                                          resources=gpu_req,
                                          name=name,
                                          data_root=data_root,
