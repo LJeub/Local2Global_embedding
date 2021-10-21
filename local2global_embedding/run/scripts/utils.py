@@ -17,12 +17,10 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-from pathlib import Path
-
 import numpy as np
 
-from local2global.utils import FilePatch
-from local2global import Patch
+from local2global.utils import FilePatch, Patch
+from local2global.utils.lazy import LazyCoordinates
 
 
 def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True):
@@ -33,5 +31,5 @@ def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True)
             patches.append(FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'))
         else:
             coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
-            patches.append(Patch(nodes, coords))
+            patches.append(Patch(nodes, LazyCoordinates(coords)))
     return patches
