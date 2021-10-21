@@ -84,7 +84,7 @@ def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str
         else:
             output_file = patch_folder / f'{basename}_d{dim}_l2g_{criterion}_hc{levels}_coords.npy'
 
-    patches = delayed(load_patches)(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
+    patches = load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
     aligned = get_aligned_embedding(
                             patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose)
     aligned = aligned.compute()
