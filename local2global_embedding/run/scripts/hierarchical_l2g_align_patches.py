@@ -19,9 +19,11 @@
 #  SOFTWARE.
 from pathlib import Path
 
+import dask
 import numpy as np
 from numpy.lib.format import open_memmap
-from dask.distributed import get_client, secede, rejoin
+from dask.distributed import get_client, secede, rejoin, get_worker
+from dask import delayed, compute
 
 from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch
 from local2global_embedding.clustering import spread_clustering
@@ -31,35 +33,46 @@ from .utils import load_patches
 from local2global_embedding.run.utils import ScriptParser
 
 
+@delayed
+def aligned_coords(patches, patch_graph, verbose=True):
+    prob = WeightedAlignmentProblem(patches, patch_graph.edges(), copy_data=True, verbose=verbose)
+    retry = True
+    tries = 0
+    max_tries = 3
+    while retry and tries < max_tries:
+        retry = False
+        tries += 1
+        try:
+            prob.align_patches(scale=False)
+        except Exception as e:
+            print(e)
+            if tries >= max_tries:
+                raise e
+            else:
+                retry = True
+
+    return MeanAggregatorPatch(prob.align_patches(scale=False).patches)
+
+
 def get_aligned_embedding(patch_graph, patches, levels, verbose=True):
     if levels == 1:
-        prob = WeightedAlignmentProblem(patches, patch_graph.edges(), copy_data=True, verbose=verbose)
-        prob.align_patches(scale=False)
-        return MeanAggregatorPatch(prob.patches)
+        return aligned_coords(patches, patch_graph, verbose)
     else:
         num_clusters = int(patch_graph.num_nodes ** (1 / levels))
         clusters = spread_clustering(patch_graph, num_clusters)
         reduced_patch_graph = patch_graph.partition_graph(clusters)
         parts = Partition(clusters)
         reduced_patches = []
-        client = get_client()
         for i, part in enumerate(parts):
             local_patch_graph = patch_graph.subgraph(part)
             local_patches = [patches[p] for p in part]
-            reduced_patches.append(
-                client.submit(get_aligned_embedding,
+            reduced_patches.append(get_aligned_embedding(
                               patch_graph=local_patch_graph,
                               patches=local_patches,
                               levels=levels-1,
                               verbose=verbose)
             )
-        secede()
-        reduced_patches = client.gather(reduced_patches)
-        rejoin()
-        print('initialising alignment problem')
-        prob = WeightedAlignmentProblem(reduced_patches, patch_edges=reduced_patch_graph.edges(), copy_data=False,
-                                   verbose=verbose)
-        return MeanAggregatorPatch(prob.align_patches(scale=False).patches)
+        return aligned_coords(reduced_patches, reduced_patch_graph, verbose)
 
 
 def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
@@ -71,13 +84,15 @@ def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str
         else:
             output_file = patch_folder / f'{basename}_d{dim}_l2g_{criterion}_hc{levels}_coords.npy'
 
-    patches = load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
-
-    aligned = get_aligned_embedding(patch_graph, patches, levels=levels, verbose=verbose)
+    patches = delayed(load_patches)(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
+    aligned = get_aligned_embedding(
+                            patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose)
+    aligned = aligned.compute()
     out = open_memmap(output_file, shape=aligned.shape, dtype=np.float32, mode='w+')
     out = aligned.coordinates.as_array(out)
     out.flush()
     return output_file
+
 
 if __name__ == '__main__':
     ScriptParser(hierarchical_l2g_align_patches).run()
