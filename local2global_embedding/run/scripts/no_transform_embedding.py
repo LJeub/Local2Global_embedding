@@ -25,9 +25,6 @@ import numpy as np
 from numpy.lib.format import open_memmap
 
 from local2global.utils.lazy import LazyMeanAggregatorCoordinates
-from local2global.utils import FilePatch
-import torch
-
 from .utils import load_patches
 
 

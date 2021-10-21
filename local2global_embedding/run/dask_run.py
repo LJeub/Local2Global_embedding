@@ -47,8 +47,8 @@ from runpy import run_path
 import torch
 import dask
 import dask.distributed
-from dask.distributed import as_completed, Client
 import enlighten
+from dask.distributed import as_completed, Client, get_worker
 import logging
 
 from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, patch_folder_name
