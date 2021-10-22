@@ -18,19 +18,21 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, gettempdir
 from shutil import copyfile, move
 
 import numpy as np
 from numpy.lib.format import open_memmap
 
 from local2global.utils.lazy import LazyMeanAggregatorCoordinates
-from .utils import load_patches
+from .utils import load_patches, move_to_tmp
 
 
 def no_transform_embedding(patch_graph, patch_folder, basename, dim, criterion, mmap=True, use_tmp=True):
     patch_folder = Path(patch_folder)
     patches = load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
+    if use_tmp:
+        patches = [move_to_tmp(p) for p in patches]
     output_file = patch_folder / f'{basename}_d{dim}_nt_{criterion}_coords.npy'
     coords = LazyMeanAggregatorCoordinates(patches)
     if mmap:

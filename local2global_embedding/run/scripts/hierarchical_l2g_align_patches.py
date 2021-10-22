@@ -18,50 +18,27 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from pathlib import Path
-from shutil import copyfile
-from tempfile import gettempdir
+from shutil import copyfile, move
+from tempfile import gettempdir, NamedTemporaryFile
 from copy import copy
 
-import dask
 import numpy as np
 from numpy.lib.format import open_memmap
-from dask.distributed import get_client, secede, rejoin, get_worker
-from dask import delayed, compute
+from dask import delayed
 
-from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch, FilePatch
+from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch
 from local2global_embedding.clustering import spread_clustering
 from local2global_embedding.patches import Partition
 
-from .utils import load_patches
+from .utils import load_patches, move_to_tmp, restore_from_tmp
 from local2global_embedding.run.utils import ScriptParser
 
-
-def _move_to_tmp(patch, dir):
-    patch = copy(patch)
-    if isinstance(patch, FilePatch):
-        old_file = Path(patch.coordinates.filename)
-        new_file = Path(dir) / old_file
-        if not new_file.is_file():
-            new_file.parent.mkdir(parents=True, exist_ok=True)
-            copyfile(old_file.resolve(), new_file)
-        patch.coordinates.filename = new_file
-    elif isinstance(patch, MeanAggregatorPatch):
-        patch.coordinates.patches = [_move_to_tmp(p, dir) for p in patch.coordinates.patches]
-    return patch
-
-
-def _restore_from_tmp(patch, tmpdir):
-    if isinstance(patch, FilePatch):
-        patch.coordinates.filename = Path(patch.coordinates.filename).relative_to(tmpdir)
-    elif isinstance(patch, MeanAggregatorPatch):
-        patch.coordinates.patches = [_restore_from_tmp(p, tmpdir) for p in patch.coordinates.patches]
-    return patch
 
 @delayed
 def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
     tmpdir = gettempdir()
     if use_tmp:
-        patches = [_move_to_tmp(p, tmpdir) for p in patches]
+        patches = [move_to_tmp(p) for p in patches]
     else:
         patches = [copy(p) for p in patches]
 
@@ -82,7 +59,7 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
                 retry = True
 
     if use_tmp:
-        patches = [_restore_from_tmp(p, tmpdir) for p in prob.patches]
+        patches = [restore_from_tmp(p) for p in prob.patches]
     else:
         patches = prob.patches
 
@@ -124,9 +101,18 @@ def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str
     aligned = get_aligned_embedding(
                             patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp)
     aligned = aligned.compute()
-    out = open_memmap(output_file, shape=aligned.shape, dtype=np.float32, mode='w+')
-    out = aligned.coordinates.as_array(out)
-    out.flush()
+    if use_tmp:
+        tmp_buffer = NamedTemporaryFile(delete=False)
+        tmp_buffer.close()
+        out = open_memmap(tmp_buffer, shape=aligned.shape, dtype=np.float32, mode='w+')
+        aligned = move_to_tmp(aligned)
+        out = aligned.coordinates.as_array(out)
+        out.flush()
+        move(tmp_buffer, output_file, copy_function=copyfile)
+    else:
+        out = open_memmap(output_file, shape=aligned.shape, dtype=np.float32, mode='w+')
+        out = aligned.coordinates.as_array(out)
+        out.flush()
     return output_file
 
 

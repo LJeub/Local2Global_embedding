@@ -17,14 +17,20 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-import numpy as np
+from copy import copy
+from shutil import copyfile
+from tempfile import gettempdir
 
-from local2global.utils import FilePatch, Patch
+import numpy as np
+from pathlib import Path
+
+from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
 from local2global.utils.lazy import LazyCoordinates
 
 
 def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True):
     patches = []
+    patch_folder = Path(patch_folder).relative_to(Path.cwd())  # make relative path suchg that use_tmp works correctly
     for i in range(patch_graph.num_nodes):
         nodes = np.load(patch_folder / f'patch{i}_index.npy')
         if lazy:
@@ -33,3 +39,27 @@ def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True)
             coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
             patches.append(Patch(nodes, LazyCoordinates(coords)))
     return patches
+
+
+def move_to_tmp(patch):
+    tmpdir = gettempdir()
+    patch = copy(patch)
+    if isinstance(patch, FilePatch):
+        old_file = Path(patch.coordinates.filename)
+        new_file = Path(tmpdir) / old_file
+        if not new_file.is_file():
+            new_file.parent.mkdir(parents=True, exist_ok=True)
+            copyfile(old_file.resolve(), new_file)
+        patch.coordinates.filename = new_file
+    elif isinstance(patch, MeanAggregatorPatch):
+        patch.coordinates.patches = [move_to_tmp(p, tmpdir) for p in patch.coordinates.patches]
+    return patch
+
+
+def restore_from_tmp(patch):
+    tmpdir = gettempdir()
+    if isinstance(patch, FilePatch):
+        patch.coordinates.filename = Path(patch.coordinates.filename).relative_to(tmpdir)
+    elif isinstance(patch, MeanAggregatorPatch):
+        patch.coordinates.patches = [restore_from_tmp(p, tmpdir) for p in patch.coordinates.patches]
+    return patch
