@@ -36,7 +36,6 @@ from local2global_embedding.run.utils import ScriptParser
 
 @delayed
 def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
-    tmpdir = gettempdir()
     if use_tmp:
         patches = [move_to_tmp(p) for p in patches]
     else:
@@ -104,11 +103,11 @@ def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str
     if use_tmp:
         tmp_buffer = NamedTemporaryFile(delete=False)
         tmp_buffer.close()
-        out = open_memmap(tmp_buffer, shape=aligned.shape, dtype=np.float32, mode='w+')
+        out = open_memmap(tmp_buffer.name, shape=aligned.shape, dtype=np.float32, mode='w+')
         aligned = move_to_tmp(aligned)
         out = aligned.coordinates.as_array(out)
         out.flush()
-        move(tmp_buffer, output_file, copy_function=copyfile)
+        move(tmp_buffer.name, output_file, copy_function=copyfile)
     else:
         out = open_memmap(output_file, shape=aligned.shape, dtype=np.float32, mode='w+')
         out = aligned.coordinates.as_array(out)

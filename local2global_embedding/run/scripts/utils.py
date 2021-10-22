@@ -30,7 +30,9 @@ from local2global.utils.lazy import LazyCoordinates
 
 def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True):
     patches = []
-    patch_folder = Path(patch_folder).relative_to(Path.cwd())  # make relative path suchg that use_tmp works correctly
+    patch_folder = Path(patch_folder)
+    if patch_folder.is_absolute():
+        patch_folder = patch_folder.relative_to(Path.cwd())  # make relative path such that use_tmp works correctly
     for i in range(patch_graph.num_nodes):
         nodes = np.load(patch_folder / f'patch{i}_index.npy')
         if lazy:
@@ -52,7 +54,7 @@ def move_to_tmp(patch):
             copyfile(old_file.resolve(), new_file)
         patch.coordinates.filename = new_file
     elif isinstance(patch, MeanAggregatorPatch):
-        patch.coordinates.patches = [move_to_tmp(p, tmpdir) for p in patch.coordinates.patches]
+        patch.coordinates.patches = [move_to_tmp(p) for p in patch.coordinates.patches]
     return patch
 
 
@@ -61,5 +63,5 @@ def restore_from_tmp(patch):
     if isinstance(patch, FilePatch):
         patch.coordinates.filename = Path(patch.coordinates.filename).relative_to(tmpdir)
     elif isinstance(patch, MeanAggregatorPatch):
-        patch.coordinates.patches = [restore_from_tmp(p, tmpdir) for p in patch.coordinates.patches]
+        patch.coordinates.patches = [restore_from_tmp(p) for p in patch.coordinates.patches]
     return patch

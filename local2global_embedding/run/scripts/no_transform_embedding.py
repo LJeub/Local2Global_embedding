@@ -37,10 +37,12 @@ def no_transform_embedding(patch_graph, patch_folder, basename, dim, criterion, 
     coords = LazyMeanAggregatorCoordinates(patches)
     if mmap:
         if use_tmp:
-            with NamedTemporaryFile(delete=False) as f:
-                out = np.memmap(f, shape=coords.shape, dtype=np.float32)
-                coords.as_array(out)
-            move(f.name, output_file, copy_function=copyfile)
+            tmp_buffer = NamedTemporaryFile(delete=False)
+            tmp_buffer.close()
+            out = open_memmap(tmp_buffer.name, shape=coords.shape, dtype=np.float32)
+            out = coords.as_array(out)
+            out.flush()
+            move(tmp_buffer.name, output_file, copy_function=copyfile)
         else:
             out = open_memmap(output_file, mode='w+', dtype=np.float32, shape=coords.shape)
             coords.as_array(out)
