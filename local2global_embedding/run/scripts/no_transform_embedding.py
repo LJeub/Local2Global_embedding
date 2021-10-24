@@ -29,14 +29,17 @@ from .utils import load_patches, move_to_tmp
 
 
 def no_transform_embedding(patch_graph, patch_folder, basename, dim, criterion, mmap=True, use_tmp=True):
+    print(f'launch no-transform embedding for {patch_folder}/{basename}_{dim}_{criterion} with {mmap=} and {use_tmp=}')
     patch_folder = Path(patch_folder)
     patches = load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
     if use_tmp:
+        print('moving patches to tmp')
         patches = [move_to_tmp(p) for p in patches]
     output_file = patch_folder / f'{basename}_d{dim}_nt_{criterion}_coords.npy'
     coords = LazyMeanAggregatorCoordinates(patches)
     if mmap:
         if use_tmp:
+
             tmp_buffer = NamedTemporaryFile(delete=False)
             tmp_buffer.close()
             out = open_memmap(tmp_buffer.name, shape=coords.shape, dtype=np.float32, mode='w+')
@@ -47,4 +50,6 @@ def no_transform_embedding(patch_graph, patch_folder, basename, dim, criterion, 
             out = open_memmap(output_file, mode='w+', dtype=np.float32, shape=coords.shape)
             coords.as_array(out)
             out.flush()
+    else:
+        np.save(output_file, np.asarray(coords, dtype=np.float32))
     return output_file

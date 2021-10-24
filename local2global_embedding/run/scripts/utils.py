@@ -20,6 +20,7 @@
 from copy import copy
 from shutil import copyfile
 from tempfile import gettempdir
+from filelock import FileLock
 
 import numpy as np
 from pathlib import Path
@@ -49,9 +50,10 @@ def move_to_tmp(patch):
     if isinstance(patch, FilePatch):
         old_file = Path(patch.coordinates.filename)
         new_file = Path(tmpdir) / old_file
-        if not new_file.is_file():
-            new_file.parent.mkdir(parents=True, exist_ok=True)
-            copyfile(old_file.resolve(), new_file)
+        with FileLock(new_file.with_suffix('.lock')):
+            if not new_file.is_file():
+                new_file.parent.mkdir(parents=True, exist_ok=True)
+                copyfile(old_file.resolve(), new_file)
         patch.coordinates.filename = new_file
     elif isinstance(patch, MeanAggregatorPatch):
         patch.coordinates.patches = [move_to_tmp(p) for p in patch.coordinates.patches]
