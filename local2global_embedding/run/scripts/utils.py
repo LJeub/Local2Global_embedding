@@ -24,6 +24,7 @@ from filelock import FileLock
 
 import numpy as np
 from pathlib import Path
+from tqdm.auto import tqdm
 
 from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
 from local2global.utils.lazy import LazyCoordinates
@@ -34,7 +35,7 @@ def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True)
     patch_folder = Path(patch_folder)
     if patch_folder.is_absolute():
         patch_folder = patch_folder.relative_to(Path.cwd())  # make relative path such that use_tmp works correctly
-    for i in range(patch_graph.num_nodes):
+    for i in tqdm(range(patch_graph.num_nodes), desc='load patches'):
         nodes = np.load(patch_folder / f'patch{i}_index.npy')
         if lazy:
             patches.append(FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'))
