@@ -28,6 +28,7 @@ from dask import delayed
 
 from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch
 from local2global_embedding.clustering import spread_clustering
+from local2global_embedding.sparsify import resistance_sparsify
 from local2global_embedding.patches import Partition
 
 from .utils import load_patches, move_to_tmp, restore_from_tmp
@@ -65,13 +66,15 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
     return MeanAggregatorPatch(patches)
 
 
-def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=False):
+def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=False, resparsify=0):
     if levels == 1:
         return aligned_coords(patches, patch_graph, verbose, use_tmp)
     else:
         num_clusters = int(patch_graph.num_nodes ** (1 / levels))
         clusters = spread_clustering(patch_graph, num_clusters)
         reduced_patch_graph = patch_graph.partition_graph(clusters)
+        if resparsify > 0:
+            reduced_patch_graph = resistance_sparsify(reduced_patch_graph, resparsify)
         parts = Partition(clusters)
         reduced_patches = []
         for i, part in enumerate(parts):
@@ -88,7 +91,7 @@ def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=Fa
 
 
 def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
-                                   verbose=False, levels=1, output_file=None, use_tmp=False):
+                                   verbose=False, levels=1, output_file=None, use_tmp=False, resparsify=0):
     patch_folder = Path(patch_folder)
     if output_file is None:
         if levels == 1:
@@ -98,7 +101,8 @@ def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str
 
     patches = load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
     aligned = get_aligned_embedding(
-                            patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp)
+        patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
+        resparsify=resparsify)
     aligned = aligned.compute()
     if use_tmp:
         tmp_buffer = NamedTemporaryFile(delete=False)

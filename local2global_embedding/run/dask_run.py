@@ -67,7 +67,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         patience=20, runs=10, cl_runs=50, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
         min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
         cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
-        output='.', device: str = None, verbose=False, levels=1,
+        output='.', device: str = None, verbose=False, levels=1, resparsify=0,
         run_baseline=True, normalise=False, restrict_lcc=False, mmap_edges=False, mmap_features=False,
         random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0):
     """
@@ -313,7 +313,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          criterion=criterion,
                                          mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose,
                                          levels=levels,
-                                         output_file=l2g_coords_file)
+                                         output_file=l2g_coords_file,
+                                         resparsify=resparsify)
                 l2g_task.add_done_callback(progress_callback(align_progress))
                 all_tasks.add(l2g_task)
             with ResultsDict(l2g_eval_file, replace=True) as l2g_eval:
