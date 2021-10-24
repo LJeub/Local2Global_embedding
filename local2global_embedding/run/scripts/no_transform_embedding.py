@@ -39,7 +39,7 @@ def no_transform_embedding(patch_graph, patch_folder, basename, dim, criterion, 
         if use_tmp:
             tmp_buffer = NamedTemporaryFile(delete=False)
             tmp_buffer.close()
-            out = open_memmap(tmp_buffer.name, shape=coords.shape, dtype=np.float32)
+            out = open_memmap(tmp_buffer.name, shape=coords.shape, dtype=np.float32, mode='w+')
             out = coords.as_array(out)
             out.flush()
             move(tmp_buffer.name, output_file, copy_function=copyfile)
