@@ -23,6 +23,7 @@ from shutil import copyfile, move
 
 import numpy as np
 from numpy.lib.format import open_memmap
+from dask.distributed import worker_client
 
 from local2global.utils.lazy import LazyMeanAggregatorCoordinates
 from .utils import load_patches, move_to_tmp
@@ -31,7 +32,9 @@ from .utils import load_patches, move_to_tmp
 def no_transform_embedding(patch_graph, patch_folder, basename, dim, criterion, mmap=True, use_tmp=True):
     print(f'launch no-transform embedding for {patch_folder}/{basename}_{dim}_{criterion} with {mmap=} and {use_tmp=}')
     patch_folder = Path(patch_folder)
-    patches = load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
+    with worker_client() as client:
+        patches = client.compute(load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap))
+        patches = client.gather(patches)
     if use_tmp:
         print('moving patches to tmp')
         patches = [move_to_tmp(p) for p in patches]

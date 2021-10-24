@@ -25,9 +25,22 @@ from filelock import FileLock
 import numpy as np
 from pathlib import Path
 from tqdm.auto import tqdm
+from dask import delayed
 
 from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
 from local2global.utils.lazy import LazyCoordinates
+
+@delayed
+def load_patch(patch_folder, i, basename, dim, criterion):
+    nodes = np.load(patch_folder / f'patch{i}_index.npy')
+    coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+    return Patch(nodes, LazyCoordinates(coords))
+
+
+@delayed
+def load_file_patch(patch_folder, i, basename, dim, criterion):
+    nodes = np.load(patch_folder / f'patch{i}_index.npy')
+    return FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
 
 
 def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True):
@@ -36,12 +49,10 @@ def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True)
     if patch_folder.is_absolute():
         patch_folder = patch_folder.relative_to(Path.cwd())  # make relative path such that use_tmp works correctly
     for i in tqdm(range(patch_graph.num_nodes), desc='load patches'):
-        nodes = np.load(patch_folder / f'patch{i}_index.npy')
         if lazy:
-            patches.append(FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'))
+            patches.append(load_file_patch(patch_folder, i, basename, dim, criterion))
         else:
-            coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
-            patches.append(Patch(nodes, LazyCoordinates(coords)))
+            patches.append(load_patch(patch_folder, i, basename, dim, criterion))
     return patches
 
 
