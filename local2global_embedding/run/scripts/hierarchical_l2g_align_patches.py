@@ -25,6 +25,7 @@ from copy import copy
 import numpy as np
 from numpy.lib.format import open_memmap
 from dask import delayed
+from dask.distributed import worker_client
 
 from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch
 from local2global_embedding.clustering import spread_clustering
@@ -103,7 +104,9 @@ def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str
     aligned = get_aligned_embedding(
         patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
         resparsify=resparsify)
-    aligned = aligned.compute()
+    with worker_client() as client:
+        aligned = client.compute(aligned, priority=10)
+        aligned = aligned.result()
     if use_tmp:
         tmp_buffer = NamedTemporaryFile(delete=False)
         tmp_buffer.close()
