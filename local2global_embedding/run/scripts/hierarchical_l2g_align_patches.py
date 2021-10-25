@@ -96,7 +96,7 @@ def hierarchical_l2g_align_patches(patch_graph, patches, output_file, mmap=False
                                    verbose=False, levels=1, use_tmp=False, resparsify=0):
     aligned = get_aligned_embedding(
         patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
-        resparsify=resparsify).compute()
+        resparsify=resparsify).compute(priority=5)
     output_file = no_transform_embedding([delayed(p) for p in aligned.coordinates.patches], output_file, mmap, use_tmp)
     return output_file
 
