@@ -17,42 +17,6 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-from pathlib import Path
-from tempfile import NamedTemporaryFile, gettempdir
-from shutil import copyfile, move
-
-import numpy as np
-from numpy.lib.format import open_memmap
-from dask.distributed import worker_client
-
-from local2global.utils.lazy import LazyMeanAggregatorCoordinates
-from .utils import load_patches, move_to_tmp
 
 
-def no_transform_embedding(patch_graph, patch_folder, basename, dim, criterion, mmap=True, use_tmp=True):
-    print(f'launch no-transform embedding for {patch_folder}/{basename}_{dim}_{criterion} with {mmap=} and {use_tmp=}')
-    patch_folder = Path(patch_folder)
-    with worker_client() as client:
-        patches = client.compute(load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap))
-        patches = client.gather(patches)
-    if use_tmp:
-        print('moving patches to tmp')
-        patches = [move_to_tmp(p) for p in patches]
-    output_file = patch_folder / f'{basename}_d{dim}_nt_{criterion}_coords.npy'
-    coords = LazyMeanAggregatorCoordinates(patches)
-    if mmap:
-        if use_tmp:
-
-            tmp_buffer = NamedTemporaryFile(delete=False)
-            tmp_buffer.close()
-            out = open_memmap(tmp_buffer.name, shape=coords.shape, dtype=np.float32, mode='w+')
-            out = coords.as_array(out)
-            out.flush()
-            move(tmp_buffer.name, output_file, copy_function=copyfile)
-        else:
-            out = open_memmap(output_file, mode='w+', dtype=np.float32, shape=coords.shape)
-            coords.as_array(out)
-            out.flush()
-    else:
-        np.save(output_file, np.asarray(coords, dtype=np.float32))
-    return output_file
+from .utils import no_transform_embedding

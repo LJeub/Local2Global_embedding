@@ -18,17 +18,21 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from copy import copy
+from operator import add
 from shutil import copyfile
 from tempfile import gettempdir
-from filelock import FileLock
+from filelock import FileLock, SoftFileLock
 
 import numpy as np
 from pathlib import Path
+
+from numpy.lib.format import open_memmap
 from tqdm.auto import tqdm
-from dask import delayed
+from dask import delayed, bag
 
 from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
-from local2global.utils.lazy import LazyCoordinates
+from local2global.utils.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
+
 
 @delayed
 def load_patch(patch_folder, i, basename, dim, criterion):
@@ -79,3 +83,51 @@ def restore_from_tmp(patch):
     elif isinstance(patch, MeanAggregatorPatch):
         patch.coordinates.patches = [restore_from_tmp(p) for p in patch.coordinates.patches]
     return patch
+
+
+def accumulate(patches, file):
+    file = Path(file)
+    out = np.load(file, mmap_mode='r+')
+    for patch in patches:
+        coords = np.asarray(patch.coordinates)
+        with SoftFileLock(file.with_suffix('.lock')):
+            out[patch.nodes] += coords
+            out.flush()
+
+
+def max_ind(patch):
+    return patch.nodes.max()
+
+
+def add_count(counts, patch):
+    counts[patch.nodes] += 1
+    return counts
+
+
+def compute(task):
+    return task.compute()
+
+
+def no_transform_embedding(patches, output_file, mmap=True, use_tmp=True):
+    print(f'launch no-transform embedding for {output_file} with {mmap=} and {use_tmp=}')
+    output_file = Path(output_file)
+    if mmap:
+        patches = bag.from_sequence(patches)
+        patch0, = patches.take(1, compute=False)
+        shape = patch0.shape.compute()
+        patches = patches.map(compute)
+        dim = shape[1]
+        n_nodes = max(patches.map(max_ind).compute()) + 1
+        work_file = output_file.with_suffix('.tmp.npy')
+        out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
+        out.flush()
+        patches.map_partitions(accumulate, work_file).compute()
+        counts = patches.fold(add_count, add, initial=np.zeros((n_nodes,), dtype=np.int64)).compute()
+        out /= counts[:, None]
+        out.flush()
+        work_file.replace(output_file)
+    else:
+        patches = patches.compute()
+        coords = LazyMeanAggregatorCoordinates(patches)
+        np.save(output_file, np.asarray(coords, dtype=np.float32))
+    return output_file

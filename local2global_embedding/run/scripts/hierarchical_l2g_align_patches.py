@@ -33,6 +33,7 @@ from local2global_embedding.sparsify import resistance_sparsify
 from local2global_embedding.patches import Partition
 
 from .utils import load_patches, move_to_tmp, restore_from_tmp
+from local2global_embedding.run.scripts.utils import no_transform_embedding
 from local2global_embedding.run.utils import ScriptParser
 
 
@@ -91,34 +92,12 @@ def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=Fa
         return aligned_coords(reduced_patches, reduced_patch_graph, verbose, use_tmp)
 
 
-def hierarchical_l2g_align_patches(patch_graph, patch_folder: str, basename: str, dim: int, criterion: str, mmap=False,
-                                   verbose=False, levels=1, output_file=None, use_tmp=False, resparsify=0):
-    patch_folder = Path(patch_folder)
-    if output_file is None:
-        if levels == 1:
-            output_file = patch_folder / f'{basename}_d{dim}_l2g_{criterion}_coords.npy'
-        else:
-            output_file = patch_folder / f'{basename}_d{dim}_l2g_{criterion}_hc{levels}_coords.npy'
-
-    patches = load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=mmap)
+def hierarchical_l2g_align_patches(patch_graph, patches, output_file, mmap=False,
+                                   verbose=False, levels=1, use_tmp=False, resparsify=0):
     aligned = get_aligned_embedding(
         patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
-        resparsify=resparsify)
-    with worker_client() as client:
-        aligned = client.compute(aligned, priority=10)
-        aligned = aligned.result()
-    if use_tmp:
-        tmp_buffer = NamedTemporaryFile(delete=False)
-        tmp_buffer.close()
-        out = open_memmap(tmp_buffer.name, shape=aligned.shape, dtype=np.float32, mode='w+')
-        aligned = move_to_tmp(aligned)
-        out = aligned.coordinates.as_array(out)
-        out.flush()
-        move(tmp_buffer.name, output_file, copy_function=copyfile)
-    else:
-        out = open_memmap(output_file, shape=aligned.shape, dtype=np.float32, mode='w+')
-        out = aligned.coordinates.as_array(out)
-        out.flush()
+        resparsify=resparsify).compute()
+    output_file = no_transform_embedding([delayed(p) for p in aligned.coordinates.patches], output_file, mmap, use_tmp)
     return output_file
 
 

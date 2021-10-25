@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import List
 from runpy import run_path
 
+import local2global_embedding.run.scripts.utils
 import torch
 import dask
 import dask.distributed
@@ -304,13 +305,21 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             nt_coords_file = patch_folder / f'{train_basename}_d{d}_nt_{criterion}_coords.npy'
             nt_eval_file = patch_folder / f'{eval_basename}_nt_{criterion}_eval.json'
 
+            if patch_tasks or not l2g_coords_file.is_file() or not nt_coords_file.is_file():
+                patches = client.submit(with_dependencies(func.load_patches), _depends_on=patch_tasks,
+                                        patch_graph=patch_graph_remote,
+                                        patch_folder=patch_folder,
+                                        basename=train_basename,
+                                        dim=d,
+                                        criterion=criterion,
+                                        lazy=mmap_features is not None)
+
             l2g_task = False
             if patch_tasks or not l2g_coords_file.is_file():
                 l2g_task = client.submit(with_dependencies(func.hierarchical_l2g_align_patches), pure=False,
                                          _depends_on=patch_tasks,
                                          patch_graph=patch_graph_remote,
-                                         patch_folder=patch_folder, basename=train_basename, dim=d,
-                                         criterion=criterion,
+                                         patches=patches,
                                          mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose,
                                          levels=levels,
                                          output_file=l2g_coords_file,
@@ -341,13 +350,11 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             nt_task = False
             if patch_tasks or not nt_coords_file.is_file():
-                nt_task = client.submit(with_dependencies(func.no_transform_embedding), pure=False,
+                nt_task = client.submit(with_dependencies(
+                    local2global_embedding.run.scripts.utils.no_transform_embedding), pure=False,
                                         _depends_on=patch_tasks,
-                                        patch_graph=patch_graph_remote,
-                                        patch_folder=patch_folder,
-                                        basename=train_basename,
-                                        dim=d,
-                                        criterion=criterion,
+                                        patches=patches,
+                                        output_file=nt_coords_file,
                                         mmap=mmap_features is not None,
                                         use_tmp=use_tmp
                                         )
