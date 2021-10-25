@@ -34,14 +34,12 @@ from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
 from local2global.utils.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
 
 
-@delayed
 def load_patch(patch_folder, i, basename, dim, criterion):
     nodes = np.load(patch_folder / f'patch{i}_index.npy')
     coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
     return Patch(nodes, LazyCoordinates(coords))
 
 
-@delayed
 def load_file_patch(patch_folder, i, basename, dim, criterion):
     nodes = np.load(patch_folder / f'patch{i}_index.npy')
     return FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
@@ -112,11 +110,8 @@ def no_transform_embedding(patches, output_file, mmap=True, use_tmp=True):
     print(f'launch no-transform embedding for {output_file} with {mmap=} and {use_tmp=}')
     output_file = Path(output_file)
     if mmap:
+        dim = patches[0].shape[1]
         patches = bag.from_sequence(patches)
-        patch0, = patches.take(1, compute=False)
-        shape = patch0.shape.compute()
-        patches = patches.map(compute)
-        dim = shape[1]
         n_nodes = max(patches.map(max_ind).compute()) + 1
         work_file = output_file.with_suffix('.tmp.npy')
         out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
@@ -127,7 +122,6 @@ def no_transform_embedding(patches, output_file, mmap=True, use_tmp=True):
         out.flush()
         work_file.replace(output_file)
     else:
-        patches = patches.compute()
         coords = LazyMeanAggregatorCoordinates(patches)
         np.save(output_file, np.asarray(coords, dtype=np.float32))
     return output_file

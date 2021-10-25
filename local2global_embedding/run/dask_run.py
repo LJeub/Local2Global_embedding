@@ -306,7 +306,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             nt_eval_file = patch_folder / f'{eval_basename}_nt_{criterion}_eval.json'
 
             if patch_tasks or not l2g_coords_file.is_file() or not nt_coords_file.is_file():
-                patches = client.submit(with_dependencies(func.load_patches), _depends_on=patch_tasks,
+                patches = client.submit(with_dependencies(func.load_patches), _depends_on=patch_tasks, priority=-5,
                                         patch_graph=patch_graph_remote,
                                         patch_folder=patch_folder,
                                         basename=train_basename,
