@@ -152,7 +152,7 @@ def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_
     parts = Partition(partition_tensor)
     partition_tensor = partition_tensor.numpy()
     patches = numba.typed.List(np.asanyarray(p) for p in parts)
-    for i in tqdm(range(patch_graph.num_nodes), position=0, desc='enlarging patch overlaps', leave=False, file=sys.stdout):
+    for i in tqdm(range(patch_graph.num_nodes), desc='enlarging patch overlaps'):
         part_i = parts[i].numpy()
         part_i.sort()
         patches = _patch_overlaps(i, part_i, partition_tensor, patches, graph, patch_graph, int(min_overlap / 2), int(target_overlap / 2))

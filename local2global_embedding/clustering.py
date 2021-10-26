@@ -7,7 +7,6 @@ import community
 import torch
 import pymetis
 import numpy as np
-from tqdm.auto import tqdm
 import numba
 
 from local2global_embedding.network import TGraph, NPGraph

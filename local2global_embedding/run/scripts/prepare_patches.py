@@ -141,20 +141,19 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                          sparsify, target_patch_degree, gamma, verbose)
                 patch_folder.mkdir(parents=True, exist_ok=True)
 
-                for i, patch in tqdm(enumerate(patches), total=len(patches), desc='saving patch index',
-                                     leave=False, position=0):
+                for i, patch in tqdm(enumerate(patches), total=len(patches), desc='saving patch index'):
                     np.save(patch_folder / f'patch{i}_index.npy', patch)
                 torch.save(patch_graph, patch_folder / 'patch_graph.pt')
 
                 # with ThreadPoolExecutor() as executor:
                 #     executor.map(save_patch_data, repeat(graph), patches, (patch_folder / f'patch{i}_data.pt' for i in len(patches)))
                 for i, patch in tqdm(enumerate(patches), total=patch_graph.num_nodes,
-                                     desc='saving patch data', leave=False, position=0):
+                                     desc='saving patch data'):
                     save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
 
             else:
                 patch_graph = torch.load(patch_folder / 'patch_graph.pt')
-                with tqdm(total=patch_graph.num_nodes, desc='checking patch data', leave=False, position=0) as pbar:
+                with tqdm(total=patch_graph.num_nodes, desc='checking patch data') as pbar:
                     for i in range(patch_graph.num_nodes):
                         if not (patch_folder / f'patch{i}_data.pt').is_file():
                             pbar.display(f'saving missing patch data for patch {i}', pos=1)

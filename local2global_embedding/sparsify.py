@@ -7,7 +7,6 @@ import scipy as sc
 import scipy.sparse
 import scipy.sparse.linalg
 import torch
-from tqdm.auto import tqdm
 
 from local2global_embedding.network import TGraph, spanning_tree_mask, spanning_tree
 

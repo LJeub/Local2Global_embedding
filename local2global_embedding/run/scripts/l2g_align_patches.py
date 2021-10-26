@@ -43,7 +43,7 @@ def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str
 
     with SoftFileLock(patch_folder / f'{basename}_d{dim}_{criterion}_coords.lock', timeout=10):  # only one task at a time
         patch_list = []
-        for i in tqdm(range(patch_graph.num_nodes), position=0, leave=False, desc='loading patch data', smoothing=0):
+        for i in tqdm(range(patch_graph.num_nodes), desc='loading patch data', smoothing=0):
             node_file = patch_folder / f'patch{i}_index.npy'
             coords_file = patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy'
             if node_file.is_file():

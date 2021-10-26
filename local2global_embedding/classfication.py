@@ -391,7 +391,7 @@ def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lam
     for v in param_grid.values():
         total *= len(v)
 
-    for params in tqdm(product(*param_grid.values()), total=total, position=0, leave=False):
+    for params in tqdm(product(*param_grid.values()), total=total, desc='grid search'):
         args = dict(zip(param_grid.keys(), params))
         args['model'].reset_parameters()
         args['loss'] = objective(args)

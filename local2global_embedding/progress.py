@@ -24,7 +24,7 @@ from tqdm.auto import tqdm
 
 def reset(total):
     global pbar
-    pbar = tqdm(total=total, file=sys.stdout)
+    pbar = tqdm(total=total)
 
 
 def update(iterations):
