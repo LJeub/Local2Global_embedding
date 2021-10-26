@@ -17,6 +17,19 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+from pathlib import Path
+
+import numpy as np
+from local2global.utils.lazy import LazyMeanAggregatorCoordinates
+from local2global_embedding.run.scripts.utils import mean_embedding
 
 
-from .utils import no_transform_embedding
+def no_transform_embedding(patches, output_file, mmap=True, use_tmp=True):
+    print(f'launch no-transform embedding for {output_file} with {mmap=} and {use_tmp=}')
+    output_file = Path(output_file)
+    coords = LazyMeanAggregatorCoordinates(patches)
+    if mmap:
+        mean_embedding(coords, output_file, use_tmp)
+    else:
+        np.save(output_file, np.asarray(coords, dtype=np.float32))
+    return output_file

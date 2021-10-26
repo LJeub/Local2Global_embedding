@@ -32,8 +32,7 @@ from local2global_embedding.clustering import spread_clustering
 from local2global_embedding.sparsify import resistance_sparsify
 from local2global_embedding.patches import Partition
 
-from .utils import load_patches, move_to_tmp, restore_from_tmp
-from local2global_embedding.run.scripts.utils import no_transform_embedding
+from .utils import load_patches, move_to_tmp, restore_from_tmp, mean_embedding
 from local2global_embedding.run.utils import ScriptParser
 
 
@@ -94,10 +93,14 @@ def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=Fa
 
 def hierarchical_l2g_align_patches(patch_graph, patches, output_file, mmap=False,
                                    verbose=False, levels=1, use_tmp=False, resparsify=0):
-    aligned = get_aligned_embedding(
-        patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
-        resparsify=resparsify).compute(priority=5)
-    output_file = no_transform_embedding(aligned.coordinates.patches, output_file, mmap, use_tmp)
+    with worker_client() as client:
+        aligned = client.compute(get_aligned_embedding(
+            patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
+            resparsify=resparsify), priority=5, sync=True)
+    if mmap:
+        mean_embedding(aligned.coordinates, output_file, use_tmp)
+    else:
+        np.save(output_file, np.asarray(aligned.coordinates, dtype=np.float32))
     return output_file
 
 

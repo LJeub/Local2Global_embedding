@@ -23,5 +23,5 @@ from .l2g_align_patches import l2g_align_patches
 from .prepare_patches import prepare_patches
 from .train import train
 from .hierarchical_l2g_align_patches import hierarchical_l2g_align_patches
-from local2global_embedding.run.scripts.utils import no_transform_embedding
+from local2global_embedding.run.scripts.no_transform_embedding import no_transform_embedding
 from .utils import load_patches

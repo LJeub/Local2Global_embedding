@@ -18,7 +18,6 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from copy import copy
-from operator import add
 from shutil import copyfile
 from tempfile import gettempdir
 from filelock import FileLock, SoftFileLock
@@ -28,7 +27,7 @@ from pathlib import Path
 
 from numpy.lib.format import open_memmap
 from tqdm.auto import tqdm
-from dask import delayed, bag
+from dask.distributed import worker_client, as_completed
 
 from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
 from local2global.utils.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
@@ -106,22 +105,27 @@ def compute(task):
     return task.compute()
 
 
-def no_transform_embedding(patches, output_file, mmap=True, use_tmp=True):
-    print(f'launch no-transform embedding for {output_file} with {mmap=} and {use_tmp=}')
-    output_file = Path(output_file)
-    if mmap:
-        dim = patches[0].shape[1]
-        patches = bag.from_sequence(patches)
-        n_nodes = max(patches.map(max_ind).compute()) + 1
-        work_file = output_file.with_suffix('.tmp.npy')
-        out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
-        out.flush()
-        patches.map_partitions(accumulate, work_file).compute()
-        counts = patches.fold(add_count, add, initial=np.zeros((n_nodes,), dtype=np.int64)).compute()
-        out /= counts[:, None]
-        out.flush()
-        work_file.replace(output_file)
-    else:
-        coords = LazyMeanAggregatorCoordinates(patches)
-        np.save(output_file, np.asarray(coords, dtype=np.float32))
-    return output_file
+def mean_embedding_chunk(output_file, coords: LazyMeanAggregatorCoordinates, start, stop, use_tmp=True):
+    if use_tmp:
+        coords.patches = [move_to_tmp(p) for p in coords.patches]
+    out = np.load(output_file, mmap_mode='r+')
+    out[start:stop] = coords[start:stop]
+    out.flush()
+
+
+def mean_embedding(coords: LazyMeanAggregatorCoordinates, output_file, use_tmp=True):
+    chunk_size = 10000
+    work_file = output_file.with_suffix('.tmp.npy')
+    out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=coords.shape)
+    out.flush()
+    with worker_client() as client:
+        tasks = []
+        for start in range(0, coords.shape[0],  chunk_size):
+            stop = min(start + chunk_size, coords.shape[0])
+            tasks.append(client.submit(mean_embedding_chunk, work_file, coords, start, stop, use_tmp))
+
+        total = len(tasks)
+        tasks = as_completed(tasks)
+        for _ in tqdm(tasks, 'distributed mean embedding', total=total):
+            pass
+    work_file.replace(output_file)

@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import List
 from runpy import run_path
 
+import local2global_embedding.run.scripts.no_transform_embedding
 import local2global_embedding.run.scripts.utils
 import torch
 import dask
@@ -351,7 +352,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             nt_task = False
             if patch_tasks or not nt_coords_file.is_file():
                 nt_task = client.submit(with_dependencies(
-                    local2global_embedding.run.scripts.utils.no_transform_embedding), pure=False,
+                    local2global_embedding.run.scripts.no_transform_embedding.no_transform_embedding), pure=False,
                                         _depends_on=patch_tasks,
                                         patches=patches,
                                         output_file=nt_coords_file,
