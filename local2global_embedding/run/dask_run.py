@@ -317,8 +317,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             l2g_task = False
             if patch_tasks or not l2g_coords_file.is_file():
-                l2g_task = client.submit(with_dependencies(func.hierarchical_l2g_align_patches), pure=False,
-                                         _depends_on=patch_tasks,
+                l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
                                          patch_graph=patch_graph_remote,
                                          patches=patches,
                                          mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose,
@@ -351,9 +350,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             nt_task = False
             if patch_tasks or not nt_coords_file.is_file():
-                nt_task = client.submit(with_dependencies(
-                    local2global_embedding.run.scripts.no_transform_embedding.no_transform_embedding), pure=False,
-                                        _depends_on=patch_tasks,
+                nt_task = client.submit(func.no_transform_embedding, pure=False,
                                         patches=patches,
                                         output_file=nt_coords_file,
                                         mmap=mmap_features is not None,
