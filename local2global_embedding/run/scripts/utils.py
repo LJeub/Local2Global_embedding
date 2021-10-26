@@ -107,6 +107,7 @@ def compute(task):
 
 def mean_embedding_chunk(output_file, coords: LazyMeanAggregatorCoordinates, start, stop, use_tmp=True):
     if use_tmp:
+        coords = copy(coords)
         coords.patches = [move_to_tmp(p) for p in coords.patches]
     out = np.load(output_file, mmap_mode='r+')
     out[start:stop] = coords[start:stop]
@@ -115,13 +116,15 @@ def mean_embedding_chunk(output_file, coords: LazyMeanAggregatorCoordinates, sta
 
 def mean_embedding(coords: LazyMeanAggregatorCoordinates, output_file, use_tmp=True):
     chunk_size = 10000
+    n_nodes = coords.shape[0]
     work_file = output_file.with_suffix('.tmp.npy')
     out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=coords.shape)
     out.flush()
     with worker_client() as client:
+        coords = client.scatter(coords)
         tasks = []
-        for start in range(0, coords.shape[0],  chunk_size):
-            stop = min(start + chunk_size, coords.shape[0])
+        for start in range(0, n_nodes,  chunk_size):
+            stop = min(start + chunk_size, n_nodes)
             tasks.append(client.submit(mean_embedding_chunk, work_file, coords, start, stop, use_tmp))
 
         total = len(tasks)
