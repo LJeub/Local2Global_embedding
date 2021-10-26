@@ -28,6 +28,7 @@ from pathlib import Path
 from numpy.lib.format import open_memmap
 from tqdm.auto import tqdm
 from dask.distributed import worker_client, as_completed
+from dask import delayed
 
 from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
 from local2global.utils.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
@@ -105,6 +106,7 @@ def compute(task):
     return task.compute()
 
 
+@delayed
 def mean_embedding_chunk(output_file, coords: LazyMeanAggregatorCoordinates, start, stop, use_tmp=True):
     if use_tmp:
         coords = copy(coords)
@@ -116,18 +118,19 @@ def mean_embedding_chunk(output_file, coords: LazyMeanAggregatorCoordinates, sta
 
 def mean_embedding(coords: LazyMeanAggregatorCoordinates, output_file, use_tmp=True):
     chunk_size = 10000
-    n_nodes = coords.shape[0]
+    shape = coords.shape.compute()
+    n_nodes = shape[0]
     work_file = output_file.with_suffix('.tmp.npy')
-    out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=coords.shape)
+    out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=shape)
     out.flush()
     with worker_client() as client:
-        coords = client.scatter(coords)
         tasks = []
         for start in range(0, n_nodes,  chunk_size):
             stop = min(start + chunk_size, n_nodes)
-            tasks.append(client.submit(mean_embedding_chunk, work_file, coords, start, stop, use_tmp))
+            tasks.append(mean_embedding_chunk(work_file, coords, start, stop, use_tmp))
 
         total = len(tasks)
+        tasks = client.compute(tasks)
         tasks = as_completed(tasks)
         for _ in tqdm(tasks, 'distributed mean embedding', total=total):
             pass
