@@ -95,7 +95,7 @@ def hierarchical_l2g_align_patches(patch_graph, patches, output_file, mmap=False
                                    verbose=False, levels=1, use_tmp=False, resparsify=0):
     aligned_coords = get_aligned_embedding(
             patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
-            resparsify=resparsify).coordinates.persist()
+            resparsify=resparsify).coordinates
     if mmap:
         mean_embedding(aligned_coords, output_file, use_tmp)
     else:
