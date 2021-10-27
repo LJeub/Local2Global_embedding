@@ -19,8 +19,10 @@
 #  SOFTWARE.
 from copy import copy
 from shutil import copyfile
-from tempfile import gettempdir
+from tempfile import gettempdir, NamedTemporaryFile
 from filelock import FileLock, SoftFileLock
+import os
+from threading import Lock
 
 import numpy as np
 from pathlib import Path
@@ -62,25 +64,24 @@ def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True)
 
 
 def move_to_tmp(patch):
-    tmpdir = gettempdir()
     patch = copy(patch)
     if isinstance(patch, FilePatch):
         old_file = Path(patch.coordinates.filename)
-        new_file = Path(tmpdir) / old_file
-        with SoftFileLock(new_file.with_suffix('.lock')):
-            if not new_file.is_file():
-                new_file.parent.mkdir(parents=True, exist_ok=True)
-                copyfile(old_file.resolve(), new_file)
+        new_file = NamedTemporaryFile(delete=False)
+        new_file.close()
+        new_file = Path(new_file.name)
+        copyfile(old_file.resolve(), new_file)
         patch.coordinates.filename = new_file
+        patch.old_file = old_file
     elif isinstance(patch, MeanAggregatorPatch):
         patch.coordinates.patches = [move_to_tmp(p) for p in patch.coordinates.patches]
     return patch
 
 
 def restore_from_tmp(patch):
-    tmpdir = gettempdir()
     if isinstance(patch, FilePatch):
-        patch.coordinates.filename = Path(patch.coordinates.filename).relative_to(tmpdir)
+        patch.coordinates.filename = patch.old_file
+        del patch.old_file
     elif isinstance(patch, MeanAggregatorPatch):
         patch.coordinates.patches = [restore_from_tmp(p) for p in patch.coordinates.patches]
     return patch
