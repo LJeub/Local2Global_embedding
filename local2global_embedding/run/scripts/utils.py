@@ -67,7 +67,7 @@ def move_to_tmp(patch):
     if isinstance(patch, FilePatch):
         old_file = Path(patch.coordinates.filename)
         new_file = Path(tmpdir) / old_file
-        with FileLock(new_file.with_suffix('.lock')):
+        with SoftFileLock(new_file.with_suffix('.lock')):
             if not new_file.is_file():
                 new_file.parent.mkdir(parents=True, exist_ok=True)
                 copyfile(old_file.resolve(), new_file)
