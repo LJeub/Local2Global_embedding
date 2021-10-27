@@ -28,9 +28,9 @@ from dask import delayed
 def no_transform_embedding(patches, output_file, mmap=True, use_tmp=True):
     print(f'launch no-transform embedding for {output_file} with {mmap=} and {use_tmp=}')
     output_file = Path(output_file)
-    coords = delayed(LazyMeanAggregatorCoordinates)(patches)
+
     if mmap:
-        mean_embedding(coords, output_file, use_tmp)
+        mean_embedding(patches, output_file, use_tmp)
     else:
-        np.save(output_file, np.asarray(coords.compute(), dtype=np.float32))
+        np.save(output_file, np.asarray(LazyMeanAggregatorCoordinates(patches.compute()), dtype=np.float32))
     return output_file

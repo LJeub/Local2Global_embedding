@@ -34,15 +34,18 @@ from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
 from local2global.utils.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
 
 
+@delayed
 def load_patch(patch_folder, i, basename, dim, criterion):
     nodes = np.load(patch_folder / f'patch{i}_index.npy')
     coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
     return Patch(nodes, LazyCoordinates(coords))
 
 
+@delayed
 def load_file_patch(patch_folder, i, basename, dim, criterion):
     nodes = np.load(patch_folder / f'patch{i}_index.npy')
-    return FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+    patch = FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+    return patch
 
 
 def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True):
@@ -107,27 +110,32 @@ def compute(task):
 
 
 @delayed
-def mean_embedding_chunk(output_file, coords: LazyMeanAggregatorCoordinates, start, stop, use_tmp=True):
+def mean_embedding_chunk(output_file, patches, start, stop, use_tmp=True):
     if use_tmp:
-        coords = copy(coords)
-        coords.patches = [move_to_tmp(p) for p in coords.patches]
+        patches = [move_to_tmp(p) for p in patches]
+    coords = LazyMeanAggregatorCoordinates(patches)
     out = np.load(output_file, mmap_mode='r+')
     out[start:stop] = coords[start:stop]
     out.flush()
 
 
-def mean_embedding(coords: LazyMeanAggregatorCoordinates, output_file, use_tmp=True):
-    chunk_size = 10000
-    shape = coords.shape.compute()
-    n_nodes = shape[0]
+@delayed
+def get_n_nodes(patches):
+    return max(p.nodes.max() for p in patches) + 1
+
+
+def mean_embedding(patches, output_file, use_tmp=True):
+    chunk_size = 5000
+    n_nodes = get_n_nodes(patches).compute()
+    dim = patches[0].coordinates.shape[1].compute()
     work_file = output_file.with_suffix('.tmp.npy')
-    out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=shape)
+    out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
     out.flush()
     with worker_client() as client:
         tasks = []
         for start in range(0, n_nodes,  chunk_size):
             stop = min(start + chunk_size, n_nodes)
-            tasks.append(mean_embedding_chunk(work_file, coords, start, stop, use_tmp))
+            tasks.append(mean_embedding_chunk(work_file, patches, start, stop, use_tmp))
 
         total = len(tasks)
         tasks = client.compute(tasks)

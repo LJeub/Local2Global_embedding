@@ -97,7 +97,7 @@ def hierarchical_l2g_align_patches(patch_graph, patches, output_file, mmap=False
             patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
             resparsify=resparsify).coordinates
     if mmap:
-        mean_embedding(aligned_coords, output_file, use_tmp)
+        mean_embedding(aligned_coords.patches.persist(), output_file, use_tmp)
     else:
         np.save(output_file, np.asarray(aligned_coords.compute(), dtype=np.float32))
     return output_file
