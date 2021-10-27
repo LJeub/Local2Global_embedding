@@ -69,7 +69,7 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
 
 def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=False, resparsify=0):
     if levels == 1:
-        return aligned_coords(patches, patch_graph, verbose, use_tmp)
+        return aligned_coords(patches, patch_graph, verbose, use_tmp).persist()
     else:
         num_clusters = int(patch_graph.num_nodes ** (1 / levels))
         clusters = spread_clustering(patch_graph, num_clusters)
@@ -88,7 +88,7 @@ def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=Fa
                 verbose=verbose,
                 use_tmp=use_tmp)
             )
-        return aligned_coords(reduced_patches, reduced_patch_graph, verbose, use_tmp)
+        return aligned_coords(reduced_patches, reduced_patch_graph, verbose, use_tmp).persist()
 
 
 def hierarchical_l2g_align_patches(patch_graph, patches, output_file, mmap=False,
