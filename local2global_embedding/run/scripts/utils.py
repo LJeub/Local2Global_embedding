@@ -80,8 +80,10 @@ def move_to_tmp(patch):
 
 def restore_from_tmp(patch):
     if isinstance(patch, FilePatch):
+        tmp_file = Path(patch.coordinates.filename)
         patch.coordinates.filename = patch.old_file
         del patch.old_file
+        tmp_file.unlink()
     elif isinstance(patch, MeanAggregatorPatch):
         patch.coordinates.patches = [restore_from_tmp(p) for p in patch.coordinates.patches]
     return patch
