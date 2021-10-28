@@ -170,8 +170,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     min_overlap = min_overlap if min_overlap is not None else max(dims) + 1
     target_overlap = target_overlap if target_overlap is not None else 2 * max(dims)
 
-    n_nodes = load_data(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
-              mmap_features=mmap_features).num_nodes
+    n_nodes = dask.delayed(load_data)(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
+              mmap_features=mmap_features).num_nodes.compute()
 
     if dist:
         eval_basename += '_dist'
