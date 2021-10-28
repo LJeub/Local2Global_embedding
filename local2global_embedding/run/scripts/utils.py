@@ -29,7 +29,7 @@ from pathlib import Path
 
 from numpy.lib.format import open_memmap
 from tqdm.auto import tqdm
-from dask.distributed import worker_client, as_completed
+from dask.distributed import worker_client, as_completed, secede, rejoin
 from dask import delayed
 
 from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
@@ -129,8 +129,10 @@ def get_n_nodes(patches):
 
 def mean_embedding(patches, output_file, use_tmp=True):
     chunk_size = 100000
+    secede()
     n_nodes = get_n_nodes(patches).compute()
     dim = patches[0].coordinates.shape[1].compute()
+    rejoin()
     work_file = output_file.with_suffix('.tmp.npy')
     out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
     out.flush()
