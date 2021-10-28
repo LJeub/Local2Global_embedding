@@ -67,7 +67,7 @@ def move_to_tmp(patch):
     patch = copy(patch)
     if isinstance(patch, FilePatch):
         old_file = Path(patch.coordinates.filename)
-        new_file = NamedTemporaryFile(delete=False)
+        new_file = NamedTemporaryFile(delete=False, prefix='patch_', suffix='.npy')
         new_file.close()
         new_file = Path(new_file.name)
         copyfile(old_file.resolve(), new_file)
