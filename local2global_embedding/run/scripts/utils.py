@@ -146,6 +146,13 @@ def get_dim(patch):
     return patch.shape[1]
 
 
+def apply_partition(func):
+    def apply(partition, *args, **kwargs):
+        return [func(p, *args, **kwargs) for p in partition]
+    return apply
+
+
+
 def mean_embedding_chunk(file, patch_bag, start, stop):
     out = np.load(file, mmap_mode='r+')
     dim = out.shape[1]
@@ -161,7 +168,7 @@ def mean_embedding(patch_bag: dask.bag, shape, output_file, use_tmp=True):
     chunk_size = 100000
 
     if use_tmp:
-        patch_bag = patch_bag.map(move_to_tmp)
+        patch_bag = patch_bag.map_partitions(apply_partition(move_to_tmp))
     n_nodes, dim = shape
     work_file = output_file.with_suffix('.tmp.npy')
     out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
