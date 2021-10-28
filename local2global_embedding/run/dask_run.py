@@ -170,6 +170,9 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     min_overlap = min_overlap if min_overlap is not None else max(dims) + 1
     target_overlap = target_overlap if target_overlap is not None else 2 * max(dims)
 
+    n_nodes = load_data(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
+              mmap_features=mmap_features).num_nodes
+
     if dist:
         eval_basename += '_dist'
         if model != 'DGI':
@@ -277,6 +280,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     patch_graph = patch_graph_remote.result()
     for d in dims:
         patch_tasks = []
+        shape = (n_nodes, d)
         for pi in range(patch_graph.num_nodes):
             patch_data_file = patch_folder / f'patch{pi}_data.pt'
             patch_result_file = patch_folder / f'{train_basename}_patch{pi}_info.json'
@@ -319,6 +323,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             if patch_tasks or not l2g_coords_file.is_file():
                 l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
                                          patch_graph=patch_graph_remote,
+                                         shape=shape,
                                          patches=patches,
                                          mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose,
                                          levels=levels,
@@ -352,6 +357,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             if patch_tasks or not nt_coords_file.is_file():
                 nt_task = client.submit(func.no_transform_embedding, pure=False,
                                         patches=patches,
+                                        shape=shape,
                                         output_file=nt_coords_file,
                                         mmap=mmap_features is not None,
                                         use_tmp=use_tmp

@@ -24,7 +24,7 @@ from copy import copy
 
 import numpy as np
 from numpy.lib.format import open_memmap
-from dask import delayed
+from dask import delayed, bag
 from dask.distributed import worker_client, secede, rejoin
 
 from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch
@@ -69,7 +69,7 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
 
 def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=False, resparsify=0):
     if levels == 1:
-        return aligned_coords(patches, patch_graph, verbose, use_tmp).persist()
+        return aligned_coords(patches, patch_graph, verbose, use_tmp)
     else:
         num_clusters = int(patch_graph.num_nodes ** (1 / levels))
         clusters = spread_clustering(patch_graph, num_clusters)
@@ -88,19 +88,17 @@ def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=Fa
                 verbose=verbose,
                 use_tmp=use_tmp)
             )
-        return aligned_coords(reduced_patches, reduced_patch_graph, verbose, use_tmp).persist()
+        return aligned_coords(reduced_patches, reduced_patch_graph, verbose, use_tmp)
 
 
-def hierarchical_l2g_align_patches(patch_graph, patches, output_file, mmap=False,
+def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file, mmap=False,
                                    verbose=False, levels=1, use_tmp=False, resparsify=0):
     aligned_coords = get_aligned_embedding(
             patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
-            resparsify=resparsify).coordinates
+            resparsify=resparsify).coordinates.persist()
     if mmap:
-        secede()
-        coords = aligned_coords.patches.persist()
-        rejoin()
-        mean_embedding(coords, output_file, use_tmp)
+        patches = bag.from_delayed(aligned_coords.patches)
+        mean_embedding(patches, shape, output_file, use_tmp)
     else:
         secede()
         coords = aligned_coords.compute()

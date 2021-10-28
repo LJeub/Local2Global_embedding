@@ -20,9 +20,13 @@
 from copy import copy
 from shutil import copyfile
 from tempfile import gettempdir, NamedTemporaryFile
+from operator import add
+
+import dask.bag
 from filelock import FileLock, SoftFileLock
 import os
 from threading import Lock
+from weakref import finalize
 
 import numpy as np
 from pathlib import Path
@@ -50,7 +54,7 @@ def load_file_patch(patch_folder, i, basename, dim, criterion):
     return patch
 
 
-def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True):
+def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True, use_tmp=False):
     patches = []
     patch_folder = Path(patch_folder)
     if patch_folder.is_absolute():
@@ -63,6 +67,18 @@ def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True)
     return patches
 
 
+def remove_file(name):
+    try:
+        os.unlink(name)
+    except FileNotFoundError:
+        pass
+
+
+class FileDeleteFinalizer:
+    def __init__(self, filename):
+        self._finalizer = finalize(self, remove_file, filename)
+
+
 def move_to_tmp(patch):
     patch = copy(patch)
     if isinstance(patch, FilePatch):
@@ -72,6 +88,7 @@ def move_to_tmp(patch):
         new_file = Path(new_file.name)
         copyfile(old_file.resolve(), new_file)
         patch.coordinates.filename = new_file
+        patch._finalizer = FileDeleteFinalizer(new_file)  # wrap this in a separate object so it survives copying
         patch.old_file = old_file
     elif isinstance(patch, MeanAggregatorPatch):
         patch.coordinates.patches = [move_to_tmp(p) for p in patch.coordinates.patches]
@@ -103,23 +120,21 @@ def max_ind(patch):
     return patch.nodes.max()
 
 
-def add_count(counts, patch):
-    counts[patch.nodes] += 1
+def count_chunk(patch, start, stop):
+    counts = np.array([n in patch.index for n in range(start, stop)])
     return counts
+
 
 
 def compute(task):
     return task.compute()
 
 
-@delayed
-def mean_embedding_chunk(output_file, patches, start, stop, use_tmp=True):
-    if use_tmp:
-        patches = [move_to_tmp(p) for p in patches]
-    coords = LazyMeanAggregatorCoordinates(patches)
-    out = np.load(output_file, mmap_mode='r+')
-    out[start:stop] = coords[start:stop]
-    out.flush()
+def get_coordinate_chunk(patch: Patch, start, stop):
+    out = np.zeros((stop-start, patch.shape[1]), dtype=np.float32)
+    index = [c for c, i in enumerate(range(start, stop)) if i in patch.index]
+    out[index] = patch.get_coordinates([range(start, stop)[i] for i in index])
+    return out
 
 
 @delayed
@@ -127,24 +142,35 @@ def get_n_nodes(patches):
     return max(p.nodes.max() for p in patches) + 1
 
 
-def mean_embedding(patches, output_file, use_tmp=True):
+def get_dim(patch):
+    return patch.shape[1]
+
+
+def mean_embedding_chunk(file, patch_bag, start, stop):
+    out = np.load(file, mmap_mode='r+')
+    dim = out.shape[1]
+    out_chunk = patch_bag.map(get_coordinate_chunk, start, stop).fold(add, add,
+                                                                      initial=np.zeros((stop - start, dim),
+                                                                                       dtype=np.float32)).compute()
+    counts = patch_bag.map(count_chunk, start, stop).fold(add, add,
+                                                          initial=np.zeros((stop - start,), dtype=np.int)).compute()
+    out[start:stop] = out_chunk / counts[:, None]
+
+
+def mean_embedding(patch_bag: dask.bag, shape, output_file, use_tmp=True):
     chunk_size = 100000
-    secede()
-    n_nodes = get_n_nodes(patches).compute()
-    dim = patches[0].coordinates.shape[1].compute()
-    rejoin()
+
+    if use_tmp:
+        patch_bag = patch_bag.map(move_to_tmp)
+    n_nodes, dim = shape
     work_file = output_file.with_suffix('.tmp.npy')
     out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
-    out.flush()
+    chunks = []
     with worker_client() as client:
-        tasks = []
         for start in range(0, n_nodes,  chunk_size):
             stop = min(start + chunk_size, n_nodes)
-            tasks.append(mean_embedding_chunk(work_file, patches, start, stop, use_tmp))
-
-        total = len(tasks)
-        tasks = client.compute(tasks)
-        tasks = as_completed(tasks)
-        for _ in tqdm(tasks, 'distributed mean embedding', total=total):
-            pass
+            chunks.append(client.submit(mean_embedding_chunk, work_file, patch_bag, start, stop))
+        chunks = as_completed(chunks)
+        for c in tqdm(chunks, total=chunks.count(), desc='distributed mean embedding'):
+            del c
     work_file.replace(output_file)

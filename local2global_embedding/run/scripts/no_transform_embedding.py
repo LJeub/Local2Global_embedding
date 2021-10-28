@@ -18,19 +18,21 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from pathlib import Path
+from dask import bag
 
 import numpy as np
 from local2global.utils.lazy import LazyMeanAggregatorCoordinates
-from local2global_embedding.run.scripts.utils import mean_embedding
+from local2global_embedding.run.scripts.utils import mean_embedding, compute
 from dask import delayed
 
 
-def no_transform_embedding(patches, output_file, mmap=True, use_tmp=True):
+def no_transform_embedding(patches, shape, output_file, mmap=True, use_tmp=True):
     print(f'launch no-transform embedding for {output_file} with {mmap=} and {use_tmp=}')
     output_file = Path(output_file)
 
     if mmap:
-        mean_embedding(patches, output_file, use_tmp)
+        patches = bag.from_sequence(patches).map(compute)
+        mean_embedding(patches, shape, output_file, use_tmp)
     else:
         np.save(output_file, np.asarray(LazyMeanAggregatorCoordinates(patches.compute()), dtype=np.float32))
     return output_file
