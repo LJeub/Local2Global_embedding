@@ -178,6 +178,11 @@ def mean_embedding(patch_bag: dask.bag, shape, output_file, use_tmp=True):
             stop = min(start + chunk_size, n_nodes)
             chunks.append(client.submit(mean_embedding_chunk, work_file, patch_bag, start, stop))
         chunks = as_completed(chunks)
-        for c in tqdm(chunks, total=chunks.count(), desc='distributed mean embedding'):
-            del c
+        try:
+            for c in tqdm(chunks, total=chunks.count(), desc='distributed mean embedding'):
+                c = c.result()
+                del c
+        except Exception as e:
+            work_file.unlink()
+            raise e
     work_file.replace(output_file)

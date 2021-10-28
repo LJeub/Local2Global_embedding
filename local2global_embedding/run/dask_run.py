@@ -277,11 +277,11 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                                      num_iters, beta, sparsify, target_patch_degree,
                                                      gamma)
 
-    patch_graph = patch_graph_remote.result()
+    num_patches = dask.delayed(patch_graph_remote).num_nodes.compute()
     for d in dims:
         patch_tasks = []
         shape = (n_nodes, d)
-        for pi in range(patch_graph.num_nodes):
+        for pi in range(num_patches):
             patch_data_file = patch_folder / f'patch{pi}_data.pt'
             patch_result_file = patch_folder / f'{train_basename}_patch{pi}_info.json'
             with ResultsDict(patch_result_file) as patch_results:
