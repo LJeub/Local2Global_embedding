@@ -128,7 +128,7 @@ def get_n_nodes(patches):
 
 
 def mean_embedding(patches, output_file, use_tmp=True):
-    chunk_size = 5000
+    chunk_size = 100000
     n_nodes = get_n_nodes(patches).compute()
     dim = patches[0].coordinates.shape[1].compute()
     work_file = output_file.with_suffix('.tmp.npy')
