@@ -152,37 +152,29 @@ def apply_partition(func):
     return apply
 
 
-
-def mean_embedding_chunk(file, patch_bag, start, stop):
-    out = np.load(file, mmap_mode='r+')
+def mean_embedding_chunk(out, patches, start, stop):
     dim = out.shape[1]
-    out_chunk = patch_bag.map(get_coordinate_chunk, start, stop).fold(add, add,
-                                                                      initial=np.zeros((stop - start, dim),
-                                                                                       dtype=np.float32)).compute()
-    counts = patch_bag.map(count_chunk, start, stop).fold(add, add,
-                                                          initial=np.zeros((stop - start,), dtype=np.int)).compute()
+    out_chunk = np.zeros((stop - start, dim), dtype=np.float32)
+    counts = np.zeros((stop-start,), dtype=np.int)
+    for patch in patches:
+        index = [c for c, i in enumerate(range(start, stop)) if i in patch.index]
+        out_chunk[index] += patch.get_coordinates([range(start, stop)[i] for i in index])
+        counts[index] += 1
     out[start:stop] = out_chunk / counts[:, None]
 
 
-def mean_embedding(patch_bag: dask.bag, shape, output_file, use_tmp=True):
+def mean_embedding(patches, shape, output_file, use_tmp=True):
     chunk_size = 100000
 
+    patches = patches.compute()
     if use_tmp:
-        patch_bag = patch_bag.map_partitions(apply_partition(move_to_tmp))
+        patches = [move_to_tmp(p) for p in patches]
+
     n_nodes, dim = shape
     work_file = output_file.with_suffix('.tmp.npy')
     out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
-    chunks = []
-    with worker_client() as client:
-        for start in range(0, n_nodes,  chunk_size):
-            stop = min(start + chunk_size, n_nodes)
-            chunks.append(client.submit(mean_embedding_chunk, work_file, patch_bag, start, stop))
-        chunks = as_completed(chunks)
-        try:
-            for c in tqdm(chunks, total=chunks.count(), desc='distributed mean embedding'):
-                c = c.result()
-                del c
-        except Exception as e:
-            work_file.unlink()
-            raise e
+    for start in tqdm(range(0, n_nodes,  chunk_size), desc='compute mean embedding chunks'):
+        stop = min(start + chunk_size, n_nodes)
+        mean_embedding_chunk(out, patches, start, stop)
+    out.flush()
     work_file.replace(output_file)

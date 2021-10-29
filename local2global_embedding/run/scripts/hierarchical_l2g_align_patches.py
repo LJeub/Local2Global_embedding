@@ -95,10 +95,9 @@ def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file, mma
                                    verbose=False, levels=1, use_tmp=False, resparsify=0):
     aligned_coords = get_aligned_embedding(
             patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
-            resparsify=resparsify).coordinates.persist()
+            resparsify=resparsify).coordinates
     if mmap:
-        patches = bag.from_delayed(aligned_coords.patches)
-        mean_embedding(patches, shape, output_file, use_tmp)
+        mean_embedding(aligned_coords.patches, shape, output_file, use_tmp)
     else:
         secede()
         coords = aligned_coords.compute()

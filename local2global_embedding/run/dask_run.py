@@ -396,6 +396,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     # make sure to wait for all tasks to complete and report overall progress
     for c in all_tasks:
+
         print(f'{c} complete')
         del c
     manager.stop()

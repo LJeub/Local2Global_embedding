@@ -31,8 +31,7 @@ def no_transform_embedding(patches, shape, output_file, mmap=True, use_tmp=True)
     output_file = Path(output_file)
 
     if mmap:
-        patches = bag.from_delayed(delayed(patches))
-        mean_embedding(patches, shape, output_file, use_tmp)
+        mean_embedding(delayed(patches), shape, output_file, use_tmp)
     else:
         np.save(output_file, np.asarray(LazyMeanAggregatorCoordinates(patches.compute()), dtype=np.float32))
     return output_file
