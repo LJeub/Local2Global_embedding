@@ -11,6 +11,28 @@ import torch
 from local2global_embedding.network import TGraph, spanning_tree_mask, spanning_tree
 
 
+def _gumbel_topk(weights, k, log_weights=False):
+    """
+    sampling without replacement from potentially large set of values
+
+    see arXiv:1903.06059v2
+
+    Args:
+        weights: sampling weights (not necessarily normalised)
+
+    Returns:
+        sampled indices
+    """
+
+    if not log_weights:
+        weights = torch.log(weights)
+
+    dist = torch.distributions.Gumbel(0, 1)
+
+    perturbed = weights + dist.sample(weights.shape)
+    return torch.topk(perturbed, k, sorted=False)[1]
+
+
 def _sample_edges(graph, n_desired_edges, ensure_connected=True):
     if ensure_connected:
         edge_mask = spanning_tree_mask(graph, maximise=True)
@@ -24,8 +46,7 @@ def _sample_edges(graph, n_desired_edges, ensure_connected=True):
         reversed_index = torch.argsort(unselected_edge_index[1]*graph.num_nodes + unselected_edge_index[0])
         forward_unselected = unselected_edges[unselected_edge_index[0]<unselected_edge_index[1]]
         reverse_unselected = unselected_edges[reversed_index[unselected_edge_index[0]<unselected_edge_index[1]]]
-        index = torch.multinomial(graph.weights[forward_unselected].view(1, -1),
-                                  n_desired_edges//2, replacement=False).flatten()
+        index = _gumbel_topk(graph.weights[forward_unselected], n_desired_edges // 2)
         edge_mask[forward_unselected[index]] = True
         edge_mask[reverse_unselected[index]] = True
     return edge_mask
