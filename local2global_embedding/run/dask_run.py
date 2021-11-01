@@ -245,7 +245,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          runs=cl_runs,
                                          random_split=random_split,
                                          mmap_edges=mmap_edges,
-                                         mmap_features=mmap_features)
+                                         mmap_features=mmap_features,
+                                         use_tmp=use_tmp)
                     task.add_done_callback(progress_callback(eval_progress))
                     all_tasks.add(task)
                     del task
@@ -267,6 +268,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          random_split=random_split,
                                          mmap_edges=mmap_edges,
                                          mmap_features=mmap_features,
+                                         use_tmp=use_tmp
                                          )
                     task.add_done_callback(progress_callback(eval_progress))
                     all_tasks.add(task)
@@ -347,6 +349,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          random_split=random_split,
                                          mmap_edges=mmap_edges,
                                          mmap_features=mmap_features,
+                                         use_tmp=use_tmp
                                          )
                     task.add_done_callback(progress_callback(eval_progress))
                     all_tasks.add(task)
@@ -381,6 +384,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          random_split=random_split,
                                          mmap_edges=mmap_edges,
                                          mmap_features=mmap_features,
+                                         use_tmp=use_tmp
                                          )
                     task.add_done_callback(progress_callback(eval_progress))
                     all_tasks.add(task)

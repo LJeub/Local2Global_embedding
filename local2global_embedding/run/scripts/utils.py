@@ -75,8 +75,28 @@ def remove_file(name):
 
 
 class FileDeleteFinalizer:
+    """class that deletes the named file when it is garbage-collected
+    """
     def __init__(self, filename):
         self._finalizer = finalize(self, remove_file, filename)
+
+
+class ScopedTemporaryFile:
+    def __init__(self, *args, **kwargs):
+        file = NamedTemporaryFile(*args, delete=False, **kwargs)
+        file.close()
+        self._finalizer = finalize(self, remove_file, file.name)
+        self.name = file.name
+
+    def __fspath__(self):
+        return self.name
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.name})'
+
 
 
 def move_to_tmp(patch):
@@ -88,7 +108,8 @@ def move_to_tmp(patch):
         new_file = Path(new_file.name)
         copyfile(old_file.resolve(), new_file)
         patch.coordinates.filename = new_file
-        patch._finalizer = FileDeleteFinalizer(new_file)  # wrap this in a separate object so it survives copying
+        patch._finalizer = FileDeleteFinalizer(new_file)  # wrap this in a separate object so it survives copying as
+        # each copy retains a reference of this object and thus cleanup only happens if all copies go out of scope
         patch.old_file = old_file
     elif isinstance(patch, MeanAggregatorPatch):
         patch.coordinates.patches = [move_to_tmp(p) for p in patch.coordinates.patches]
