@@ -11,6 +11,26 @@ import torch
 from local2global_embedding.network import TGraph, spanning_tree_mask, spanning_tree
 
 
+def _sample_edges(graph, n_desired_edges, ensure_connected=True):
+    if ensure_connected:
+        edge_mask = spanning_tree_mask(graph, maximise=True)
+        n_desired_edges -= edge_mask.sum()
+        unselected_edges = edge_mask.logical_not().nonzero().flatten()
+    else:
+        edge_mask = torch.zeros(graph.num_edges, dtype=torch.bool, device=graph.device)
+        unselected_edges = torch.arange(graph.num_edges, device=graph.device)
+    if n_desired_edges > 0:  # check whether we have sufficiently many edges already
+        unselected_edge_index = graph.edge_index[:, unselected_edges]
+        reversed_index = torch.argsort(unselected_edge_index[1]*graph.num_nodes + unselected_edge_index[0])
+        forward_unselected = unselected_edges[unselected_edge_index[0]<unselected_edge_index[1]]
+        reverse_unselected = unselected_edges[reversed_index[unselected_edge_index[0]<unselected_edge_index[1]]]
+        index = torch.multinomial(graph.weights[forward_unselected].view(1, -1),
+                                  n_desired_edges//2, replacement=False).flatten()
+        edge_mask[forward_unselected[index]] = True
+        edge_mask[reverse_unselected[index]] = True
+    return edge_mask
+
+
 def resistance_sparsify(graph: TGraph, target_mean_degree, ensure_connected=True, epsilon=1e-2):
     """
     Sparsify a graph to have a target mean degree using effective resistance based sampling
@@ -42,22 +62,7 @@ def resistance_sparsify(graph: TGraph, target_mean_degree, ensure_connected=True
 
     rgraph = resistance_weighted_graph(graph, epsilon=epsilon)
 
-    if ensure_connected:
-        edge_mask = spanning_tree_mask(rgraph, maximise=True)
-        n_desired_edges -= edge_mask.sum()
-        unselected_edges = edge_mask.logical_not().nonzero().flatten()
-    else:
-        edge_mask = torch.zeros(graph.num_edges, dtype=torch.bool, device=graph.device)
-        unselected_edges = torch.arange(graph.num_edges, device=graph.device)
-    if n_desired_edges > 0:  # check whether we have sufficiently many edges already
-        unselected_edge_index = graph.edge_index[:, unselected_edges]
-        reversed_index = torch.argsort(unselected_edge_index[1]*graph.num_nodes + unselected_edge_index[0])
-        forward_unselected = unselected_edges[unselected_edge_index[0]<unselected_edge_index[1]]
-        reverse_unselected = unselected_edges[reversed_index[unselected_edge_index[0]<unselected_edge_index[1]]]
-        index = torch.multinomial(rgraph.weights[forward_unselected].view(1,-1), n_desired_edges//2, replacement=False).flatten()
-        # index = torch.argsort(rgraph.edge_attr[unselected_edges], descending=True)
-        edge_mask[forward_unselected[index]] = True
-        edge_mask[reverse_unselected[index]] = True
+    edge_mask = _sample_edges(rgraph, n_desired_edges, ensure_connected)
     edge_index = graph.edge_index[:, edge_mask]
     edge_attr = None if graph.edge_attr is None else graph.edge_attr[edge_mask]
     return TGraph(edge_index=edge_index, edge_attr=edge_attr, num_nodes=graph.num_nodes, ensure_sorted=False,
@@ -221,27 +226,15 @@ def relaxed_spanning_tree(graph: TGraph, maximise=False, gamma=1):
 
 
 def edge_sampling_sparsify(graph: TGraph, target_degree, ensure_connected=True):
+    n_desired_edges = int(target_degree * graph.num_nodes / 2) * 2  # round down to an even number of edges
+    if n_desired_edges >= graph.num_edges:
+        # graph is already sufficiently sparse
+        return graph
+
     weights = graph.weights / torch.minimum(graph.strength[graph.edge_index[0]], graph.strength[graph.edge_index[1]])
     cgraph = TGraph(graph.edge_index, edge_attr=weights, adj_index=graph.adj_index, num_nodes=graph.num_nodes,
                    ensure_sorted=False, undir=graph.undir)  # convert weights to conductance value
-    if ensure_connected:
-        edge_mask = spanning_tree_mask(cgraph, maximise=True)
-    else:
-        edge_mask = torch.zeros_like(cgraph.edge_index, dtype=torch.bool)
-
-    if cgraph.undir:
-        reverse_edge_index = torch.argsort(cgraph.edge_index[1] * cgraph.num_nodes + cgraph.edge_index[0])
-        forward_edges = torch.nonzero(cgraph.edge_index[0] < cgraph.edge_index[1]).flatten()
-        reverse_edge_index = reverse_edge_index[forward_edges]
-        prob = target_degree * cgraph.weights[forward_edges]
-        keep = torch.rand_like(prob) < prob
-        edge_mask[forward_edges[keep]] = True
-        edge_mask[reverse_edge_index[keep]] = True
-    else:
-        prob = target_degree * cgraph.weights
-
-        edge_mask[torch.rand_like(prob) < prob] = True
-    edge_index = graph.edge_index[:, edge_mask]
-    edge_attr = graph.edge_attr[edge_mask] if graph.weighted else None
-
-    return TGraph(edge_index=edge_index, edge_attr=edge_attr, num_nodes=graph.num_nodes, undir=graph.undir)
+    edge_mask = _sample_edges(cgraph, n_desired_edges, ensure_connected)
+    edge_attr = graph.edge_attr[edge_mask] if graph.edge_attr is not None else None
+    return TGraph(edge_index=graph.edge_index[:, edge_mask], edge_attr=edge_attr, num_nodes=graph.num_nodes,
+                  ensure_sorted=False, undir=graph.undir)
