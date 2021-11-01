@@ -164,24 +164,27 @@ def mean_embedding_chunk(out, patches, start, stop):
 
 
 def mean_embedding(patches, shape, output_file, use_tmp=True):
-    chunk_size = 100000
-
     patches = patches.compute()
     if use_tmp:
         patches = [move_to_tmp(p) for p in patches]
 
     n_nodes, dim = shape
-    if use_tmp:
-        work_file = NamedTemporaryFile(delete=False)
-        work_file.close()
-        work_file = Path(work_file.name)
-    else:
-        work_file = output_file.with_suffix('.tmp.npy')
-    out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
-    count = np.zeros((n_nodes,), dtype=np.int)
-    for patch in tqdm(patches, desc='compute mean embedding output'):
-        out[patch.nodes] += patch.coordinates
-        count[patch.nodes] += 1
-    out /= count[:, None]
-    out.flush()
-    move(work_file, output_file)
+    try:
+        if use_tmp:
+            work_file = NamedTemporaryFile(delete=False)
+            work_file.close()
+            work_file = Path(work_file.name)
+        else:
+            work_file = output_file.with_suffix('.tmp.npy')
+        out = open_memmap(work_file, mode='w+', dtype=np.float32, shape=(n_nodes, dim))
+        count = np.zeros((n_nodes,), dtype=np.int)
+        for patch in tqdm(patches, desc='compute mean embedding output'):
+            out[patch.nodes] += patch.coordinates
+            count[patch.nodes] += 1
+        out /= count[:, None]
+        out.flush()
+        move(work_file, output_file)
+    except Exception as e:
+        remove_file(work_file)
+        raise e
+
