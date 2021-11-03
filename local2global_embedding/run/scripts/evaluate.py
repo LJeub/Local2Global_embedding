@@ -24,7 +24,9 @@ from pathlib import Path
 
 import torch
 import numpy as np
+from numpy.lib.format import open_memmap
 from typing import Optional
+
 from local2global_embedding.embedding import reconstruction_auc
 from local2global_embedding.classfication import Logistic, train, accuracy
 from local2global_embedding.run.utils import ResultsDict, ScriptParser, load_classification_problem, load_data
@@ -40,12 +42,13 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
     cl_data = load_classification_problem(name, graph_args={'mmap_edges': mmap_edges, 'mmap_features': mmap_features},
                                           root=data_root, restrict_lcc=restrict_lcc)
     num_labels = cl_data.num_labels
+    coords = np.load(embedding_file, mmap_mode=mmap_features)
     if use_tmp and mmap_features is not None:
         tmp_file = ScopedTemporaryFile(prefix='coords_', suffix='.npy')  # path of temporary file that is automatically cleaned up when garbage-collected
-        copyfile(Path(embedding_file).resolve(), tmp_file)
-        coords = np.load(tmp_file.name, mmap_mode=mmap_features)
-    else:
-        coords = np.load(embedding_file, mmap_mode=mmap_features)
+        coords_tmp = open_memmap(tmp_file, mode='w+', dtype=coords.dtype, shape=coords.shape)
+        coords_tmp[:] = coords[:]
+        coords = coords_tmp
+
     cl_data.x = torch.as_tensor(coords, dtype=torch.float32)
     dim = coords.shape[1]
     auc = reconstruction_auc(coords, graph, dist=dist)
