@@ -27,7 +27,7 @@ from numpy.lib.format import open_memmap
 from dask import delayed, bag
 from dask.distributed import worker_client, secede, rejoin
 
-from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch
+from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch, SVDAlignmentProblem
 from local2global_embedding.clustering import spread_clustering
 from local2global_embedding.sparsify import resistance_sparsify
 from local2global_embedding.patches import Partition
@@ -43,7 +43,7 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
     else:
         patches = [copy(p) for p in patches]
 
-    prob = WeightedAlignmentProblem(patches, patch_graph.edges(), copy_data=False, verbose=verbose)
+    prob = SVDAlignmentProblem(patches, patch_graph.edges(), copy_data=False, verbose=verbose)
     retry = True
     tries = 0
     max_tries = 3
