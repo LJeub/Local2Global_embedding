@@ -43,6 +43,7 @@ import sys
 from pathlib import Path
 from typing import List
 from runpy import run_path
+from traceback import print_exception
 
 import local2global_embedding.run.scripts.no_transform_embedding
 import local2global_embedding.run.scripts.utils
@@ -400,8 +401,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     # make sure to wait for all tasks to complete and report overall progress
     for c in all_tasks:
-
-        print(f'{c} complete')
+        if c.status == 'error':
+            print(f'{c} errored')
+            e = c.exception()
+            print_exception(type(e), e, c.traceback())
+        else:
+            print(f'{c} complete')
         del c
     manager.stop()
 
