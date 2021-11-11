@@ -70,7 +70,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         patience=20, runs=10, cl_runs=50, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
         min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
         cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
-        output='.', device: str = None, verbose=False, levels=1, resparsify=0,
+        output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
         run_baseline=True, normalise=False, restrict_lcc=False, mmap_edges=False, mmap_features=False,
         random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0):
     """
@@ -104,7 +104,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         output: output folder
         device: Device used for training e.g., 'cpu', 'cuda' (defaults to 'cuda' if available else 'cpu')
         plot: If ``True``, plot embedding performance
-        verbose: If ``True``, show progress info
+        verbose_train: If ``True``, show progress info
         max_workers: maximum number of parallel training jobs
         cmd_prefix: prefix used for submitting jobs (e.g. srun for slurm clusters)
         run_baseline: if ``True``, run baseline full model
@@ -118,7 +118,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
               DLG-KDD’21. 2021. `arXiv:2107.12224 [cs.LG] <https://arxiv.org/abs/2107.12224>`_.
 
     """
-    if verbose:
+    if verbose_train:
         logging.basicConfig(level=logging.DEBUG)
 
     if cluster_init:
@@ -220,7 +220,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 task = client.submit(func.train, pure=False, resources=gpu_req,
                                      data=data_file, model=model,
                                      lr=lr, num_epochs=num_epochs,
-                                     patience=patience, verbose=verbose,
+                                     patience=patience, verbose=verbose_train,
                                      results_file=baseline_info_file, dim=d,
                                      hidden_multiplier=hidden_multiplier,
                                      no_features=no_features, dist=dist,
@@ -294,7 +294,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 task = client.submit(func.train, pure=False, resources=gpu_req,
                                      data=patch_data_file, model=model,
                                      lr=lr, num_epochs=num_epochs,
-                                     patience=patience, verbose=verbose,
+                                     patience=patience, verbose=verbose_train,
                                      results_file=patch_result_file, dim=d,
                                      hidden_multiplier=hidden_multiplier,
                                      no_features=no_features, dist=dist,
@@ -329,7 +329,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          patch_graph=patch_graph_remote,
                                          shape=shape,
                                          patches=patches,
-                                         mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose,
+                                         mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose_l2g,
                                          output_file=l2g_coords_file,
                                          cluster_file=cluster_file,
                                          resparsify=resparsify)
