@@ -248,9 +248,11 @@ def spread_clustering(graph, num_clusters, max_degree_init=True):
     num_unassigned = graph.num_nodes - num_clusters
 
     while num_unassigned > 0:
+        progress = False
         for c in range(num_clusters):
             node = torch.argmax(spread_weights[c])
             if spread_weights[c, node] > 0:
+                progress = True
                 # make sure node is actually connected to cluster
                 clusters[node] = c
                 spread_weights[:, node] = -1  # should not be chosen again
@@ -259,6 +261,23 @@ def spread_clustering(graph, num_clusters, max_degree_init=True):
                 inds, weights = graph.adj_weighted(node)
                 keep = unassigned[inds]
                 spread_weights[c, inds[keep]] += weights[keep] / graph.strength[inds[keep]]
+        if not progress:
+            print('increasing number of clusters due to disconnected components')
+            unassigned_nodes = torch.nonzero(unassigned).ravel()
+            if max_degree_init:
+                seed = unassigned_nodes[torch.argmax(torch.as_tensor(graph.degree[unassigned_nodes]))]
+            else:
+                seed = unassigned_nodes[torch.multinomial(torch.as_tensor(graph.degree[unassigned_nodes]), 1)]
+            clusters[seed] = num_clusters
+            spread_weights = torch.cat((spread_weights, torch.zeros((1, graph.num_nodes),
+                                                                      dtype=torch.double, device=graph.device)))
+            unassigned[seed] = False
+            spread_weights[:, seed] = -1
+            inds, weights = graph.adj_weighted(seed)
+            keep = unassigned[inds]
+            spread_weights[num_clusters, inds[keep]] += weights[keep] / graph.strength[inds[keep]]
+            num_clusters += 1
+            num_unassigned -= 1
     return clusters
 
 
