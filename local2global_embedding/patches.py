@@ -1,20 +1,16 @@
 """Dividing input data into overlapping patches"""
-import sys
 from random import choice
-from collections.abc import Sequence
 
 import torch
 import numpy as np
-import torch_geometric as tg
-import torch_scatter as ts
 from tqdm.auto import tqdm
 
 import numba
 
-from local2global_embedding.network import TGraph, conductance, NPGraph
 from local2global_embedding.clustering import Partition
+from local2global_embedding.network import TGraph, NPGraph
 from local2global_embedding.network.npgraph import JitGraph
-from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify
+from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify, hierarchical_sparsify
 
 
 @numba.njit
@@ -204,10 +200,15 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
     if min_patch_size is None:
         min_patch_size = min_overlap
 
-    partition_tensor = merge_small_clusters(graph, partition_tensor, min_patch_size)
+    if isinstance(partition_tensor, list):
+        partition_tensor_0 = partition_tensor[0]
+    else:
+        partition_tensor = merge_small_clusters(graph, partition_tensor, min_patch_size)
+        partition_tensor_0 = partition_tensor
+
     if verbose:
-        print(f"number of patches: {partition_tensor.max().item() + 1}")
-    pg = graph.partition_graph(partition_tensor).to(TGraph)
+        print(f"number of patches: {partition_tensor_0.max().item() + 1}")
+    pg = graph.partition_graph(partition_tensor_0).to(TGraph)
     components = pg.connected_component_ids()
     num_components = components.max()+1
     if num_components > 1:
@@ -230,11 +231,17 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
                     undir=pg.undir)
 
     if sparsify_method == 'resistance':
-        pg = resistance_sparsify(pg, target_mean_degree=target_patch_degree)
+        if isinstance(partition_tensor, list):
+            pg = hierarchical_sparsify(pg, partition_tensor[1:], target_patch_degree, sparsifier=resistance_sparsify)
+        else:
+            pg = resistance_sparsify(pg, target_mean_degree=target_patch_degree)
     elif sparsify_method == 'rmst':
         pg = relaxed_spanning_tree(pg, maximise=True, gamma=gamma)
     elif sparsify_method == 'sample':
-        pg = edge_sampling_sparsify(pg, target_patch_degree)
+        if isinstance(partition_tensor, list):
+            pg = hierarchical_sparsify(pg, partition_tensor[1:], target_patch_degree, sparsifier=edge_sampling_sparsify)
+        else:
+            pg = edge_sampling_sparsify(pg, target_patch_degree)
     elif sparsify_method == 'none':
         pass
     else:
@@ -244,7 +251,7 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
     if verbose:
         print(f"average patch degree: {pg.num_edges / pg.num_nodes}")
 
-    patches = create_overlapping_patches(graph, partition_tensor, pg, min_overlap, target_overlap)
+    patches = create_overlapping_patches(graph, partition_tensor_0, pg, min_overlap, target_overlap)
     return patches, pg
 
 
