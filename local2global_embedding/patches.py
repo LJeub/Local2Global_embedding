@@ -1,5 +1,6 @@
 """Dividing input data into overlapping patches"""
 from random import choice
+from math import ceil
 
 import torch
 import numpy as np
@@ -136,7 +137,8 @@ def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_
     for i in tqdm(range(patch_graph.num_nodes), desc='enlarging patch overlaps'):
         part_i = parts[i].numpy()
         part_i.sort()
-        patches = _patch_overlaps(i, part_i, partition_tensor, patches, graph, patch_graph, int(min_overlap / 2), int(target_overlap / 2))
+        patches = _patch_overlaps(i, part_i, partition_tensor, patches, graph, patch_graph, ceil(min_overlap / 2),
+                                  int(target_overlap / 2))
 
     return patches
 
