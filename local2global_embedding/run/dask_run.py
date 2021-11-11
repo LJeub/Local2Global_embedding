@@ -54,7 +54,7 @@ import enlighten
 from dask.distributed import as_completed, Client, get_worker
 import logging
 
-from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, patch_folder_name
+from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, patch_folder_name, cluster_file_name
 from local2global_embedding.run.scripts import functions as func
 
 
@@ -189,7 +189,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                        output_folder=output_folder, name=name, data_root=data_root,
                                        min_overlap=min_overlap, target_overlap=target_overlap,
                                        cluster=cluster,
-                                       num_clusters=num_clusters, num_iters=num_iters, beta=beta,
+                                       num_clusters=num_clusters, num_iters=num_iters, beta=beta, levels=levels,
                                        sparsify=sparsify, target_patch_degree=target_patch_degree,
                                        gamma=gamma,
                                        verbose=False,
@@ -277,8 +277,9 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             del baseline_tasks
 
     patch_folder = output_folder / patch_folder_name(name, min_overlap, target_overlap, cluster, num_clusters,
-                                                     num_iters, beta, sparsify, target_patch_degree,
+                                                     num_iters, beta, levels, sparsify, target_patch_degree,
                                                      gamma)
+    cluster_file = output_folder / cluster_file_name(name, cluster, num_clusters, num_iters, beta, levels)
 
     num_patches = dask.delayed(patch_graph_remote).num_nodes.compute()
     for d in dims:
@@ -329,8 +330,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          shape=shape,
                                          patches=patches,
                                          mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose,
-                                         levels=levels,
                                          output_file=l2g_coords_file,
+                                         cluster_file=cluster_file,
                                          resparsify=resparsify)
                 l2g_task.add_done_callback(progress_callback(align_progress))
                 all_tasks.add(l2g_task)

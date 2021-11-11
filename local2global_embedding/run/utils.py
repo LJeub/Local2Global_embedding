@@ -109,8 +109,24 @@ def load_classification_problem(name, root='/tmp', restrict_lcc=False, graph_arg
 load_data.__doc__ = load_data.__doc__.format(names=list(_dataloaders.keys()))
 
 
+def cluster_string(cluster='metis', num_clusters=10, num_iters: int=None, beta=0.1, levels=1):
+    if cluster == 'louvain':
+        cluster_string = 'louvain'
+    elif cluster == 'distributed':
+        cluster_string = f'distributed_beta{beta}_it{num_iters}'
+    elif cluster == 'fennel':
+        cluster_string = f"fennel_n{num_clusters}_it{num_iters}"
+    elif cluster == 'metis':
+        cluster_string = f"metis_n{num_clusters}"
+    else:
+        raise RuntimeError(f"Unknown cluster method '{cluster}'.")
+    if levels > 1:
+        cluster_string += f'_hc{levels}'
+    return cluster_string
+
+
 def patch_folder_name(name: str, min_overlap: int, target_overlap: int, cluster='metis',
-                      num_clusters=10, num_iters: int=None, beta=0.1,
+                      num_clusters=10, num_iters: int=None, beta=0.1, levels=1,
                       sparsify='resistance', target_patch_degree=4.0, gamma=0.0):
     if sparsify == 'resistance':
         sp_string = f"resistance_deg{target_patch_degree}"
@@ -122,18 +138,14 @@ def patch_folder_name(name: str, min_overlap: int, target_overlap: int, cluster=
         sp_string = 'sample'
     else:
         raise RuntimeError(f"Unknown sparsification method '{sparsify}'.")
+    cl_string = cluster_string(cluster, num_clusters, num_iters, beta, levels)
 
-    if cluster == 'louvain':
-        cluster_string = 'louvain'
-    elif cluster == 'distributed':
-        cluster_string = f'distributed_beta{beta}_it{num_iters}'
-    elif cluster == 'fennel':
-        cluster_string = f"fennel_n{num_clusters}_it{num_iters}"
-    elif cluster == 'metis':
-        cluster_string = f"metis_n{num_clusters}"
-    else:
-        raise RuntimeError(f"Unknown cluster method '{cluster}'.")
-    return f'{name}_{cluster_string}_{sp_string}_mo{min_overlap}_to{target_overlap}_patches'
+    return f'{name}_{cl_string}_{sp_string}_mo{min_overlap}_to{target_overlap}_patches'
+
+
+def cluster_file_name(name, cluster='metis', num_clusters=10, num_iters: int=None, beta=0.1, levels=1):
+    cl_string = cluster_string(cluster, num_clusters, num_iters, beta, levels)
+    return f'{name}_{cl_string}_clusters.pt'
 
 
 class ResultsDict:

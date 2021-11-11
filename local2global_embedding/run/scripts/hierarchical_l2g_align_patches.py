@@ -23,14 +23,13 @@ from tempfile import gettempdir, NamedTemporaryFile
 from copy import copy
 
 import numpy as np
-from numpy.lib.format import open_memmap
+import torch
 from dask import delayed, bag
 from dask.distributed import worker_client, secede, rejoin
 
 from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch, SVDAlignmentProblem
-from local2global_embedding.clustering import spread_clustering
+from local2global_embedding.clustering import spread_clustering, Partition
 from local2global_embedding.sparsify import resistance_sparsify
-from local2global_embedding.patches import Partition
 
 from .utils import load_patches, move_to_tmp, restore_from_tmp, mean_embedding
 from local2global_embedding.run.utils import ScriptParser
@@ -67,42 +66,44 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
     return MeanAggregatorPatch(patches)
 
 
-def get_aligned_embedding(patch_graph, patches, levels, verbose=True, use_tmp=False, resparsify=0):
-    if levels == 1:
+def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=False, resparsify=0):
+    if not clusters:
         return aligned_coords(patches, patch_graph, verbose, use_tmp)
     else:
-        num_clusters = int(patch_graph.num_nodes ** (1 / levels))
-        clusters = spread_clustering(patch_graph, num_clusters)
-        reduced_patch_graph = patch_graph.partition_graph(clusters)
+        cluster = clusters[0]
+        reduced_patch_graph = patch_graph.partition_graph(cluster)
         if resparsify > 0:
             reduced_patch_graph = resistance_sparsify(reduced_patch_graph, resparsify)
-        parts = Partition(clusters)
+        parts = Partition(cluster)
         reduced_patches = []
         for i, part in enumerate(parts):
             local_patch_graph = patch_graph.subgraph(part)
             local_patches = [patches[p] for p in part]
-            reduced_patches.append(get_aligned_embedding(
+            reduced_patches.append(aligned_coords(
                 patch_graph=local_patch_graph,
                 patches=local_patches,
-                levels=levels-1,
                 verbose=verbose,
                 use_tmp=use_tmp)
             )
-        return aligned_coords(reduced_patches, reduced_patch_graph, verbose, use_tmp)
+        return get_aligned_embedding(reduced_patch_graph, reduced_patches, clusters[1:], verbose, use_tmp, resparsify)
 
 
-def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file, mmap=False,
-                                   verbose=False, levels=1, use_tmp=False, resparsify=0):
-    aligned_coords = get_aligned_embedding(
-            patch_graph=patch_graph, patches=patches, levels=levels, verbose=verbose, use_tmp=use_tmp,
-            resparsify=resparsify).coordinates
-    if mmap:
-        mean_embedding(aligned_coords.patches, shape, output_file, use_tmp)
+def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file, cluster_file, mmap=False,
+                                   verbose=False, use_tmp=False, resparsify=0):
+    clusters = torch.load(cluster_file)
+    if isinstance(clusters, list) and len(clusters) > 1:
+        aligned = get_aligned_embedding(
+                patch_graph=patch_graph, patches=patches, clusters=clusters[1:], verbose=verbose, use_tmp=use_tmp,
+                resparsify=resparsify).coordinates
     else:
-        secede()
-        coords = aligned_coords.compute()
-        rejoin()
+        aligned = aligned_coords(patches, patch_graph, verbose, use_tmp).coordinates
+
+    if mmap:
+        mean_embedding(aligned.patches, shape, output_file, use_tmp)
+    else:
+        coords = aligned.compute()
         np.save(output_file, np.asarray(coords, dtype=np.float32))
+
     return output_file
 
 

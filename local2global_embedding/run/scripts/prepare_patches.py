@@ -29,10 +29,11 @@ import torch
 from filelock import SoftFileLock
 from tqdm.auto import tqdm
 
-from local2global_embedding.patches import create_patch_data
+from local2global_embedding.patches import create_patch_data, merge_small_clusters
 from local2global_embedding.network import TGraph
-from local2global_embedding.run.utils import ScriptParser, patch_folder_name, load_data
-from local2global_embedding.clustering import louvain_clustering, metis_clustering, distributed_clustering, fennel_clustering
+from local2global_embedding.run.utils import ScriptParser, patch_folder_name, cluster_file_name, load_data
+from local2global_embedding.clustering import louvain_clustering, metis_clustering, distributed_clustering, \
+    fennel_clustering, hierarchical_aglomerative_clustering
 
 
 def save_patch_data(graph, patch, filename):
@@ -41,9 +42,11 @@ def save_patch_data(graph, patch, filename):
 
 
 def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: int, data_root='/tmp',
-                    min_patch_size: int = None, cluster='metis', num_clusters=10, num_iters: Optional[int]=None, beta=0.1,
+                    min_patch_size: int = None, cluster='metis', num_clusters=10, num_iters: Optional[int]=None,
+                    beta=0.1, levels=1,
                     sparsify='resistance', target_patch_degree=4.0, gamma=0.0, normalise=False, restrict_lcc=False,
-                    verbose=False, use_tmp=False, mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None):
+                    verbose=False, use_tmp=False, mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None,
+                   ):
     """
     initialise patch data
 
@@ -68,22 +71,19 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
 
     if cluster == 'louvain':
         cluster_fun = lambda graph: louvain_clustering(graph)
-        cluster_string = 'louvain'
     elif cluster == 'distributed':
         cluster_fun = lambda graph: distributed_clustering(graph, beta, rounds=num_iters)
-        cluster_string = f'distributed_beta{beta}_it{num_iters}'
     elif cluster == 'fennel':
         cluster_fun = lambda graph: fennel_clustering(graph, num_clusters=num_clusters, num_iters=num_iters)
-        cluster_string = f"fennel_n{num_clusters}_it{num_iters}"
     elif cluster == 'metis':
         cluster_fun = lambda graph: metis_clustering(graph, num_clusters=num_clusters)
-        cluster_string = f"metis_n{num_clusters}"
     else:
         raise RuntimeError(f"Unknown cluster method '{cluster}'.")
 
     patch_folder = output_folder / patch_folder_name(name, min_overlap, target_overlap, cluster, num_clusters,
-                                                     num_iters, beta, sparsify, target_patch_degree,
+                                                     num_iters, beta, levels, sparsify, target_patch_degree,
                                                      gamma)
+    cluster_file = output_folder / cluster_file_name(name, cluster, num_clusters, num_iters, beta, levels)
 
     def load_graph():
         print('loading data')
@@ -130,16 +130,20 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                     if buffer_x is not None:
                         print('features are on local storage')
 
-                cluster_file = output_folder / f"{name}_{cluster_string}_clusters.pt"
+                patch_folder.mkdir(parents=True, exist_ok=True)
+
                 if cluster_file.is_file():
                     clusters = torch.load(cluster_file, map_location='cpu')
                 else:
                     clusters = cluster_fun(graph)
+                    if levels > 1:
+                        clusters = [merge_small_clusters(graph, clusters, min_overlap)]
+                        clusters.extend(hierarchical_aglomerative_clustering(graph.partition_graph(clusters[0]),
+                                                                             levels=levels-1))
                     torch.save(clusters, cluster_file)
 
                 patches, patch_graph = create_patch_data(graph, clusters, min_overlap, target_overlap, min_patch_size,
                                                          sparsify, target_patch_degree, gamma, verbose)
-                patch_folder.mkdir(parents=True, exist_ok=True)
 
                 for i, patch in tqdm(enumerate(patches), total=len(patches), desc='saving patch index'):
                     np.save(patch_folder / f'patch{i}_index.npy', patch)
