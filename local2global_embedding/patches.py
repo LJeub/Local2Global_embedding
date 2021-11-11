@@ -210,7 +210,7 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
 
     if verbose:
         print(f"number of patches: {partition_tensor_0.max().item() + 1}")
-    pg = graph.partition_graph(partition_tensor_0).to(TGraph)
+    pg = graph.partition_graph(partition_tensor_0, self_loops=False).to(TGraph)
     components = pg.connected_component_ids()
     num_components = components.max()+1
     if num_components > 1:
