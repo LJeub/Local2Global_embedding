@@ -246,3 +246,18 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
 
     patches = create_overlapping_patches(graph, partition_tensor, pg, min_overlap, target_overlap)
     return patches, pg
+
+
+def rolling_window_edges(n_patches, w):
+    """
+    Generate patch edges for a rolling window
+
+    Args:
+        n_patches: Number of patches
+        w: window width (patches connected to the w nearest neighbours on either side)
+
+    """
+    for i in range(n_patches):
+        for j in range(max(i-w, 0), min(i+w+1, n_patches)):
+            if i != j:
+                yield i, j
