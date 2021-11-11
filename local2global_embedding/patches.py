@@ -12,24 +12,9 @@ from tqdm.auto import tqdm
 import numba
 
 from local2global_embedding.network import TGraph, conductance, NPGraph
+from local2global_embedding.clustering import Partition
 from local2global_embedding.network.npgraph import JitGraph
 from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify
-
-
-class Partition(Sequence):
-    def __init__(self, partition_tensor):
-        partition_tensor = torch.as_tensor(partition_tensor)
-        counts = torch.bincount(partition_tensor)
-        self.num_parts = len(counts)
-        self.nodes = torch.argsort(partition_tensor)
-        self.part_index = torch.zeros(self.num_parts + 1, dtype=torch.long)
-        self.part_index[1:] = torch.cumsum(counts, dim=0)
-
-    def __getitem__(self, item):
-        return self.nodes[self.part_index[item]:self.part_index[item+1]]
-
-    def __len__(self):
-        return self.num_parts
 
 
 @numba.njit

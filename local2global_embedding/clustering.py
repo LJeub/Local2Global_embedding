@@ -2,6 +2,7 @@
 
 from math import log
 import os
+from typing import Sequence
 
 import community
 import torch
@@ -260,3 +261,19 @@ def spread_clustering(graph, num_clusters, max_degree_init=True):
                 spread_weights[c, inds[keep]] += weights[keep] / graph.strength[inds[keep]]
     return clusters
 
+
+
+class Partition(Sequence):
+    def __init__(self, partition_tensor):
+        partition_tensor = torch.as_tensor(partition_tensor)
+        counts = torch.bincount(partition_tensor)
+        self.num_parts = len(counts)
+        self.nodes = torch.argsort(partition_tensor)
+        self.part_index = torch.zeros(self.num_parts + 1, dtype=torch.long)
+        self.part_index[1:] = torch.cumsum(counts, dim=0)
+
+    def __getitem__(self, item):
+        return self.nodes[self.part_index[item]:self.part_index[item+1]]
+
+    def __len__(self):
+        return self.num_parts
