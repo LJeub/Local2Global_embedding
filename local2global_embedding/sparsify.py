@@ -7,9 +7,13 @@ import scipy as sc
 import scipy.sparse
 import scipy.sparse.linalg
 import torch
+import numba
 
 from local2global_embedding.network import TGraph, spanning_tree_mask, spanning_tree
+from local2global_embedding.clustering import Partition
 
+
+rg = np.random.default_rng()
 
 def _gumbel_topk(weights, k, log_weights=False):
     """
@@ -23,6 +27,8 @@ def _gumbel_topk(weights, k, log_weights=False):
     Returns:
         sampled indices
     """
+    if k >= len(weights):
+        return torch.arange(len(weights))
 
     if not log_weights:
         weights = torch.log(weights)
@@ -50,6 +56,17 @@ def _sample_edges(graph, n_desired_edges, ensure_connected=True):
         edge_mask[forward_unselected[index]] = True
         edge_mask[reverse_unselected[index]] = True
     return edge_mask
+
+
+@numba.njit
+def _multi_arange(start, stop):
+    count = np.sum(stop-start)
+    out = np.empty((count,), dtype=np.int64)
+    i = 0
+    for s, t in zip(start, stop):
+        out[i:i+(t-s)] = np.arange(s, t)
+        i += t-s
+    return out
 
 
 def resistance_sparsify(graph: TGraph, target_mean_degree, ensure_connected=True, epsilon=1e-2):
@@ -256,6 +273,50 @@ def edge_sampling_sparsify(graph: TGraph, target_degree, ensure_connected=True):
     cgraph = TGraph(graph.edge_index, edge_attr=weights, adj_index=graph.adj_index, num_nodes=graph.num_nodes,
                    ensure_sorted=False, undir=graph.undir)  # convert weights to conductance value
     edge_mask = _sample_edges(cgraph, n_desired_edges, ensure_connected)
+    edge_attr = graph.edge_attr[edge_mask] if graph.edge_attr is not None else None
+    return TGraph(edge_index=graph.edge_index[:, edge_mask], edge_attr=edge_attr, num_nodes=graph.num_nodes,
+                  ensure_sorted=False, undir=graph.undir)
+
+
+def hierarchical_sparsify(graph: TGraph, clusters, target_level_degree, ensure_connected=True,
+                          sparsifier=edge_sampling_sparsify):
+    rgraph = graph
+    edge_mask = torch.zeros(graph.num_edges, dtype=torch.bool, device=graph.device)
+    node_map = np.array(graph.nodes)
+    edges = graph.edge_index.cpu().numpy()
+    final_num_clusters = clusters[-1].max() + 1
+    if final_num_clusters > 1:
+        clusters.append(torch.zeros(final_num_clusters, dtype=torch.long, device=graph.device))
+    for cluster in clusters:
+        expanded_cluster = cluster[node_map]
+        parts = Partition(cluster)
+        expanded_parts = Partition(expanded_cluster)
+        for p, ep in zip(parts, expanded_parts):
+            sgraph = sparsifier(rgraph.subgraph(p), target_level_degree, ensure_connected)
+            s_edges = p[sgraph.edge_index]
+            s_edges = s_edges[0] * rgraph.num_nodes + s_edges[1]
+            s_edges = s_edges.cpu().numpy()
+            index = _multi_arange(graph.adj_index[ep].cpu().numpy(), graph.adj_index[ep+1].cpu().numpy())
+            mapped_edges = node_map[edges[:, index]]
+            mapped_edges = mapped_edges[0] * rgraph.num_nodes + mapped_edges[1]
+
+            valid = np.flatnonzero(np.in1d(mapped_edges, s_edges))
+            mapped_edges = mapped_edges[valid]
+            index = index[valid]
+            u_vals, edge_index = np.unique(mapped_edges, return_inverse=True)
+            if len(u_vals) < len(valid):
+                edge_partition = Partition(edge_index)
+                for e_part in edge_partition:
+                    if len(e_part) > int(target_level_degree):
+                        r = rg.choice(e_part, int(target_level_degree), replace=False)
+                    else:
+                        r = e_part
+                    edge_mask[index[r]] = True
+            else:
+                edge_mask[index] = True
+
+        rgraph = rgraph.partition_graph(cluster, self_loops=False)
+        node_map = expanded_cluster.cpu().numpy()
     edge_attr = graph.edge_attr[edge_mask] if graph.edge_attr is not None else None
     return TGraph(edge_index=graph.edge_index[:, edge_mask], edge_attr=edge_attr, num_nodes=graph.num_nodes,
                   ensure_sorted=False, undir=graph.undir)
