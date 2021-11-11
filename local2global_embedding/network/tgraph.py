@@ -266,11 +266,15 @@ class TGraph(Graph):
             append_pointer += number_new_nodes
         return bfs_list
 
-    def partition_graph(self, partition):
+    def partition_graph(self, partition, self_loops=True):
         num_clusters = torch.max(partition) + 1
         pe_index = partition[self.edge_index[0]]*num_clusters + partition[self.edge_index[1]]
         partition_edges, weights = torch.unique(pe_index, return_counts=True)
         partition_edges = torch.stack((partition_edges // num_clusters, partition_edges % num_clusters), dim=0)
+        if not self_loops:
+            valid = partition_edges[0] != partition_edges[1]
+            partition_edges = partition_edges[:, valid]
+            weights = weights[valid]
         return self.__class__(edge_index=partition_edges, edge_attr=weights, num_nodes=num_clusters, undir=self.undir)
 
     def sample_negative_edges(self, num_samples):

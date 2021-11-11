@@ -272,9 +272,9 @@ class NPGraph(Graph):
             append_pointer += number_new_nodes
         return bfs_list
 
-    def partition_graph(self, partition):
+    def partition_graph(self, partition, self_loops=True):
         partition = np.asanyarray(partition)
-        partition_edges, weights = self._jitgraph.partition_graph_edges(partition)
+        partition_edges, weights = self._jitgraph.partition_graph_edges(partition, self_loops)
         return self.__class__(edge_index=partition_edges, edge_attr=weights, undir=self.undir)
 
     def sample_negative_edges(self, num_samples):
@@ -414,7 +414,7 @@ class JitGraph:
         edge_index, _ = self.subgraph_edges(sources)
         return JitGraph(edge_index, len(sources), None, None)
 
-    def partition_graph_edges(self, partition):
+    def partition_graph_edges(self, partition, self_loops):
         num_edges = self.num_edges
         with numba.objmode:
             print('finding partition edges')
@@ -424,7 +424,7 @@ class JitGraph:
         for i, (source, target) in enumerate(self.edge_index.T):
             source = partition[source]
             target = partition[target]
-            if source != target:
+            if self_loops or (source != target):
                 edge_counts[source, target] += 1
             if i % 1000000 == 0 and i > 0:
                 with numba.objmode:
@@ -438,8 +438,8 @@ class JitGraph:
             weights[it] = edge_counts[i][j]
         return partition_edges, weights
 
-    def partition_graph(self, partition):
-        edge_index, _ = self.partition_graph_edges(partition)
+    def partition_graph(self, partition, self_loops):
+        edge_index, _ = self.partition_graph_edges(partition, self_loops)
         return JitGraph(edge_index, None, None, None)
 
     def connected_component_ids(self):

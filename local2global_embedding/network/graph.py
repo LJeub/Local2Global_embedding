@@ -244,7 +244,7 @@ class Graph:
         raise NotImplementedError
 
     @abstractmethod
-    def partition_graph(self, partition):
+    def partition_graph(self, partition, self_loops=True):
         raise NotImplementedError
 
     @abstractmethod
