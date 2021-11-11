@@ -2,6 +2,8 @@
 
 from math import log
 import os
+from collections.abc import Iterable
+from math import prod
 from typing import Sequence
 
 import community
@@ -280,6 +282,26 @@ def spread_clustering(graph, num_clusters, max_degree_init=True):
             num_unassigned -= 1
     return clusters
 
+
+def hierarchical_aglomerative_clustering(graph, method=spread_clustering, levels=None, branch_factors=None):
+    if branch_factors is None:
+        branch_factors = [graph.num_nodes**(1/(levels+1)) for _ in range(levels)]
+    else:
+        if not isinstance(branch_factors, Iterable):
+            branch_factors = [branch_factors] * (levels)
+        else:
+            if levels is None:
+                levels = len(branch_factors)
+            elif len(branch_factors) != levels:
+                raise ValueError(f"{levels=} does not match {len(branch_factors)=}")
+    num_clusters = np.cumprod(branch_factors)[::-1]
+    clusters = []
+    rgraph = graph
+    for c in num_clusters:
+        cluster = method(rgraph, int(c))
+        rgraph = rgraph.partition_graph(cluster)
+        clusters.append(cluster)
+    return clusters
 
 
 class Partition(Sequence):
