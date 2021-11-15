@@ -158,7 +158,7 @@ class TGraph(Graph):
         return self.__class__(edge_index=node_ids[self.edge_index[:, index]],
                               edge_attr=edge_attr[index] if edge_attr is not None else None,
                               num_nodes=len(nodes),
-                              ensure_sorted=False,
+                              ensure_sorted=True,
                               undir=self.undir,
                               x=x,
                               y=y,
