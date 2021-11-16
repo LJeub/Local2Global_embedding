@@ -36,8 +36,8 @@ from tqdm.auto import tqdm
 from dask.distributed import worker_client, as_completed, secede, rejoin
 from dask import delayed
 
-from local2global.utils import FilePatch, Patch, MeanAggregatorPatch
-from local2global.utils.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
+from local2global.patch import FilePatch, Patch, MeanAggregatorPatch
+from local2global.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
 
 
 @delayed

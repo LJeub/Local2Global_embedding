@@ -21,7 +21,7 @@ from pathlib import Path
 from dask import bag
 
 import numpy as np
-from local2global.utils.lazy import LazyMeanAggregatorCoordinates
+from local2global.lazy import LazyMeanAggregatorCoordinates
 from local2global_embedding.run.scripts.utils import mean_embedding, compute
 from dask import delayed
 

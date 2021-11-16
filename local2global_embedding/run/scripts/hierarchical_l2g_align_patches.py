@@ -27,7 +27,8 @@ import torch
 from dask import delayed, bag
 from dask.distributed import worker_client, secede, rejoin
 
-from local2global.utils import WeightedAlignmentProblem, MeanAggregatorPatch, SVDAlignmentProblem
+from local2global.utils import WeightedAlignmentProblem, SVDAlignmentProblem
+from local2global.patch import MeanAggregatorPatch
 from local2global_embedding.clustering import spread_clustering, Partition
 from local2global_embedding.sparsify import resistance_sparsify
 
