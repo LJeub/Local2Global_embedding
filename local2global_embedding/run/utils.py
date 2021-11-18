@@ -27,6 +27,7 @@ import argparse
 from inspect import signature
 import typing
 import time
+from ast import literal_eval
 
 import torch
 from docstring_parser import parse as parse_doc
@@ -419,131 +420,162 @@ class Union:
         raise RuntimeError(f'Cannot parse argument {value}')
 
 
-class ArgDefault:
-    def __init__(self, value):
-        self.value = value
+class Argument:
+    """
+    Argument wrapper for ScriptParser
+    """
+    def __init__(self, name='', parameter=None):
+        """
+        Initialize Argument
 
+        Args:
+            name: argument name
+            parameter: signature parameter (optional, used to get default value if specified)
+        """
+        self.name = name
+        self.required = parameter is None or parameter.default is parameter.empty
+        self.is_set = False
+        if not self.required:
+            self._value = parameter.default
+        else:
+            self._value = None
 
-ArgRequired = object()
+    def __call__(self, input_str):
+        """
+        parse argument string
+
+        Args:
+            input_str: string to evaluate
+
+        Returns: self
+
+        Tries to parse `input_str` as python code using `ast.literal_eval`. If this fails, sets value to `input_str`.
+
+        """
+        if not self.is_set:
+            self.is_set = True
+            try:
+                val = literal_eval(input_str)
+            except Exception:  # could not interpret as python literal, assume it is a bare string argument
+                val = input_str
+            self._value = val
+            return self
+        else:
+            raise RuntimeError(f"Tried to set value for argument {self.name!r} multiple times.")
+
+    @property
+    def value(self):
+        if not self.required or self.is_set:
+            return self._value
+        else:
+            raise RuntimeError(f"Missing value for required argument {self.name!r}")
+
+    def __repr__(self):
+        repr_str = f'{self.__class__.__name__}(name={self.name!r})'
+        if self.required:
+            repr_str += ', required'
+
+        if self.is_set:
+            repr_str += f', value={self.value!r}'
+        elif not self.required:
+            repr_str += f', default={self.value!r}'
+
+        return repr_str
 
 
 class ScriptParser:
-    def __init__(self, func, ignore_unknown=False, nargs=None):
+    """
+    Build a command-line interface to a python function
+
+    Inspects the function signature to create command-line arguments. It converts
+    argument `arg` to  long option `--arg`. Parsing is similar to python, supporting
+    mix of positional and named arguments (note its possible to specify named arguments before positional arguments).
+    Also supports use of `*args` and `**kwargs`.
+
+    Help messages are constructed by parsing the doc-string of the wrapped function.
+
+    Can be used as a decorator if function should only be used as a script
+
+    """
+    def __init__(self, func):
+        """
+        Wrap `func` as a command-line interface
+
+        Args:
+            func: Callable
+        """
         self.func = func
-        self.ignore_unknown = ignore_unknown
-        self.nargs = nargs
         self.parser = argparse.ArgumentParser(prog=func.__name__)
-        self._var_pos_type = None
-        self._var_keyword_type = None
-        self._arg_names = []
-        self._arg_types = []
+        self.var_pos = False
+        self.var_keyword = False
+        self.arguments = []
         sig = signature(func).parameters
         docstring = parse_doc(func.__doc__)
         help = {p.arg_name: p.description for p in docstring.params}
         self.parser.description = docstring.short_description
         self.parser.add_argument('_pos', nargs='*')
         for name, parameter in sig.items():
-            self._arg_names.append(name)
-            p_type = self._arg_type(parameter)
-            self._arg_types.append(p_type)
             if parameter.kind == parameter.VAR_POSITIONAL:
-                if self._var_pos_type is None:
-                    self._var_pos_type = p_type
+                if not self.var_pos:
+                    self.var_pos = True
                 else:
                     raise RuntimeError('Only expected a single *args')
             elif parameter.kind == parameter.VAR_KEYWORD:
-                if self._var_keyword_type is None:
-                    self._var_keyword_type = p_type
+                if not self.var_keyword:
+                    self.var_keyword = True
                 else:
                     raise RuntimeError('Only expected a single **kwargs')
-            elif parameter.default is parameter.empty:
-                self.parser.add_argument(f'--{name}', type=p_type, default=ArgRequired, help=help.get(name, name))
             else:
-                help_str = f'{help.get(name,  name)}'
-                if parameter.default is not None:
-                    help_str += ' (default: %(default)s)'
-                self.parser.add_argument("--{}".format(name), type=p_type, default=ArgDefault(parameter.default),
-                                         help=help_str)
-
-    def _arg_type(self, parameter):
-        if parameter.annotation is parameter.empty:
-            if parameter.default is parameter.empty:
-                p_type = str
-            else:
-                p_type = type(parameter.default)
-        else:
-            p_type = parameter.annotation
-
-        if p_type == bool:
-            p_type = BooleanString
-
-        if hasattr(p_type, '__origin__'):
-            # typing GenericAlias
-            if p_type.__origin__ is list:
-                p_type = CSVList(dtype=p_type.__args__[0])
-            elif p_type.__origin__ is typing.Union:
-                p_type = Union(p_type.__args__)
-
-        if p_type != str and isinstance(p_type, Iterable):
-            if parameter.annotation is parameter.empty:
-                l_type = type(next(iter(parameter.default)))
-            else:
-                l_type = type(next(iter(parameter.annotation)))
-            p_type = CSVList(dtype=l_type)
-        return p_type
+                arg = Argument(name, parameter)
+                self.arguments.append(arg)
+                if arg.required:
+                    self.parser.add_argument(f'--{name}', type=arg, default=arg, help=help.get(name, name))
+                else:
+                    help_str = f'{help.get(name,  name)} (default: {arg.value!r})'
+                    self.parser.add_argument("--{}".format(name), type=arg, default=arg, help=help_str)
 
     def parse(self, args=None):
         if args is None:
             args = sys.argv[1:]
-            from_sys = True
-        else:
-            from_sys = False
 
-        if self.nargs is not None:
-            args = args[:self.nargs]
-            if from_sys:
-                sys.argv = sys.argv[self.nargs+1:]
-
-        if self._var_keyword_type is not None:
+        if self.var_keyword:
             _, unknown = self.parser.parse_known_args(args)
             for arg in unknown:
                 if arg.startswith("--"):
-                    self.parser.add_argument(arg, type=self._var_keyword_type)
+                    name = arg[2:]
+                    new_arg = Argument(name)
+                    self.parser.add_argument(arg, type=new_arg, default=new_arg)
+                    self.arguments.append(new_arg)
 
-        if self.ignore_unknown:
-            arg_res, others = self.parser.parse_known_args(args)
-            if from_sys:
-                sys.argv = others
-        else:
-            arg_res = self.parser.parse_args(args)
+        arg_res = self.parser.parse_args(args)
         kwargs = vars(arg_res)
         args = []
         pos_args = kwargs.pop('_pos')
-        for name, p_type, val in zip(self._arg_names, self._arg_types, pos_args):
-            arg_val = kwargs[name]
-            if isinstance(arg_val, ArgDefault) or arg_val is ArgRequired:
-                del kwargs[name]
-                args.append(p_type(val))
+        for arg, val in zip(self.arguments, pos_args):
+            if not arg.is_set:
+                arg = arg(val)
+                args.append(arg.value)
+                kwargs.pop(arg.name)
             else:
                 break
 
-        if self._var_pos_type is not None:
-            args.extend(self._var_pos_type(val) for val in pos_args[len(args):])
+        if self.var_pos:
+            args.extend(Argument()(val).value for val in pos_args[len(args):])
         else:
             if len(args) != len(pos_args):
                 raise RuntimeError('Too many positional arguments specified.')
 
         for name, value in kwargs.items():
-            if isinstance(value, ArgDefault):
-                kwargs[name] = value.value
-            if value is ArgRequired:
-                raise RuntimeError(f'Missing required argument {name}')
+            kwargs[name] = value.value
 
         return args, kwargs
 
-    def run(self):
+    def run(self, args=None):
         """
-        run the wrapped function with arguments passed on sys.argv
+        run the wrapped function with arguments passed on sys.argv or as list of string arguments
         """
-        args, kwargs = self.parse()
+        args, kwargs = self.parse(args)
         self.func(*args, **kwargs)
+
+    def __call__(self, args=None):
+        self.run(args)
