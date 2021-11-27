@@ -17,16 +17,3 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-from pathlib import Path
-
-from pandas import DataFrame, read_csv
-import numpy as np
-import scipy.sparse as ss
-
-from local2global_embedding.run.utils import dataloader
-from local2global_embedding.datasets.LANL import LANL
-
-
-@dataloader('LANL')
-def _load_data(root, protocol='TCP', weight=None, weight_transform=None):
-    return LANL(root, protocol, weight, weight_transform)
