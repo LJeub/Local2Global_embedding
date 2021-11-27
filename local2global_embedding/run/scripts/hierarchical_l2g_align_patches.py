@@ -37,7 +37,7 @@ from local2global_embedding.run.utils import ScriptParser
 
 
 @delayed
-def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
+def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=False):
     if use_tmp:
         patches = [move_to_tmp(p) for p in patches]
     else:
@@ -51,7 +51,7 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
         retry = False
         tries += 1
         try:
-            prob.align_patches(scale=False)
+            prob.align_patches(scale=scale)
         except Exception as e:
             print(e)
             if tries >= max_tries:
@@ -67,9 +67,9 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False):
     return MeanAggregatorPatch(patches)
 
 
-def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=False, resparsify=0):
+def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=False, resparsify=0, scale=False):
     if not clusters:
-        return aligned_coords(patches, patch_graph, verbose, use_tmp)
+        return aligned_coords(patches, patch_graph, verbose, use_tmp, scale)
     else:
         cluster = clusters[0]
         reduced_patch_graph = patch_graph.partition_graph(cluster)
@@ -86,24 +86,38 @@ def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=
                 verbose=verbose,
                 use_tmp=use_tmp)
             )
-        return get_aligned_embedding(reduced_patch_graph, reduced_patches, clusters[1:], verbose, use_tmp, resparsify)
+        return get_aligned_embedding(reduced_patch_graph, reduced_patches, clusters[1:], verbose, use_tmp, resparsify, scale)
 
 
-def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file, cluster_file, mmap=False,
-                                   verbose=False, use_tmp=False, resparsify=0):
-    clusters = torch.load(cluster_file)
+def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file, cluster_file=None, mmap=False,
+                                   verbose=False, use_tmp=False, resparsify=0, store_aligned_patches=False, scale=False):
+    if cluster_file is not None:
+        clusters = torch.load(cluster_file)
+    else:
+        clusters = None
+
     if isinstance(clusters, list) and len(clusters) > 1:
         aligned = get_aligned_embedding(
                 patch_graph=patch_graph, patches=patches, clusters=clusters[1:], verbose=verbose, use_tmp=use_tmp,
-                resparsify=resparsify).coordinates
+                resparsify=resparsify, scale=scale).compute()
     else:
-        aligned = aligned_coords(patches, patch_graph, verbose, use_tmp).coordinates
+        aligned = aligned_coords(patches, patch_graph, verbose, use_tmp, scale).compute()
 
     if mmap:
-        mean_embedding(aligned.patches, shape, output_file, use_tmp)
+        mean_embedding(aligned.coordinates.patches, shape, output_file, use_tmp)
     else:
-        coords = aligned.compute()
+        coords = aligned.coordinates
         np.save(output_file, np.asarray(coords, dtype=np.float32))
+
+    if store_aligned_patches:
+        if scale:
+            postfix = '_aligned_scaled_coords'
+        else:
+            postfix = '_aligned_coords'
+        for patch in aligned.coordinates.patches:
+            f_name = patch.coordinates.filename
+            aligned_f_name = f_name.with_name(f_name.name.replace('_coords', postfix))
+            np.save(aligned_f_name, patch.coordinates)
 
     return output_file
 

@@ -185,7 +185,6 @@ def mean_embedding_chunk(out, patches, start, stop):
 
 
 def mean_embedding(patches, shape, output_file, use_tmp=True):
-    patches = patches.compute()
 
     n_nodes, dim = shape
     try:
