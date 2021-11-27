@@ -24,27 +24,30 @@ import os
 import numpy as np
 import torch
 
-import local2global_embedding.embedding as emb
+import local2global_embedding.embedding.gae as gae
+import local2global_embedding.embedding.dgi as dgi
+import local2global_embedding.embedding.train as training
+from local2global_embedding.embedding.eval import reconstruction_auc
 from local2global_embedding.utils import speye, set_device
 from local2global_embedding.run.utils import ResultsDict, ScriptParser
 
 
 def select_loss(model):
-    if isinstance(model, emb.VGAE):
-        return emb.VGAE_loss
-    elif isinstance(model, emb.GAE):
-        return emb.GAE_loss
-    elif isinstance(model, emb.DGI):
-        return emb.DGILoss()
+    if isinstance(model, gae.VGAE):
+        return gae.VGAE_loss
+    elif isinstance(model, gae.GAE):
+        return gae.GAE_loss
+    elif isinstance(model, dgi.DGI):
+        return dgi.DGILoss()
 
 
 def create_model(model, dim, hidden_dim, num_features, dist):
     if model == 'VGAE':
-        return emb.VGAE(dim, hidden_dim, num_features, dist)
+        return gae.VGAE(dim, hidden_dim, num_features, dist)
     elif model == 'GAE':
-        return emb.GAE(dim, hidden_dim, num_features, dist)
+        return gae.GAE(dim, hidden_dim, num_features, dist)
     elif model == 'DGI':
-        return emb.DGI(num_features, dim)
+        return dgi.DGI(num_features, dim)
 
 
 class Count:
@@ -105,11 +108,11 @@ def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool,
         model.reset_parameters()
 
         ep_count = Count()
-        model = emb.train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose, logger=ep_count)
+        model = training.train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose, logger=ep_count)
 
         coords = model.embed(data)
 
-        auc = emb.reconstruction_auc(coords, data, dist=dist)
+        auc = reconstruction_auc(coords, data, dist=dist)
         loss = float(loss_fun(model, data))
 
         with ResultsDict(results_file) as results:

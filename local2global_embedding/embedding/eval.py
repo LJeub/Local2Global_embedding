@@ -20,11 +20,8 @@
 import numpy as np
 from scipy.special import expit
 import torch
-import torch_geometric as tg
 from sklearn.metrics import roc_auc_score
 from local2global_embedding.network import Graph
-
-from local2global_embedding.embedding.gae.layers.decoders import DistanceDecoder
 
 
 def reconstruction_auc(coordinates, graph: Graph, dist=False, max_samples=int(1e6)):

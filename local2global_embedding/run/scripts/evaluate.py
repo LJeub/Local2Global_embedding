@@ -18,16 +18,13 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 from statistics import mean, stdev
-import sys
-from shutil import copyfile
-from pathlib import Path
 
 import torch
 import numpy as np
 from numpy.lib.format import open_memmap
 from typing import Optional
 
-from local2global_embedding.embedding import reconstruction_auc
+from local2global_embedding.embedding.eval import reconstruction_auc
 from local2global_embedding.classfication import Logistic, train, accuracy
 from local2global_embedding.run.utils import ResultsDict, ScriptParser, load_classification_problem, load_data
 from .utils import ScopedTemporaryFile
