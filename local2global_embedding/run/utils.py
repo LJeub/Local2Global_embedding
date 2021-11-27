@@ -82,7 +82,7 @@ def load_data(name, root='/tmp', restrict_lcc=False, **kwargs):
 
     """
     root = Path(root).expanduser()
-    with SoftFileLock(root / f'{name}.lock', timeout=1200) as lock:
+    with SoftFileLock(root / f'{name}.lock', timeout=10) as lock:
         data = _dataloaders[name](root, **kwargs)
 
         if restrict_lcc:
