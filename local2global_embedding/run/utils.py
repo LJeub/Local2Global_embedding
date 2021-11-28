@@ -28,6 +28,7 @@ from inspect import signature
 import typing
 import time
 from ast import literal_eval
+from traceback import print_exception
 
 import torch
 from docstring_parser import parse as parse_doc
@@ -579,3 +580,14 @@ class ScriptParser:
 
     def __call__(self, args=None):
         self.run(args)
+
+
+def watch_progress(tasks):
+    for c in tasks:
+        if c.status == 'error':
+            print(f'{c} errored')
+            e = c.exception()
+            print_exception(type(e), e, c.traceback())
+        else:
+            print(f'{c} complete')
+        del c
