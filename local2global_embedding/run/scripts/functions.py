@@ -18,10 +18,29 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
-from .evaluate import evaluate
-from .l2g_align_patches import l2g_align_patches
-from .prepare_patches import prepare_patches
-from .train import train
+"""
+provides interface for accessing script functions
+"""
+import importlib
+
+
+def __getattr__(name):
+    if name == '__path__':
+        raise AttributeError  # short circuit for __path__ attribute
+
+    try:
+        module = importlib.import_module('..' + name, __name__)
+    except ModuleNotFoundError:
+        raise AttributeError(f'No function named {name}')
+    func = getattr(module, name)
+    globals()[name] = func  # make future lookups fast
+    return func
+
+# from .evaluate import evaluate
+# from .l2g_align_patches import l2g_align_patches
+# from .prepare_patches import prepare_patches
+# from .train import train
 from .hierarchical_l2g_align_patches import hierarchical_l2g_align_patches
-from local2global_embedding.run.scripts.no_transform_embedding import no_transform_embedding
-from .utils import load_patches
+# from local2global_embedding.run.scripts.no_transform_embedding import no_transform_embedding
+# from .utils import load_patches
+# from .svd_patch import svd_patch
