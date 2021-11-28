@@ -45,8 +45,6 @@ from typing import List
 from runpy import run_path
 from traceback import print_exception
 
-import local2global_embedding.run.scripts.no_transform_embedding
-import local2global_embedding.run.scripts.utils
 import torch
 import dask
 import dask.distributed
@@ -414,4 +412,4 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
 if __name__ == '__main__':
     # run main script
-    parser = ScriptParser(run).run()
+    ScriptParser(run).run()
