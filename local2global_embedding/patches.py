@@ -257,7 +257,7 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
     return patches, pg
 
 
-def rolling_window_edges(n_patches, w):
+def rolling_window_graph(n_patches, w):
     """
     Generate patch edges for a rolling window
 
@@ -266,7 +266,5 @@ def rolling_window_edges(n_patches, w):
         w: window width (patches connected to the w nearest neighbours on either side)
 
     """
-    for i in range(n_patches):
-        for j in range(max(i-w, 0), min(i+w+1, n_patches)):
-            if i != j:
-                yield i, j
+    edges = [(i, j) for i in range(n_patches) for j in range(max(i-w, 0), min(i+w+1, n_patches)) if i != j]
+    return TGraph(edge_index=torch.tensor(edges).T, num_nodes=n_patches, undir=True)
