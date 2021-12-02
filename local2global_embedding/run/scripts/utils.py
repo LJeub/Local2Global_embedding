@@ -22,7 +22,7 @@ from shutil import copyfile, move
 from tempfile import gettempdir, NamedTemporaryFile
 from operator import add
 
-import dask.bag
+import dask.array as da
 from filelock import FileLock, SoftFileLock
 import os
 from threading import Lock
@@ -240,3 +240,22 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=Fals
     return MeanAggregatorPatch(patches)
 
 
+@delayed
+def mmap_dask_chunk(filename, sl):
+    data = np.load(filename, mmap_mode='r+')
+    return data[sl]
+
+
+def mmap_dask_array(filename, dtype=None, shape=None, blocksize=5):
+    filename = Path(filename)
+    if not filename.is_file():
+        data = open_memmap(filename, mode='w+', dtype=dtype, shape=shape)
+    else:
+        data = np.load(filename, mmap_mode='r+')
+    shape = data.shape
+    chunks = []
+    for index in range(0, shape[0], blocksize):
+        chunk_size = min(blocksize, shape[0]-index)
+        chunks.append(da.from_delayed(mmap_dask_chunk(filename, slice(index, index+chunk_size)),
+                      shape=(chunk_size,)+shape[1:], dtype=data.dtype))
+    return da.concatenate(chunks, axis=0)
