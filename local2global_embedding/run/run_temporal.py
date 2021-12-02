@@ -23,12 +23,11 @@ from dask import delayed
 from runpy import run_path
 
 from local2global_embedding.run.scripts import functions as func
-from local2global_embedding.patches import rolling_window_graph
 from local2global_embedding.run.utils import load_data, ScriptParser, watch_progress
 
 
 def run(name='LANL', data_root=None, data_opts={'protocol': 'TCP'}, dims=(2,),
-        output='.', scale=True, verbose_l2g=False, levels=1, window=7, cluster_init=True):
+        output='.', scale=True, alignment_type='temporal', alignment_window=14, use_median=True, cluster_init=True):
     model = 'SVD'
     cluster_init_path = Path().home() / '.config' / 'dask' / 'cluster_init.py'
     if cluster_init and cluster_init_path.is_file():
@@ -41,7 +40,6 @@ def run(name='LANL', data_root=None, data_opts={'protocol': 'TCP'}, dims=(2,),
         output = Path(output)
         data = load_data(name, root=data_root, **data_opts)
         n_patches = len(data.timesteps)
-        patch_graph = delayed(rolling_window_graph)(n_patches, window)
         patch_folder_name = '_'.join([name, model] + [f'{key}={value}' for key, value in data_opts.items()])
 
         patch_folder = output / patch_folder_name
@@ -51,26 +49,43 @@ def run(name='LANL', data_root=None, data_opts={'protocol': 'TCP'}, dims=(2,),
         all_tasks = []
         for d in dims:
             for index in range(n_patches):
-                patches = delayed(func.svd_patches)(data=data, index=index, output_folder=patch_folder, dim=d)
-                patches_s.append(patches[0])
-                patches_t.append(patches[1])
+                patches = delayed(func.svd_patches)(data=data, index=index, output_folder=patch_folder, dim=d).persist()
+                patches_s.append(patches[0].persist())
+                patches_t.append(patches[1].persist())
+            if alignment_type == 'temporal':
+                error_s = client.submit(func.temporal_align_errors, patches=patches_s,
+                                        scale=scale,
+                                        output_file=patch_folder / f'source_temporal_alignment_errors.npy')
+                all_tasks.append(error_s)
 
-            all_tasks.append(
-                client.submit(
-                    func.hierarchical_l2g_align_patches,
-                        patch_graph=patch_graph, shape=(n_patches, d), patches=patches_s,
-                        output_file=patch_folder / f'source_{model}_{d}_mean_coords.npy',
-                        cluster_file=None, mmap=False,
-                        verbose=verbose_l2g, use_tmp=False, resparsify=0,
-                        store_aligned_patches=True, scale=scale))
+                error_t = client.submit(func.temporal_align_errors, patches=patches_t,
+                                        scale=scale,
+                                        output_file=patch_folder / f'dest_temporal_alignment_errors.npy')
+                all_tasks.append(error_t)
+            elif alignment_type == 'windowed':
+                error_s = client.submit(func.windowed_align_errors, patches=patches_s,
+                                        window=alignment_window, scale=scale, use_median=use_median,
+                                        output_file=patch_folder / f'source_alignment_errors_window={alignment_window}.npy')
+                all_tasks.append(error_s)
 
-            all_tasks.append(
-                client.submit(func.hierarchical_l2g_align_patches,
-                        patch_graph=patch_graph, shape=(n_patches, d), patches=patches_t,
-                        output_file=patch_folder / f'dest_{model}_{d}_mean_coords.npy',
-                        cluster_file=None, mmap=False,
-                        verbose=verbose_l2g, use_tmp=False, resparsify=0,
-                        store_aligned_patches=True, scale=scale))
+                error_t = client.submit(func.windowed_align_errors, patches=patches_t,
+                                        window=alignment_window, scale=scale, use_median=use_median,
+                                        output_file=patch_folder / f'dest_alignment_errors_window={alignment_window}.npy')
+                all_tasks.append(error_t)
+            elif alignment_type == 'global':
+                error_s = client.submit(func.global_align_errors, patches=patches_s, window=alignment_window, scale=scale,
+                                         output_file=patch_folder / f'source_global_alignment_errors_window={alignment_window}.npy')
+                all_tasks.append(error_s)
+
+                error_t = client.submit(func.global_align_errors, patches=patches_t, window=alignment_window, scale=scale,
+                                         output_file=patch_folder / f'dest_global_alignment_errors_window={alignment_window}.npy')
+                all_tasks.append(error_t)
+
+        all_tasks.append(client.submit(func.leave_out_z_score_errors, error_file=error_s))
+        all_tasks.append(client.submit(func.leave_out_z_score_errors, error_file=error_t))
+        del error_t
+        del error_s
+
         all_tasks = as_completed(all_tasks)
         watch_progress(all_tasks)
 
