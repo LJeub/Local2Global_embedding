@@ -17,54 +17,15 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-from pathlib import Path
-from shutil import copyfile, move
-from tempfile import gettempdir, NamedTemporaryFile
-from copy import copy
 
 import numpy as np
 import torch
-from dask import delayed, bag
-from dask.distributed import worker_client, secede, rejoin
 
-from local2global.utils import WeightedAlignmentProblem, SVDAlignmentProblem
-from local2global.patch import MeanAggregatorPatch
-from local2global_embedding.clustering import spread_clustering, Partition
+from local2global_embedding.clustering import Partition
 from local2global_embedding.sparsify import resistance_sparsify
 
-from .utils import load_patches, move_to_tmp, restore_from_tmp, mean_embedding
+from .utils import mean_embedding, aligned_coords
 from local2global_embedding.run.utils import ScriptParser
-
-
-@delayed
-def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=False):
-    if use_tmp:
-        patches = [move_to_tmp(p) for p in patches]
-    else:
-        patches = [copy(p) for p in patches]
-
-    prob = SVDAlignmentProblem(patches, patch_graph.edges(), copy_data=False, verbose=verbose)
-    retry = True
-    tries = 0
-    max_tries = 3
-    while retry and tries < max_tries:
-        retry = False
-        tries += 1
-        try:
-            prob.align_patches(scale=scale)
-        except Exception as e:
-            print(e)
-            if tries >= max_tries:
-                raise e
-            else:
-                retry = True
-
-    if use_tmp:
-        patches = [restore_from_tmp(p) for p in prob.patches]
-    else:
-        patches = prob.patches
-
-    return MeanAggregatorPatch(patches)
 
 
 def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=False, resparsify=0, scale=False):

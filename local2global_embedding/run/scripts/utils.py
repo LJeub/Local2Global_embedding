@@ -31,6 +31,7 @@ from weakref import finalize
 import numpy as np
 from pathlib import Path
 
+from local2global import SVDAlignmentProblem
 from numpy.lib.format import open_memmap
 from tqdm.auto import tqdm
 from dask.distributed import worker_client, as_completed, secede, rejoin
@@ -205,4 +206,37 @@ def mean_embedding(patches, shape, output_file, use_tmp=True):
     except Exception as e:
         remove_file(work_file)
         raise e
+
+
+
+@delayed
+def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=False):
+    if use_tmp:
+        patches = [move_to_tmp(p) for p in patches]
+    else:
+        patches = [copy(p) for p in patches]
+
+    prob = SVDAlignmentProblem(patches, patch_graph.edges(), copy_data=False, verbose=verbose)
+    retry = True
+    tries = 0
+    max_tries = 3
+    while retry and tries < max_tries:
+        retry = False
+        tries += 1
+        try:
+            prob.align_patches(scale=scale)
+        except Exception as e:
+            print(e)
+            if tries >= max_tries:
+                raise e
+            else:
+                retry = True
+
+    if use_tmp:
+        patches = [restore_from_tmp(p) for p in prob.patches]
+    else:
+        patches = prob.patches
+
+    return MeanAggregatorPatch(patches)
+
 
