@@ -1,6 +1,7 @@
 """Dividing input data into overlapping patches"""
 from random import choice
 from math import ceil
+from collections.abc import Iterable
 
 import torch
 import numpy as np
@@ -266,5 +267,16 @@ def rolling_window_graph(n_patches, w):
         w: window width (patches connected to the w nearest neighbours on either side)
 
     """
-    edges = [(i, j) for i in range(n_patches) for j in range(max(i-w, 0), min(i+w+1, n_patches)) if i != j]
+    if not isinstance(w, Iterable):
+        w = range(1, w)
+    edges = []
+    for i in range(n_patches):
+        for wi in w:
+            j = i-wi
+            if j >= 0 and i != j:
+                edges.append((i, j))
+        for wi in w:
+            j = i + wi
+            if j < n_patches and i != j:
+                edges.append((i, j))
     return TGraph(edge_index=torch.tensor(edges).T, num_nodes=n_patches, undir=True)
