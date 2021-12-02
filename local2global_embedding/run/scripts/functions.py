@@ -23,6 +23,7 @@ provides interface for accessing script functions
 """
 import importlib
 
+from .utils import load_patches
 
 def __getattr__(name):
     if name == '__path__':
@@ -42,5 +43,5 @@ def __getattr__(name):
 # from .train import train
 from .hierarchical_l2g_align_patches import hierarchical_l2g_align_patches
 # from local2global_embedding.run.scripts.no_transform_embedding import no_transform_embedding
-# from .utils import load_patches
+#
 # from .svd_patch import svd_patch
