@@ -160,7 +160,7 @@ def quantile_errors(errors, quantile=0.75):
     return (errors-m) / q
 
 
-def LOF_error(prob, min_points=21):
+def LOF_error(prob, min_points=21, use_min=False):
     if isinstance(min_points, Iterable):
         lof = [LocalOutlierFactor(n_neighbors=n) for n in min_points]
         min_points = max(min_points)
@@ -170,7 +170,10 @@ def LOF_error(prob, min_points=21):
     for i, pids in tqdm(enumerate(prob.patch_index), total=prob.n_nodes):
         if len(pids) > min_points:
             points = np.array([prob.patches[pid].get_coordinate(i) for pid in pids])
-            out[i, pids] = -1 - np.min([l.fit(points).negative_outlier_factor_ for l in lof], axis=0)
+            if use_min:
+                out[i, pids] = -1 - np.max([l.fit(points).negative_outlier_factor_ for l in lof], axis=0)
+            else:
+                out[i, pids] = -1 - np.min([l.fit(points).negative_outlier_factor_ for l in lof], axis=0)
     return out
 
 
