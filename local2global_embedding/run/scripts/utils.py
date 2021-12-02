@@ -164,6 +164,7 @@ def get_n_nodes(patches):
     return max(p.nodes.max() for p in patches) + 1
 
 
+@delayed
 def get_dim(patch):
     return patch.shape[1]
 
@@ -207,6 +208,15 @@ def mean_embedding(patches, shape, output_file, use_tmp=True):
         remove_file(work_file)
         raise e
 
+
+@delayed
+def num_nodes(patches):
+    return max(p.nodes.max() for p in patches) + 1
+
+
+@delayed
+def num_patches(patches):
+    return len(patches)
 
 
 @delayed
