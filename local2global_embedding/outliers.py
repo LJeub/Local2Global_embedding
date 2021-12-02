@@ -65,6 +65,15 @@ def nan_z_score(errors, axis=1):
     return (errors-m_errors) / (std_errors + 1e-16)
 
 
+def bootstrap_nan_z_score(errors, repeats=100, random_state=None):
+    rg = np.random.default_rng(random_state)
+    samples = rg.integers(errors.shape[1], size=(errors.shape[1], repeats))
+    b_errors = errors[:, samples]
+    m_errors = np.nanmedian(np.nanmean(b_errors, axis=1, keepdims=True), axis=2)
+    std_errors = np.nanmedian(np.nanstd(b_errors, axis=1, keepdims=True), axis=2)
+    return (errors - m_errors) / (std_errors + 1e-16)
+
+
 def leave_out_nan_z_score(errors):
     z_errors = np.full(errors.shape, float('nan'))
     for i in range(errors.shape[1]):
