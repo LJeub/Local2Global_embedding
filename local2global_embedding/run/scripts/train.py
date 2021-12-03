@@ -20,6 +20,7 @@
 from pathlib import Path
 from typing import Optional
 import os
+from collections.abc import Iterable
 
 import numpy as np
 import torch
@@ -58,7 +59,7 @@ class Count:
         self.count += 1
 
 
-def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool, results_file: str,
+def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, results_file: str,
           dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
           device: Optional[str] = None, runs=1, normalise_features=False):
     """
@@ -78,6 +79,8 @@ def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool,
     device = set_device(device)
     data_str = data
     model_str = model
+    if not isinstance(lr, Iterable):
+        lr = [lr] * runs
 
     print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailiable")} and device={device}')
     data = torch.load(data).to(device)
@@ -104,11 +107,11 @@ def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool,
 
     updated_auc = False
     updated_loss = False
-    while runs_done < runs:
+    for r in range(runs_done, runs):
         model.reset_parameters()
 
         ep_count = Count()
-        model = training.train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose, logger=ep_count)
+        model = training.train(data, model, loss_fun, num_epochs, patience, lr[r], verbose=verbose, logger=ep_count)
 
         coords = model.embed(data)
 
@@ -127,7 +130,7 @@ def train(data, model, lr: float, num_epochs: int, patience: int, verbose: bool,
                 updated_auc = True
                 torch.save(model.state_dict(), model_auc_file)
                 np.save(coords_auc_file, coords.cpu().numpy())
-            results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr, 'num_epochs': num_epochs,
+            results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr[r], 'num_epochs': num_epochs,
                                                               'patience': patience, 'dist': dist})
             runs_done = results.runs(dim)
 

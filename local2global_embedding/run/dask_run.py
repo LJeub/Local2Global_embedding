@@ -44,7 +44,9 @@ from pathlib import Path
 from typing import List
 from runpy import run_path
 from traceback import print_exception
+from collections.abc import Iterable
 
+import numpy as np
 import torch
 import dask
 import dask.distributed
@@ -180,6 +182,14 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     if normalise:
         eval_basename += '_norm'
         train_basename += '_norm'
+
+    if isinstance(lr, Iterable):
+        lr = list(lr)
+        if len(lr) < runs:
+            if len(lr) == 2:
+                lr = np.logspace(np.log(lr[0]), np.log(lr[1]), runs)
+            else:
+                raise ValueError(f'Number of learning rates {len(lr)} specified does not match number of runs {runs}.')
 
     all_tasks = as_completed()
 
