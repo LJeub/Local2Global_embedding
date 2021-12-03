@@ -20,17 +20,20 @@
 from pathlib import Path
 
 import numpy as np
-import dask.array as da
+from dask import delayed
 
-from dask.distributed import wait, worker_client
+from dask.distributed import worker_client, as_completed
 
 from local2global_embedding.outliers import leave_out_nan_z_score
-from local2global_embedding.run.scripts.utils import mmap_dask_array
+from local2global_embedding.run.utils import watch_progress
 
 
-def z_score_chunk(in_chunk, out_chunk):
+@delayed
+def z_score_chunk(input_file, output_file, chunk):
+    in_chunk = np.load(input_file, mmap_mode='r')[chunk]
+    out_chunk = np.load(output_file, mmap_mode='r+')[chunk]
     out_chunk[:] = leave_out_nan_z_score(in_chunk)
-    return out_chunk
+    out_chunk.flush()
 
 
 def leave_out_z_score_errors(error_file, blocksize=None):
@@ -43,13 +46,16 @@ def leave_out_z_score_errors(error_file, blocksize=None):
             if blocksize is None:
                 shape = error_data.shape
                 blocksize = int(min(2**24/shape[1], shape[0]))
-
-            errors = mmap_dask_array(error_file, blocksize=blocksize)
-            out = mmap_dask_array(workfile, shape=error_data.shape, dtype=error_data.dtype, blocksize=blocksize)
-            out = da.map_blocks(z_score_chunk, errors, out, dtype=error_data.dtype, meta=np.array((), dtype=error_data.dtype))
+            out_data = np.lib.format.open_memmap(workfile, mode='w+', shape=error_data.shape, dtype=error_data.dtype)
+            out_data.flush()
+            tasks = []
+            for i in range(0, error_data.shape[0], blocksize):
+                tasks.append(z_score_chunk(error_file, workfile, slice(i, i+blocksize)))
             with worker_client() as client:
-                task = client.compute(out)
-                wait(task)
+                tasks = client.compute(tasks)
+                tasks = as_completed(tasks)
+                watch_progress(tasks)
+
             workfile.replace(output_file)
         finally:
             workfile.unlink(missing_ok=True)
