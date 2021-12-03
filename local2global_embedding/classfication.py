@@ -128,11 +128,8 @@ class ClassificationProblem:
             y = torch.tensor(self.y)
             y[self.val_index] = -1
             y[self.test_index] = -1
-            if isinstance(self.x, np.memmap):
-                return MMapData(self.x, y)
-            else:
-                x = torch.as_tensor(self.x)
-                return torch.utils.data.TensorDataset(x, y)
+            x = torch.as_tensor(self.x)
+            return torch.utils.data.TensorDataset(x, y)
         else:
             return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.train_index, :]),
                                                   torch.as_tensor(self.y[self.train_index]))
