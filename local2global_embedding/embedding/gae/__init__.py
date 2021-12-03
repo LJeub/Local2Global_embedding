@@ -19,4 +19,3 @@
 #  SOFTWARE.
 from .models import VGAE, GAE
 from .utils.loss import VGAE_loss, GAE_loss
-from .utils.eval import reconstruction_auc
