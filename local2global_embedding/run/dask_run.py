@@ -187,7 +187,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         lr = list(lr)
         if len(lr) < runs:
             if len(lr) == 2:
-                lr = np.logspace(np.log(lr[0]), np.log(lr[1]), runs)
+                lr = np.logspace(np.log10(lr[0]), np.log10(lr[1]), runs)
             else:
                 raise ValueError(f'Number of learning rates {len(lr)} specified does not match number of runs {runs}.')
 
