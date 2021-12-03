@@ -587,7 +587,7 @@ def watch_progress(tasks):
         if c.status == 'error':
             print(f'{c} errored')
             e = c.exception()
-            print_exception(type(e), e, c.traceback())
+            raise e
         else:
             print(f'{c} complete')
         del c
