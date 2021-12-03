@@ -82,8 +82,6 @@ def train(data, model, loss_fun, num_epochs=10000, patience=20, lr=0.01, weight_
             model.train()
             optimizer.zero_grad()
             loss = loss_fun(model, data)
-            loss.backward()
-            optimizer.step()
             f_loss = float(loss)
             logger(f_loss)
             if verbose:
@@ -92,5 +90,6 @@ def train(data, model, loss_fun, num_epochs=10000, patience=20, lr=0.01, weight_
                 if verbose:
                     print(f'Early stopping at epoch {e}')
                 break
-
+            loss.backward()
+            optimizer.step()
     return model
