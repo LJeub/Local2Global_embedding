@@ -122,10 +122,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         logging.basicConfig(level=logging.DEBUG)
 
     if cluster_init:
+        print('setting up cluster')
         cluster_init_path = Path().home() / '.config' / 'dask' / 'cluster_init.py'
         kwargs = run_path(cluster_init_path)
         client = Client(kwargs['cluster'])
     else:
+        print('launching default client')
         client = Client()
     print(client.dashboard_link)
     if 'gpu' in dask.config.get('distributed.worker.resources'):
@@ -421,5 +423,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
 
 if __name__ == '__main__':
+    print('launching main training script')
     # run main script
     ScriptParser(run).run()
