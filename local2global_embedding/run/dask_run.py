@@ -139,6 +139,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         dims = [2]
     output_folder = Path(output).expanduser()
     data_root = Path(data_root).expanduser()
+    result_folder_name = f'{num_epochs=}_{patience=}_{lr=}'
     print(f'Started experiment for data set {name}')
     print(f'Results will be placed in {output_folder.resolve()}')
     print(f'Data root is {data_root.resolve()}')
@@ -185,6 +186,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         eval_basename += '_norm'
         train_basename += '_norm'
 
+
     if isinstance(lr, Iterable):
         lr = list(lr)
         if len(lr) < runs:
@@ -212,8 +214,10 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     if run_baseline:
         # compute baseline full model if necessary
-        baseline_info_file = output_folder / f'{train_basename}_full_info.json'
-        baseline_loss_eval_file = output_folder / f'{eval_basename}_full_loss_eval.json'
+        result_folder = output_folder / result_folder_name
+        result_folder.mkdir(exist_ok=True)
+        baseline_info_file = result_folder / f'{train_basename}_full_info.json'
+        baseline_loss_eval_file = result_folder / f'{eval_basename}_full_loss_eval.json'
         baseline_auc_eval_file = baseline_loss_eval_file.with_name(
             baseline_loss_eval_file.name.replace('_loss_', '_auc_'))
         data_file = output_folder / f'{name}_data.pt'
@@ -242,7 +246,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             with ResultsDict(baseline_loss_eval_file, replace=True) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
-                    coords_file = output_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
+                    coords_file = result_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
@@ -264,7 +268,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             with ResultsDict(baseline_auc_eval_file, replace=True) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
-                    coords_file = output_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
+                    coords_file = result_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
@@ -290,14 +294,15 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                                      num_iters, beta, levels, sparsify, target_patch_degree,
                                                      gamma)
     cluster_file = output_folder / cluster_file_name(name, cluster, num_clusters, num_iters, beta, levels)
-
+    result_folder = patch_folder / result_folder_name
+    result_folder.mkdir(exist_ok=True, parents=True)
     num_patches = dask.delayed(patch_graph_remote).num_nodes.compute()
     for d in dims:
         patch_tasks = []
         shape = (n_nodes, d)
         for pi in range(num_patches):
             patch_data_file = patch_folder / f'patch{pi}_data.pt'
-            patch_result_file = patch_folder / f'{train_basename}_patch{pi}_info.json'
+            patch_result_file = result_folder / f'{train_basename}_patch{pi}_info.json'
             with ResultsDict(patch_result_file) as patch_results:
                 r = patch_results.runs(d)
             if r < runs:
@@ -316,18 +321,19 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
         for criterion in ('auc', 'loss'):
             if levels == 1:
-                l2g_coords_file = patch_folder / f'{train_basename}_d{d}_l2g_{criterion}_coords.npy'
-                l2g_eval_file = patch_folder / f'{eval_basename}_l2g_{criterion}_eval.json'
+                l2g_coords_file = result_folder / f'{train_basename}_d{d}_l2g_{criterion}_coords.npy'
+                l2g_eval_file = result_folder / f'{eval_basename}_l2g_{criterion}_eval.json'
             else:
-                l2g_coords_file = patch_folder / f'{train_basename}_d{d}_l2g_hc{levels}_{criterion}_coords.npy'
-                l2g_eval_file = patch_folder / f'{eval_basename}_l2g_hc{levels}_{criterion}_eval.json'
-            nt_coords_file = patch_folder / f'{train_basename}_d{d}_nt_{criterion}_coords.npy'
-            nt_eval_file = patch_folder / f'{eval_basename}_nt_{criterion}_eval.json'
+                l2g_coords_file = result_folder / f'{train_basename}_d{d}_l2g_hc{levels}_{criterion}_coords.npy'
+                l2g_eval_file = result_folder / f'{eval_basename}_l2g_hc{levels}_{criterion}_eval.json'
+            nt_coords_file = result_folder / f'{train_basename}_d{d}_nt_{criterion}_coords.npy'
+            nt_eval_file = result_folder / f'{eval_basename}_nt_{criterion}_eval.json'
 
             if patch_tasks or not l2g_coords_file.is_file() or not nt_coords_file.is_file():
                 patches = client.submit(with_dependencies(func.load_patches), _depends_on=patch_tasks,
                                         patch_graph=patch_graph_remote,
                                         patch_folder=patch_folder,
+                                        result_folder=result_folder,
                                         basename=train_basename,
                                         dim=d,
                                         criterion=criterion,

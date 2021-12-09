@@ -42,29 +42,29 @@ from local2global.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
 
 
 @delayed
-def load_patch(patch_folder, i, basename, dim, criterion):
+def load_patch(patch_folder, result_folder, i, basename, dim, criterion):
     nodes = np.load(patch_folder / f'patch{i}_index.npy')
-    coords = np.load(patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+    coords = np.load(result_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
     return Patch(nodes, LazyCoordinates(coords))
 
 
 @delayed
-def load_file_patch(patch_folder, i, basename, dim, criterion):
+def load_file_patch(patch_folder, result_folder, i, basename, dim, criterion):
     nodes = np.load(patch_folder / f'patch{i}_index.npy')
-    patch = FilePatch(nodes, patch_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+    patch = FilePatch(nodes, result_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
     return patch
 
 
-def load_patches(patch_graph, patch_folder, basename, dim, criterion, lazy=True, use_tmp=False):
+def load_patches(patch_graph, patch_folder, result_folder, basename, dim, criterion, lazy=True, use_tmp=False):
     patches = []
     patch_folder = Path(patch_folder)
     if patch_folder.is_absolute():
         patch_folder = patch_folder.relative_to(Path.cwd())  # make relative path such that use_tmp works correctly
     for i in tqdm(range(patch_graph.num_nodes), desc='load patches'):
         if lazy:
-            patches.append(load_file_patch(patch_folder, i, basename, dim, criterion))
+            patches.append(load_file_patch(patch_folder, result_folder, i, basename, dim, criterion))
         else:
-            patches.append(load_patch(patch_folder, i, basename, dim, criterion))
+            patches.append(load_patch(patch_folder, result_folder, i, basename, dim, criterion))
     return patches
 
 
