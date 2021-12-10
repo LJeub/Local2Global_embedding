@@ -59,6 +59,7 @@ import dask.distributed
 from dask.distributed import as_completed, Client, get_worker
 
 print('importing log and progress modules')
+from tqdm.auto import tqdm
 import enlighten
 import logging
 
@@ -309,7 +310,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     for d in dims:
         patch_tasks = []
         shape = (n_nodes, d)
-        for pi in range(num_patches):
+        for pi in tqdm(range(num_patches), desc='submitting patch tasks'):
             patch_data_file = patch_folder / f'patch{pi}_data.pt'
             patch_result_file = result_folder / f'{train_basename}_patch{pi}_info.json'
             with ResultsDict(patch_result_file, lock=False) as patch_results:
