@@ -150,6 +150,20 @@ def cluster_file_name(name, cluster='metis', num_clusters=10, num_iters: int=Non
     return f'{name}_{cl_string}_clusters.pt'
 
 
+class NoLock:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def acquire(self):
+        pass
+
+    def release(self):
+        pass
+
+
 class ResultsDict:
     """
     Class for keeping track of results
@@ -182,14 +196,17 @@ class ResultsDict:
             with atomic_write(self.filename, overwrite=True) as f:  # this should avoid any chance of loosing existing data
                 json.dump(self._data, f)
 
-    def __init__(self, filename, replace=False):
+    def __init__(self, filename, replace=False, lock=True):
         """
         initialise empty ResultsDict
         Args:
             replace: set the replace attribute (default: ``False``)
         """
         self.filename = Path(filename)
-        self._lock = SoftFileLock(self.filename.with_suffix('.lock'), timeout=10)
+        if lock:
+            self._lock = SoftFileLock(self.filename.with_suffix('.lock'), timeout=10)
+        else:
+            self._lock = NoLock()  # implements lock interface without doing anything
         with self._lock:
             if not self.filename.is_file():
                 self._data = {'dims': [], 'runs': []}

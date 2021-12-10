@@ -227,7 +227,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             torch.save(data, data_file)
         for d in dims:
             baseline_tasks = []
-            with ResultsDict(baseline_info_file) as baseline_data:
+            with ResultsDict(baseline_info_file, lock=False) as baseline_data:
                 r = baseline_data.runs(d)
 
             if r < runs:
@@ -244,7 +244,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 all_tasks.add(task)
                 del task
 
-            with ResultsDict(baseline_loss_eval_file, replace=True) as eval_results:
+            with ResultsDict(baseline_loss_eval_file, replace=True, lock=False) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
                     coords_file = result_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
@@ -266,7 +266,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     all_tasks.add(task)
                     del task
 
-            with ResultsDict(baseline_auc_eval_file, replace=True) as eval_results:
+            with ResultsDict(baseline_auc_eval_file, replace=True, lock=False) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
                     coords_file = result_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
@@ -303,7 +303,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         for pi in range(num_patches):
             patch_data_file = patch_folder / f'patch{pi}_data.pt'
             patch_result_file = result_folder / f'{train_basename}_patch{pi}_info.json'
-            with ResultsDict(patch_result_file) as patch_results:
+            with ResultsDict(patch_result_file, lock=False) as patch_results:
                 r = patch_results.runs(d)
             if r < runs:
                 task = client.submit(func.train, pure=False, resources=gpu_req,
@@ -351,7 +351,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          resparsify=resparsify)
                 l2g_task.add_done_callback(progress_callback(align_progress))
                 all_tasks.add(l2g_task)
-            with ResultsDict(l2g_eval_file, replace=True) as l2g_eval:
+            with ResultsDict(l2g_eval_file, replace=True, lock=False) as l2g_eval:
                 if l2g_task or not l2g_eval.contains_dim(d):
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=l2g_task,
                                          resources=gpu_req,
@@ -386,7 +386,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 nt_task.add_done_callback(progress_callback(align_progress))
                 all_tasks.add(nt_task)
 
-            with ResultsDict(nt_eval_file, replace=True) as nt_eval:
+            with ResultsDict(nt_eval_file, replace=True, lock=False) as nt_eval:
                 if nt_task or not nt_eval.contains_dim(d):
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=nt_task,
                                          resources=gpu_req,
