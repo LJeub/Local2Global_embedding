@@ -39,6 +39,7 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+print('importing build-in modules')
 import sys
 from pathlib import Path
 from typing import List
@@ -46,14 +47,22 @@ from runpy import run_path
 from traceback import print_exception
 from collections.abc import Iterable
 
+print('importing numpy')
 import numpy as np
+
+print('importing pytorch')
 import torch
+
+print('importing dask')
 import dask
 import dask.distributed
-import enlighten
 from dask.distributed import as_completed, Client, get_worker
+
+print('importing log and progress modules')
+import enlighten
 import logging
 
+print('importing needed functions')
 from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, patch_folder_name, cluster_file_name
 from local2global_embedding.run.scripts import functions as func
 
