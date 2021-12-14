@@ -31,7 +31,7 @@ from .utils import ScopedTemporaryFile
 
 
 def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str, results_file: str, dist=False,
-             device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=1000,
+             device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=100000,
              mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False):
     print(f'evaluating {embedding_file} with {runs} classification runs.')
     graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
