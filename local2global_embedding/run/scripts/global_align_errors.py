@@ -38,16 +38,21 @@ def global_align_errors(patches, output_file, window=14, scale=True, verbose=Fal
         rejoin()
 
         workfile = output_file.with_suffix('.tmp.npy')
+        ref_file = workfile.with_name(workfile.name.replace('error', 'reference'))
         try:
             errors = np.lib.format.open_memmap(workfile, mode='w+', dtype=float, shape=(n_nodes, len(aligned.patches)))
-            reference = np.zeros((n_nodes, aligned.shape[1]))
+            reference = np.lib.format.open_memmap(ref_file, mode='w+', dtype=float, shape=(n_nodes, aligned.shape[1]))
+            reference[:, :] = np.nan
             errors[:, :] = np.nan
             reference[aligned.nodes] = aligned.coordinates
             for i, p in enumerate(aligned.patches):
                 errors[p.nodes, i] = local_error(p, reference)
 
             errors.flush()
+            reference.flush()
             workfile.replace(output_file)
+            ref_file.replace(ref_file.with_name(ref_file.name.replace('.tmp', '')))
         finally:
             workfile.unlink(missing_ok=True)
+            ref_file.unlink(missing_ok=True)
     return output_file
