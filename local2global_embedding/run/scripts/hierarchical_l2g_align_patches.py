@@ -60,22 +60,23 @@ def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file, clu
     if isinstance(clusters, list) and len(clusters) > 1:
         aligned = get_aligned_embedding(
                 patch_graph=patch_graph, patches=patches, clusters=clusters[1:], verbose=verbose, use_tmp=use_tmp,
-                resparsify=resparsify, scale=scale).compute()
+                resparsify=resparsify, scale=scale)
     else:
-        aligned = aligned_coords(patches, patch_graph, verbose, use_tmp, scale).compute()
+        aligned = aligned_coords(patches, patch_graph, verbose, use_tmp, scale)
 
+    coords = aligned.coordinates.persist()
+    patches = coords.patches.compute()
     if mmap:
-        mean_embedding(aligned.coordinates.patches, shape, output_file, use_tmp)
+        mean_embedding(patches, shape, output_file, use_tmp)
     else:
-        coords = aligned.coordinates
-        np.save(output_file, np.asarray(coords, dtype=np.float32))
+        np.save(output_file, np.asarray(coords.compute(), dtype=np.float32))
 
     if store_aligned_patches:
         if scale:
             postfix = '_aligned_scaled_coords'
         else:
             postfix = '_aligned_coords'
-        for patch in aligned.coordinates.patches:
+        for patch in patches:
             f_name = patch.coordinates.filename
             aligned_f_name = f_name.with_name(f_name.name.replace('_coords', postfix))
             np.save(aligned_f_name, patch.coordinates)
