@@ -81,7 +81,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
         cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic', cl_lr=0.01, dist=False,
         output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
-        run_baseline=True, normalise=False, restrict_lcc=False, mmap_edges=False, mmap_features=False,
+        run_baseline=True, normalise=False, restrict_lcc=False, scale=False, mmap_edges=False, mmap_features=False,
         random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0):
     """
     Run training example.
@@ -197,6 +197,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         train_basename += '_norm'
 
     eval_basename += f'_{cl_model}'
+
+    l2g_name = 'l2g'
+    if scale:
+        l2g_name += '_scale'
+    if levels > 1:
+        l2g_name += f'_hc{levels}'
 
     if isinstance(lr, Iterable):
         lr = list(lr)
@@ -335,12 +341,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 del task
 
         for criterion in ('auc', 'loss'):
-            if levels == 1:
-                l2g_coords_file = result_folder / f'{train_basename}_d{d}_l2g_{criterion}_coords.npy'
-                l2g_eval_file = result_folder / f'{eval_basename}_l2g_{criterion}_eval.json'
-            else:
-                l2g_coords_file = result_folder / f'{train_basename}_d{d}_l2g_hc{levels}_{criterion}_coords.npy'
-                l2g_eval_file = result_folder / f'{eval_basename}_l2g_hc{levels}_{criterion}_eval.json'
+            l2g_coords_file = result_folder / f'{train_basename}_d{d}_{l2g_name}_{criterion}_coords.npy'
+            l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_{criterion}_eval.json'
             nt_coords_file = result_folder / f'{train_basename}_d{d}_nt_{criterion}_coords.npy'
             nt_eval_file = result_folder / f'{eval_basename}_nt_{criterion}_eval.json'
 
@@ -359,6 +361,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
                                          patch_graph=patch_graph_remote,
                                          shape=shape,
+                                         scale=scale,
                                          patches=patches,
                                          mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose_l2g,
                                          output_file=l2g_coords_file,
