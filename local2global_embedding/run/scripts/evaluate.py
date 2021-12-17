@@ -25,14 +25,14 @@ from numpy.lib.format import open_memmap
 from typing import Optional
 
 from local2global_embedding.embedding.eval import reconstruction_auc
-from local2global_embedding.classfication import Logistic, train, accuracy
+from local2global_embedding.classfication import Logistic, train, accuracy, MLP
 from local2global_embedding.run.utils import ResultsDict, ScriptParser, load_classification_problem, load_data
 from .utils import ScopedTemporaryFile
 
 
 def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str, results_file: str, dist=False,
              device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=100000,
-             mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False):
+             mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False, model='logistic'):
     print(f'evaluating {embedding_file} with {runs} classification runs.')
     graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
                       restrict_lcc=restrict_lcc, load_features=False)
@@ -50,10 +50,19 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
     dim = coords.shape[1]
     auc = reconstruction_auc(coords, graph, dist=dist)
     acc = []
+    if model == 'logistic':
+        def construct_model():
+            return Logistic(dim, num_labels)
+    elif model == 'mlp':
+        def construct_model():
+            return MLP(dim, dim, num_labels)
+    else:
+        raise ValueError(f'unknown model type {model}')
+
     for _ in range(runs):
         if random_split:
             cl_data.resplit()
-        model = Logistic(dim, num_labels)
+        model = construct_model()
         model = train(cl_data, model, num_epochs, batch_size, lr, early_stop_patience=patience, weight_decay=0.0,
                       device=device, alpha=0, beta=0)
         acc.append(accuracy(cl_data, model))

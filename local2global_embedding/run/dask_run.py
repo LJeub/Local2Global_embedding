@@ -79,7 +79,7 @@ def with_dependencies(f):
 def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
         patience=20, runs=10, cl_runs=50, cl_batch_size=100000, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
         min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
-        cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_lr=0.01, dist=False,
+        cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic', cl_lr=0.01, dist=False,
         output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
         run_baseline=True, normalise=False, restrict_lcc=False, mmap_edges=False, mmap_features=False,
         random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0):
@@ -196,6 +196,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         eval_basename += '_norm'
         train_basename += '_norm'
 
+    eval_basename += f'_{cl_model}'
 
     if isinstance(lr, Iterable):
         lr = list(lr)
@@ -260,6 +261,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
+                                         model=cl_model,
                                          data_root=data_root,
                                          restrict_lcc=restrict_lcc,
                                          embedding_file=coords_file,
@@ -283,6 +285,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
+                                         model=cl_model,
                                          data_root=data_root,
                                          restrict_lcc=restrict_lcc,
                                          embedding_file=coords_file,
@@ -368,6 +371,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=l2g_task,
                                          resources=gpu_req,
                                          name=name,
+                                         model=cl_model,
                                          data_root=data_root,
                                          restrict_lcc=restrict_lcc,
                                          embedding_file=l2g_coords_file,
@@ -404,6 +408,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=nt_task,
                                          resources=gpu_req,
                                          name=name,
+                                         model=cl_model,
                                          data_root=data_root,
                                          restrict_lcc=restrict_lcc,
                                          embedding_file=nt_coords_file,
