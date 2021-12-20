@@ -8,6 +8,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 import torch
 import numba
+from tqdm.auto import tqdm
 
 from local2global_embedding.network import TGraph, spanning_tree_mask, spanning_tree
 from local2global_embedding.clustering import Partition
@@ -292,7 +293,7 @@ def hierarchical_sparsify(graph: TGraph, clusters, target_level_degree, ensure_c
         expanded_cluster = cluster[node_map]
         parts = Partition(cluster)
         expanded_parts = Partition(expanded_cluster)
-        for p, ep in zip(parts, expanded_parts):
+        for p, ep in tqdm(zip(parts, expanded_parts), total=len(parts), desc='sparsifying clusters'):
             sgraph = sparsifier(rgraph.subgraph(p), target_level_degree, ensure_connected)
             s_edges = p[sgraph.edge_index]
             s_edges = s_edges[0] * rgraph.num_nodes + s_edges[1]
