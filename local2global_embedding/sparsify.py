@@ -283,6 +283,7 @@ def hierarchical_sparsify(graph: TGraph, clusters, target_level_degree, ensure_c
     rgraph = graph
     edge_mask = torch.zeros(graph.num_edges, dtype=torch.bool, device=graph.device)
     node_map = np.array(graph.nodes)
+    reverse_index = torch.argsort(graph.edge_index[1]*graph.num_nodes + graph.edge_index[0]).cpu().numpy()
     edges = graph.edge_index.cpu().numpy()
     final_num_clusters = clusters[-1].max() + 1
     if final_num_clusters > 1:
@@ -297,6 +298,7 @@ def hierarchical_sparsify(graph: TGraph, clusters, target_level_degree, ensure_c
             s_edges = s_edges[0] * rgraph.num_nodes + s_edges[1]
             s_edges = s_edges.cpu().numpy()
             index = _multi_arange(graph.adj_index[ep].cpu().numpy(), graph.adj_index[ep+1].cpu().numpy())
+            index = index[edges[0, index] < edges[1, index]]  # only forward direction
             mapped_edges = node_map[edges[:, index]]
             mapped_edges = mapped_edges[0] * rgraph.num_nodes + mapped_edges[1]
 
@@ -308,12 +310,15 @@ def hierarchical_sparsify(graph: TGraph, clusters, target_level_degree, ensure_c
                 edge_partition = Partition(edge_index)
                 for e_part in edge_partition:
                     if len(e_part) > int(target_level_degree):
-                        r = rg.choice(e_part, int(target_level_degree), replace=False)
+                        r = _gumbel_topk(graph.weights[index], int(target_level_degree))
                     else:
                         r = e_part
                     edge_mask[index[r]] = True
+                    edge_mask[reverse_index[index[r]]] = True
+
             else:
                 edge_mask[index] = True
+                edge_mask[reverse_index[index]] = True
 
         rgraph = rgraph.partition_graph(cluster, self_loops=False)
         node_map = expanded_cluster.cpu().numpy()
