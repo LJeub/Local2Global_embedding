@@ -64,7 +64,7 @@ import enlighten
 import logging
 
 print('importing needed functions')
-from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, patch_folder_name, cluster_file_name
+from local2global_embedding.run.utils import ResultsDict, load_data, ScriptParser, patch_folder_name, cluster_file_name, watch_progress
 from local2global_embedding.run.scripts import functions as func
 
 
@@ -439,14 +439,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     total_progress.refresh()
 
     # make sure to wait for all tasks to complete and report overall progress
-    for c in all_tasks:
-        if c.status == 'error':
-            print(f'{c} errored')
-            e = c.exception()
-            print_exception(type(e), e, c.traceback())
-        else:
-            print(f'{c} complete')
-        del c
+    watch_progress(all_tasks)
     manager.stop()
 
 
