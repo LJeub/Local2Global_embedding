@@ -83,11 +83,11 @@ def load_data(name, root='/tmp', restrict_lcc=False, **kwargs):
 
     """
     root = Path(root).expanduser()
-    with SoftFileLock(root / f'{name}.lock', timeout=10) as lock:
-        data = _dataloaders[name](root, **kwargs)
 
-        if restrict_lcc:
-            data = data.lcc(relabel=True)
+    data = _dataloaders[name](root, **kwargs)
+
+    if restrict_lcc:
+        data = data.lcc(relabel=True)
 
     return data
 
