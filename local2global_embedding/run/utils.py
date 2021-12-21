@@ -328,6 +328,9 @@ class ResultsDict:
     def __contains__(self, item):
         return item in self._data
 
+    def get(self, item, default=None):
+        return self[item] if item in self else default
+
     def contains_dim(self, dim):
         """
         equivalent to ``dim in self['dims']``
