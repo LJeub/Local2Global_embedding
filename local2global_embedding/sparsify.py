@@ -130,7 +130,8 @@ def resistance_weighted_graph(graph: TGraph, **args):
         edge_attr = resistances
     else:
         edge_attr = graph.edge_attr * resistances
-    return TGraph(graph.edge_index, edge_attr, num_nodes=graph.num_nodes, ensure_sorted=False, undir=graph.undir)
+    return TGraph(graph.edge_index, edge_attr, num_nodes=graph.num_nodes, ensure_sorted=False, undir=graph.undir,
+                  adj_index=graph.adj_index)
 
 
 def effective_resistances(graph: TGraph, **args):
