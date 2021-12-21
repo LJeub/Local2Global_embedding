@@ -108,6 +108,12 @@ def resistance_sparsify(graph: TGraph, target_mean_degree, ensure_connected=True
                   undir=graph.undir)
 
 
+def conductance_weighted_graph(graph: TGraph):
+    weights = graph.weights / torch.minimum(graph.strength[graph.edge_index[0]], graph.strength[graph.edge_index[1]])
+    return TGraph(edge_index=graph.edge_index, edge_attr=weights, num_nodes=graph.num_nodes, adj_index=graph.adj_index,
+                  ensure_sorted=False, undir=graph.undir)
+
+
 def resistance_weighted_graph(graph: TGraph, **args):
     """
     modify the edge weights of a graph by multiplying by their effective resistance
