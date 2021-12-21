@@ -286,6 +286,29 @@ def edge_sampling_sparsify(graph: TGraph, target_degree, ensure_connected=True):
                   ensure_sorted=False, undir=graph.undir)
 
 
+def nearest_neighbor_sparsify(graph: TGraph, target_degree, ensure_connected=True):
+    if ensure_connected:
+        edge_mask = spanning_tree_mask(graph, maximise=True)
+    else:
+        edge_mask = torch.zeros((graph.num_nodes,), dtype=torch.bool, device=graph.device)
+    index = 0
+    for n in range(graph.num_nodes):
+        count = graph.adj_index[n+1] - graph.adj_index[n]
+        if count > target_degree:
+            neighbour_index = graph.adj_index[n] + torch.topk(graph.weights[graph.adj_index[n]:graph.adj_index[n+1]],
+                                                              target_degree).indices
+        else:
+            neighbour_index = torch.arange(graph.adj_index[n], graph.adj_index[n+1],
+                                           dtype=torch.long, device=graph.device)
+        edge_mask[neighbour_index] = True
+        index += len(neighbour_index)
+    reverse = torch.argsort(graph.edge_index[1]*graph.num_nodes + graph.edge_index[0])
+    edge_mask *= edge_mask[reverse]  # only keep edges that exist in both directions
+    edge_attr = graph.edge_attr[edge_mask] if graph.edge_attr is not None else None
+    return TGraph(edge_index=graph.edge_index[:, edge_mask], edge_attr=edge_attr, num_nodes=graph.num_nodes,
+                  ensure_sorted=False, undir=True)
+
+
 def hierarchical_sparsify(graph: TGraph, clusters, target_level_degree, ensure_connected=True,
                           sparsifier=edge_sampling_sparsify):
     rgraph = graph
