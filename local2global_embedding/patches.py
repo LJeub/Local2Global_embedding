@@ -12,7 +12,8 @@ import numba
 from local2global_embedding.clustering import Partition
 from local2global_embedding.network import TGraph, NPGraph
 from local2global_embedding.network.npgraph import JitGraph
-from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify, hierarchical_sparsify
+from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify, \
+    hierarchical_sparsify, nearest_neighbor_sparsify, conductance_weighted_graph
 
 
 @numba.njit
@@ -212,6 +213,7 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
     if verbose:
         print(f"number of patches: {partition_tensor_0.max().item() + 1}")
     pg = graph.partition_graph(partition_tensor_0, self_loops=False).to(TGraph)
+
     components = pg.connected_component_ids()
     num_components = components.max()+1
     if num_components > 1:
@@ -232,6 +234,7 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
         weights = torch.cat((pg.edge_attr, torch.ones(2*edges.shape[1], dtype=torch.long)))
         pg = TGraph(edge_index=edge_index, edge_attr=weights, ensure_sorted=True, num_nodes=pg.num_nodes,
                     undir=pg.undir)
+        pg = conductance_weighted_graph(pg)
 
     if sparsify_method == 'resistance':
         if isinstance(partition_tensor, list):
@@ -245,6 +248,12 @@ def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overl
             pg = hierarchical_sparsify(pg, partition_tensor[1:], target_patch_degree, sparsifier=edge_sampling_sparsify)
         else:
             pg = edge_sampling_sparsify(pg, target_patch_degree)
+    elif sparsify_method == 'neighbors':
+        if isinstance(partition_tensor, list):
+            pg = hierarchical_sparsify(pg, partition_tensor[1:], target_patch_degree,
+                                       sparsifier=nearest_neighbor_sparsify)
+        else:
+            pg = nearest_neighbor_sparsify(pg, target_patch_degree)
     elif sparsify_method == 'none':
         pass
     else:
