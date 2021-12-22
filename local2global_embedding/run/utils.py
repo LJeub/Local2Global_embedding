@@ -137,7 +137,9 @@ def patch_folder_name(name: str, min_overlap: int, target_overlap: int, cluster=
     elif sparsify == 'none':
         sp_string = "no_sparsify"
     elif sparsify == 'sample':
-        sp_string = 'sample'
+        sp_string = f'sample_deg{target_patch_degree}'
+    elif sparsify == 'neighbors':
+        sp_string = f'neighbors_deg{target_patch_degree}'
     else:
         raise RuntimeError(f"Unknown sparsification method '{sparsify}'.")
     cl_string = cluster_string(cluster, num_clusters, num_iters, beta, levels)
