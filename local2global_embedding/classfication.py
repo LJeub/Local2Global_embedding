@@ -220,6 +220,20 @@ class EntMin(torch.nn.Module):
         return torch.mean(torch.distributions.Categorical(logits=logits).entropy(), dim=0)
 
 
+class BatchedData(torch.utils.data.Dataset):
+    def __init__(self, data: torch.utils.data.TensorDataset, batch_size):
+        self.data = data
+        self.batch_size = batch_size
+
+    def __getitem__(self, item):
+        index = item*self.batch_size
+        return self.data[index:index+self.batch_size]
+
+    def __len__(self):
+        return len(range(0, len(self.data), self.batch_size))
+
+
+
 def train(data: ClassificationProblem, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logger=lambda loss: None,
           epoch_logger=lambda epoch: None, device=None, epsilon=1, alpha=0, beta=0, weight_decay=1e-2, decay_lr=False, xi=1e-6,
           vat_it=1,
@@ -253,7 +267,8 @@ def train(data: ClassificationProblem, model: torch.nn.Module, epochs, batch_siz
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, betas=(beta_1, beta_2),
                                  eps=adam_epsilon)
     # optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
-    data_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=True)
+    data_loader = torch.utils.data.DataLoader(BatchedData(train_data, batch_size=batch_size), batch_size=1,
+                                              shuffle=True, pin_memory=True, collate_fn=lambda b: b[0])
     if decay_lr:
         lr_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(data_loader) * epochs)
 
