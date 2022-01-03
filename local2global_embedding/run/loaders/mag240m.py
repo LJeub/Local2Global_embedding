@@ -103,41 +103,48 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
 
 
 @dataloader('MAG240M')
-def _load_mag240(root='.', mmap_features='r', mmap_edges='r', load_features=True, **kwargs):
+def _load_mag240(root='.', mmap_features='r', mmap_edges='r', load_features=True, directed=False, **kwargs):
     root = Path(root)
-    data_folder = root / 'mag240m_citations_undir'
+    if directed:
+        data_folder = root / 'mag240m_citations_dir'
+    else:
+        data_folder = root / 'mag240m_citations_undir'
     if not data_folder.is_dir() or not (data_folder / 'processed').is_file():
         data_folder.mkdir(parents=True, exist_ok=True)
         from ogb.lsc import MAG240MDataset
         base_data = MAG240MDataset(root=root)
         num_nodes = base_data.num_papers
-        edge_index = np.load(root / 'mag240m_kddcup2021' / 'processed' / 'paper___cites___paper' / 'edge_index.npy',
-                             mmap_mode=mmap_edges)
-        undir_index_file = data_folder / 'edge_index.npy'
-        if undir_index_file.is_file():
-            undir_index = open_memmap(undir_index_file, mode='r+')
+
+        edge_index_file = data_folder / 'edge_index.npy'
+        if not directed:
+            edge_index = np.load(root / 'mag240m_kddcup2021' / 'processed' / 'paper___cites___paper' / 'edge_index.npy',
+                                 mmap_mode=mmap_edges)
+            if edge_index_file.is_file():
+                undir_index = open_memmap(edge_index_file, mode='r+')
+            else:
+                undir_index = open_memmap(edge_index_file, mode='w+',
+                                          shape=(edge_index.shape[0], 2*edge_index.shape[1]), dtype=np.int64,
+                                          fortran_order=True)
+            if np.array_equal(undir_index[:, -1], [0, 0]):
+                sort_index_file = NamedTemporaryFile(delete=False, suffix='.npy')
+                sort_index_file.close()
+                sort_index = open_memmap(sort_index_file.name, dtype='i8',
+                                         shape=(undir_index.shape[1],),
+                                         mode='w+')
+                num_edges = _transform_mag240m(edge_index, undir_index, sort_index, num_nodes)
+                undir_index = undir_index[:, :num_edges]
+                f = NamedTemporaryFile(delete=False)
+                np.save(f, undir_index)
+                f.close()
+                shutil.copy(f.name, edge_index_file)
+                del sort_index
+                Path(sort_index_file.name).unlink()
+                Path(f.name).unlink()
         else:
-            undir_index = open_memmap(undir_index_file, mode='w+',
-                                      shape=(edge_index.shape[0], 2*edge_index.shape[1]), dtype=np.int64,
-                                      fortran_order=True)
-        if np.array_equal(undir_index[:, -1], [0, 0]):
-            sort_index_file = NamedTemporaryFile(delete=False, suffix='.npy')
-            sort_index_file.close()
-            sort_index = open_memmap(sort_index_file.name, dtype='i8',
-                                     shape=(undir_index.shape[1],),
-                                     mode='w+')
-            num_edges = _transform_mag240m(edge_index, undir_index, sort_index, num_nodes)
-            undir_index = undir_index[:, :num_edges]
-            f = NamedTemporaryFile(delete=False)
-            np.save(f, undir_index)
-            f.close()
-            shutil.copy(f.name, undir_index_file)
-            del sort_index
-            Path(sort_index_file.name).unlink()
-            Path(f.name).unlink()
+            (root / 'mag240m_kddcup2021' / 'processed' / 'paper___cites___paper' / 'edge_index.npy').link_to(edge_index_file)
 
         with open(data_folder / 'info.json', 'w') as f:
-            json.dump({'num_nodes': num_nodes, 'undir': True}, f)
+            json.dump({'num_nodes': num_nodes, 'undir': not directed}, f)
 
         feat_file = data_folder / 'node_feat.npy'
         if not feat_file.is_file():
