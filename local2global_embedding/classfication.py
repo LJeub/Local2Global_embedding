@@ -10,6 +10,7 @@ from copy import deepcopy
 from itertools import count, chain, product, groupby
 from tqdm.auto import tqdm
 
+
 from local2global_embedding.utils import EarlyStopping, get_device
 
 
@@ -29,12 +30,32 @@ class Logistic(torch.nn.Module):
         return self.softmax(self.linear(x))
 
 
+def _mlp_hidden_layer(in_dim, out_dim, batch_norm=True, dropout=0, relu_last=False):
+    lin = torch.nn.Linear(in_dim, out_dim, bias=True)
+    nl = torch.nn.ReLU()
+
+    if batch_norm:
+        bn = torch.nn.BatchNorm1d(out_dim)
+        if relu_last:
+            layer_list = (lin, bn, nl)
+        else:
+            layer_list = (lin, nl, bn)
+    else:
+        layer_list = (lin, nl)
+
+    if dropout > 0:
+        return *layer_list, torch.nn.Dropout(dropout)
+    else:
+        return layer_list
+
+
 class MLP(torch.nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim, n_layers=2):
+    def __init__(self, input_dim, hidden_dim, output_dim, n_layers=2, batch_norm=False, dropout=0, relu_last=False):
         super().__init__()
-        self.network = torch.nn.Sequential(torch.nn.Linear(input_dim, hidden_dim, bias=True), torch.nn.ReLU(),
-                                           *chain.from_iterable((torch.nn.Linear(hidden_dim, hidden_dim, bias=True),
-                                                                 torch.nn.ReLU()) for _ in range(n_layers - 2)),
+        self.network = torch.nn.Sequential(*_mlp_hidden_layer(input_dim, hidden_dim, batch_norm, dropout, relu_last),
+                                           *chain.from_iterable(_mlp_hidden_layer(hidden_dim, hidden_dim, batch_norm,
+                                                                                  dropout, relu_last)
+                                                                for _ in range(n_layers-2)),
                                            torch.nn.Linear(hidden_dim, output_dim, bias=True),
                                            torch.nn.LogSoftmax(dim=-1))
         self.input_dim = input_dim
