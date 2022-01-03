@@ -46,6 +46,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                     beta=0.1, levels=1,
                     sparsify='resistance', target_patch_degree=4.0, gamma=0.0, normalise=False, restrict_lcc=False,
                     verbose=False, use_tmp=False, mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None,
+                    directed=False
                    ):
     """
     initialise patch data
@@ -84,11 +85,16 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                      num_iters, beta, levels, sparsify, target_patch_degree,
                                                      gamma)
     cluster_file = output_folder / cluster_file_name(name, cluster, num_clusters, num_iters, beta, levels)
+    if directed:
+        patch_str = "patch{i}_dir_data.pt"
+    else:
+        patch_str = "patch{i}_data.pt"
 
-    def load_graph():
+
+    def load_graph(**kwargs):
         print('loading data')
         graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
-                          normalise=normalise, restrict_lcc=restrict_lcc)
+                          normalise=normalise, restrict_lcc=restrict_lcc, **kwargs)
         buffer_x = None
         buffer_e = None
         if use_tmp:
@@ -151,20 +157,30 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
 
                 # with ThreadPoolExecutor() as executor:
                 #     executor.map(save_patch_data, repeat(graph), patches, (patch_folder / f'patch{i}_data.pt' for i in len(patches)))
+                if directed:
+                    if buffer_e is not None:
+                        buffer_e.close()
+                    if buffer_x is not None:
+                        buffer_x.close()
+                    graph, buffer_x, buffer_e = load_graph(directed=True)
+
                 for i, patch in tqdm(enumerate(patches), total=patch_graph.num_nodes,
                                      desc='saving patch data'):
-                    save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
+                    save_patch_data(graph, patch, patch_folder / patch_str.format(i=i))
 
             else:
                 patch_graph = torch.load(patch_folder / 'patch_graph.pt')
                 with tqdm(total=patch_graph.num_nodes, desc='checking patch data') as pbar:
                     for i in range(patch_graph.num_nodes):
-                        if not (patch_folder / f'patch{i}_data.pt').is_file():
+                        if not (patch_folder / patch_str.format(i=i)).is_file():
                             pbar.display(f'saving missing patch data for patch {i}', pos=1)
                             if graph is None:
-                                graph, buffer_x, buffer_e = load_graph()
+                                if directed:
+                                    graph, buffer_x, buffer_e = load_graph(directed=True)
+                                else:
+                                    graph, buffer_x, buffer_e = load_graph()
                             patch = np.load(patch_folder / f'patch{i}_index.npy')
-                            save_patch_data(graph, patch, patch_folder / f'patch{i}_data.pt')
+                            save_patch_data(graph, patch, patch_folder / patch_str.format(i=i))
                         pbar.update()
         finally:
             if buffer_e is not None:

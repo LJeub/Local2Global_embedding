@@ -78,7 +78,7 @@ def with_dependencies(f):
 
 def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
         patience=20, runs=10, cl_runs=50, cl_batch_size=100000, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
-        min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
+        min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance', train_directed=False,
         cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic', cl_lr=0.01, cl_model_args={}, dist=False,
         output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
         run_baseline=True, normalise=False, restrict_lcc=False, scale=False, mmap_edges=False, mmap_features=False,
@@ -179,8 +179,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     mmap_edges = 'r' if mmap_edges else None
     mmap_features = 'r' if mmap_features else None
 
-    train_basename = f'{name}_{model}'
-    eval_basename = f'{name}_{model}'
+    if train_directed:
+        train_basename = f'{name}_dir_{model}'
+        eval_basename = f'{name}_dir_{model}'
+    else:
+        train_basename = f'{name}_{model}'
+        eval_basename = f'{name}_{model}'
 
     min_overlap = min_overlap if min_overlap is not None else max(dims) + 1
     target_overlap = target_overlap if target_overlap is not None else 2 * max(dims)
@@ -226,6 +230,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                        gamma=gamma,
                                        verbose=False,
                                        normalise=normalise,
+                                       directed=train_directed,
                                        restrict_lcc=restrict_lcc, use_tmp=use_tmp,
                                        mmap_edges=mmap_edges,
                                        mmap_features=mmap_features)
@@ -240,10 +245,13 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         baseline_loss_eval_file = result_folder / f'{eval_basename}_full_loss_eval.json'
         baseline_auc_eval_file = baseline_loss_eval_file.with_name(
             baseline_loss_eval_file.name.replace('_loss_', '_auc_'))
-        data_file = output_folder / f'{name}_data.pt'
+        if train_directed:
+            data_file = output_folder / f'{name}_dir_data.pt'
+        else:
+            data_file = output_folder / f'{name}_data.pt'
         if not data_file.is_file():
             data = load_data(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
-                             mmap_features=mmap_features)
+                             mmap_features=mmap_features, directed=train_directed)
             torch.save(data, data_file)
         for d in dims:
             baseline_tasks = []
@@ -327,7 +335,10 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         patch_tasks = []
         shape = (n_nodes, d)
         for pi in tqdm(range(num_patches), desc='submitting patch tasks'):
-            patch_data_file = patch_folder / f'patch{pi}_data.pt'
+            if train_directed:
+                patch_data_file = patch_folder / f'patch{pi}_dir_data.pt'
+            else:
+                patch_data_file = patch_folder / f'patch{pi}_data.pt'
             patch_result_file = result_folder / f'{train_basename}_patch{pi}_info.json'
             with ResultsDict(patch_result_file, lock=False) as patch_results:
                 r = patch_results.runs(d)
