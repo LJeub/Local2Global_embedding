@@ -32,7 +32,8 @@ from .utils import ScopedTemporaryFile
 
 def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str, results_file: str, dist=False,
              device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=100000,
-             mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False, model='logistic'):
+             mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False,
+             model='logistic', model_args={}):
     print(f'evaluating {embedding_file} with {runs} classification runs.')
     graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
                       restrict_lcc=restrict_lcc, load_features=False)
@@ -52,10 +53,14 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
     acc = []
     if model == 'logistic':
         def construct_model():
-            return Logistic(dim, num_labels)
+            return Logistic(dim, num_labels, **model_args)
     elif model == 'mlp':
-        def construct_model():
-            return MLP(dim, dim, num_labels)
+        if 'hidden_dim' in model_args:
+            def construct_model():
+                return MLP(dim, output_dim=num_labels, **model_args)
+        else:
+            def construct_model():
+                return MLP(dim, dim, num_labels, **model_args)
     else:
         raise ValueError(f'unknown model type {model}')
 

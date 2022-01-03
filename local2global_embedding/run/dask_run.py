@@ -79,7 +79,7 @@ def with_dependencies(f):
 def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
         patience=20, runs=10, cl_runs=50, cl_batch_size=100000, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
         min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance',
-        cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic', cl_lr=0.01, dist=False,
+        cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic', cl_lr=0.01, cl_model_args={}, dist=False,
         output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
         run_baseline=True, normalise=False, restrict_lcc=False, scale=False, mmap_edges=False, mmap_features=False,
         random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0):
@@ -181,6 +181,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     train_basename = f'{name}_{model}'
     eval_basename = f'{name}_{model}'
+
     min_overlap = min_overlap if min_overlap is not None else max(dims) + 1
     target_overlap = target_overlap if target_overlap is not None else 2 * max(dims)
 
@@ -197,6 +198,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         train_basename += '_norm'
 
     eval_basename += f'_{cl_model}'
+    if cl_model_args:
+        eval_basename += f'({cl_model_args})'
 
     l2g_name = 'l2g'
     if scale:
@@ -275,6 +278,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          dist=dist,
                                          device=device,
                                          lr=cl_lr,
+                                         model_args=cl_model_args,
                                          batch_size=cl_batch_size,
                                          runs=cl_runs,
                                          random_split=random_split,
@@ -299,6 +303,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          dist=dist,
                                          device=device,
                                          lr=cl_lr,
+                                         model_args=cl_model_args,
                                          batch_size=cl_batch_size,
                                          runs=cl_runs,
                                          random_split=random_split,
@@ -382,6 +387,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          dist=dist,
                                          device=device,
                                          lr=cl_lr,
+                                         model_args=cl_model_args,
                                          batch_size=cl_batch_size,
                                          runs=cl_runs,
                                          random_split=random_split,
@@ -419,6 +425,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          dist=dist,
                                          device=device,
                                          lr=cl_lr,
+                                         model_args=cl_model_args,
                                          batch_size=cl_batch_size,
                                          runs=cl_runs,
                                          random_split=random_split,
