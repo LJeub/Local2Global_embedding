@@ -34,7 +34,7 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
              device: Optional[str]=None, runs=50, train_args={},
              mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False,
              model='logistic', model_args={}):
-    train_args_default = dict(num_epochs=10000, patience=20, lr=0.01, batch_size=100000, alpha=0, beta=0, weight_decay=0)
+    train_args_default = dict(epochs=10000, patience=20, lr=0.01, batch_size=100000, alpha=0, beta=0, weight_decay=0)
     train_args_default.update(train_args)
     train_args = train_args_default
 
