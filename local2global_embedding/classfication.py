@@ -344,8 +344,8 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
                 epoch_logger(e)
                 model.eval()
                 vl = criterion(model(x_val), y_val)
-                progress.display(f'validation loss: {vl}')
                 progress.update()
+                progress.write(f'validation loss: {vl}')
                 if stop(vl, model):
                     print(f'early stopping at epoch {e}')
                     break
@@ -410,8 +410,8 @@ class HyperTuneObjective:
 
 
 @scope.define
-def mlp_model(in_dim, hidden_dim, out_dim, n_layers):
-    return MLP(in_dim, hidden_dim, out_dim, n_layers)
+def mlp_model(*args, **kwargs):
+    return MLP(*args, **kwargs)
 
 
 @scope.define
@@ -440,7 +440,7 @@ def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lam
     return objective.best_model, objective.best_parameters, pd.DataFrame.from_records(results)
 
 
-def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=None, max_hidden=64, max_layers=4, epochs=10, n_tries=1, random_search=False,
+def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=128, max_hidden=512, max_layers=4, epochs=10, n_tries=1, random_search=False,
                search_params=None, **kwargs):
     objective = HyperTuneObjective(data, epochs=epochs, n_tries=n_tries, **kwargs)
     trials = Trials()
@@ -449,31 +449,35 @@ def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=None, m
     log_min_hidden = int(ceil(log2(out_dim if min_hidden is None else min_hidden)))
 
     params = {
-        'epsilon': hp.lognormal('epsilon', 0, 1),
+        # 'epsilon': hp.lognormal('epsilon', 0, 1),
         'weight_decay': hp.loguniform('weight_decay', log(1e-8), 0),
-        'xi': hp.loguniform('xi', log(1e-16), log(1e-5)),
-        'alpha': hp.lognormal('alpha', 0, 1),
-        'beta': hp.lognormal('beta', 0, 1),
-        'lr': hp.loguniform('lr', log(1e-4), 0),
-        'vat_it': hp.uniformint('vat_it', 1, 3),
+        # 'xi': hp.loguniform('xi', log(1e-16), log(1e-5)),
+        # 'alpha': hp.lognormal('alpha', 0, 1),
+        # 'beta': hp.lognormal('beta', 0, 1),
+        'lr': hp.loguniform('lr', log(1e-4), log(1e-1)),
+        # 'vat_it': hp.uniformint('vat_it', 1, 3),
         'hidden': 2 ** hp.uniformint('hidden', log_min_hidden, int(np.log2(max_hidden))),
         'n_layers': max_layers if max_layers <= 2 else hp.uniformint('n_layers', 2, max_layers),
+        'batchnorm': hp.choice('batchnorm', (True, False)),
+        'dropout': hp.uniform('dropout', 0, 1)
     }
     if search_params is not None:
         params.update(search_params)
 
     search_space = {
-        'epsilon': params['epsilon'],
+        # 'epsilon': params['epsilon'],
         'weight_decay': params['weight_decay'],
-        'xi': params['xi'],
-        'alpha': params['alpha'],
-        'beta': params['beta'],
+        # 'xi': params['xi'],
+        # 'alpha': params['alpha'],
+        # 'beta': params['beta'],
         'lr': params['lr'],
-        'vat_it': params['vat_it'],
+        # 'vat_it': params['vat_it'],
         'model': scope.mlp_model(in_dim,
                                  params['hidden'],
                                  out_dim,
-                                 params['n_layers']
+                                 params['n_layers'],
+                                 batchnorm=params['batchnorm'],
+                                 dropout=params['dropout'],
                                  )
     }
 
