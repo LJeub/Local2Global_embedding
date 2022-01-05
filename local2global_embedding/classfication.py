@@ -128,6 +128,9 @@ class ClassificationProblem:
             self.resplit()
         else:
             self.split = split
+        self._val_data = None
+        self._test_data = None
+        self._train_data = None
 
     def resplit(self, num_train_per_class=20, num_val=500):
         self.split = random_split(self.y, num_train_per_class=num_train_per_class, num_val=num_val)
@@ -155,16 +158,22 @@ class ClassificationProblem:
                 x = torch.as_tensor(self.x)
                 return torch.utils.data.TensorDataset(x, y)
         else:
-            return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.train_index, :]),
+            if self._train_data is None:
+                self._train_data = torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.train_index, :]),
                                                   torch.as_tensor(self.y[self.train_index]))
+            return self._train_data
 
     def validation_data(self):
-        return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.val_index, :]),
+        if self._val_data is None:
+            self._val_data = torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.val_index, :]),
                                               torch.as_tensor(self.y[self.val_index]))
+        return self._val_data
 
     def test_data(self):
-        return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.test_index, :]),
+        if self._test_data is None:
+            self._test_data = torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.test_index, :]),
                                               torch.as_tensor(self.y[self.test_index]))
+        return self._test_data
 
     def labeled_data(self):
         return torch.utils.data.TensorDataset(torch.as_tensor(self.x[self.y >= 0, :]),
@@ -496,7 +505,7 @@ def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=128, ma
                                          for key in t['misc']['vals']}
                                         for t in trials.trials)
     results['loss'] = trials.losses()
-    return objective, results
+    return results, objective
 
 
 def plot_hyper_results(results, plot_kws=None, diag_kws=None, **kwargs):
