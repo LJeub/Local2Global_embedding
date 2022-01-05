@@ -434,7 +434,7 @@ def snn_model(in_dim, hidden_dim, out_dim, n_layers):
 
 
 def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lambda args: args, **kwargs):
-    objective = HyperTuneObjective(data, epochs=epochs, batch_size=batch_size, **kwargs)
+    objective = HyperTuneObjective(data, **kwargs)
     results = []
     total = 1
     for v in param_grid.values():
@@ -449,9 +449,10 @@ def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lam
     return objective.best_model, objective.best_parameters, pd.DataFrame.from_records(results)
 
 
-def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=128, max_hidden=512, max_layers=4, epochs=10, n_tries=1, random_search=False,
+def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=128, max_hidden=512, max_layers=4,
+               num_epochs=10000, patience=20, n_tries=1, random_search=False,
                search_params=None, **kwargs):
-    objective = HyperTuneObjective(data, epochs=epochs, n_tries=n_tries, **kwargs)
+    objective = HyperTuneObjective(data, n_tries=n_tries, num_epochs=num_epochs, patience=patience, **kwargs)
     trials = Trials()
     in_dim = data.num_features
     out_dim = data.num_labels
