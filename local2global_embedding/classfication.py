@@ -327,24 +327,28 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
     x_val = x_val.to(device=device, dtype=torch.float32)
     y_val = y_val.to(device=device)
     with EarlyStopping(patience, delta=1e-4) as stop:
-        for e in range(num_epochs):
-            model.train()
-            for x, y in data_loader:
-                x = x.to(device=device, dtype=torch.float32, non_blocking=True).view(-1, x.size(-1))
-                y = y.to(device=device, non_blocking=True).view(-1)
-                optimizer.zero_grad()
-                loss = loss_fun(model, x, y)
-                loss.backward()
-                # torch.nn.utils.clip_grad_norm_(model.parameters(), clip_norm)
-                optimizer.step()
-                step_lr()
-                update_teacher()
-                batch_logger(float(loss))
-            epoch_logger(e)
-            model.eval()
-            if stop(criterion(model(x_val), y_val), model):
-                print(f'early stopping at epoch {e}')
-                break
+        with tqdm(total=num_epochs, desc='training epoch') as progress:
+            for e in range(num_epochs):
+                model.train()
+                for x, y in data_loader:
+                    x = x.to(device=device, dtype=torch.float32, non_blocking=True).view(-1, x.size(-1))
+                    y = y.to(device=device, non_blocking=True).view(-1)
+                    optimizer.zero_grad()
+                    loss = loss_fun(model, x, y)
+                    loss.backward()
+                    # torch.nn.utils.clip_grad_norm_(model.parameters(), clip_norm)
+                    optimizer.step()
+                    step_lr()
+                    update_teacher()
+                    batch_logger(float(loss))
+                epoch_logger(e)
+                model.eval()
+                vl = criterion(model(x_val), y_val)
+                progress.display(f'validation loss: {vl}')
+                progress.update()
+                if stop(vl, model):
+                    print(f'early stopping at epoch {e}')
+                    break
     return model
 
 
