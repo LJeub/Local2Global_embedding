@@ -71,6 +71,7 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
         model = train(cl_data, model, num_epochs, batch_size, lr, early_stop_patience=patience, weight_decay=0.0,
                       device=device, alpha=0, beta=0)
         acc.append(accuracy(cl_data, model))
+        print(f'Model accuracy: {acc[-1]}')
     acc_mean = mean(acc)
     if len(acc) == 1:
         acc_std = 0.
