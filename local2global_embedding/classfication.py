@@ -139,6 +139,13 @@ class ClassificationProblem:
     def split(self):
         return {'train': self.train_index, 'val': self.val_index, 'test': self.test_index}
 
+    @property
+    def num_features(self):
+        if self.x is None:
+            return None
+        else:
+            return self.x.shape[1]
+
     @split.setter
     def split(self, split):
         self.train_index = split['train']
@@ -449,7 +456,7 @@ def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lam
     return objective.best_model, objective.best_parameters, pd.DataFrame.from_records(results)
 
 
-def hyper_tune(data: torch.utils.data.Dataset, max_evals=100, min_hidden=128, max_hidden=512, max_layers=4,
+def hyper_tune(data: ClassificationProblem, max_evals=100, min_hidden=128, max_hidden=512, max_layers=4,
                num_epochs=10000, patience=20, n_tries=1, random_search=False,
                search_params=None, **kwargs):
     objective = HyperTuneObjective(data, n_tries=n_tries, num_epochs=num_epochs, patience=patience, **kwargs)
