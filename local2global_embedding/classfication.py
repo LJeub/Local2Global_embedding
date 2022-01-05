@@ -475,7 +475,7 @@ def hyper_tune(data: ClassificationProblem, max_evals=100, min_hidden=128, max_h
         # 'vat_it': hp.uniformint('vat_it', 1, 3),
         'hidden': 2 ** hp.uniformint('hidden', log_min_hidden, int(np.log2(max_hidden))),
         'n_layers': max_layers if max_layers <= 2 else hp.uniformint('n_layers', 2, max_layers),
-        'batchnorm': hp.choice('batchnorm', (True, False)),
+        'batch_norm': hp.choice('batch_norm', (True, False)),
         'dropout': hp.uniform('dropout', 0, 1)
     }
     if search_params is not None:
@@ -493,7 +493,7 @@ def hyper_tune(data: ClassificationProblem, max_evals=100, min_hidden=128, max_h
                                  params['hidden'],
                                  out_dim,
                                  params['n_layers'],
-                                 batchnorm=params['batchnorm'],
+                                 batch_norm=params['batch_norm'],
                                  dropout=params['dropout'],
                                  )
     }
