@@ -255,10 +255,10 @@ class BatchedData(torch.utils.data.Dataset):
 
 
 
-def train(data: ClassificationProblem, model: torch.nn.Module, epochs, batch_size, lr=0.01, batch_logger=lambda loss: None,
+def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch_size, lr=0.01, batch_logger=lambda loss: None,
           epoch_logger=lambda epoch: None, device=None, epsilon=1, alpha=0, beta=0, weight_decay=1e-2, decay_lr=False, xi=1e-6,
           vat_it=1,
-          teacher_alpha=0, beta_1=0.9, beta_2=0.999, adam_epsilon=1e-8, early_stop_patience=None):
+          teacher_alpha=0, beta_1=0.9, beta_2=0.999, adam_epsilon=1e-8, patience=None):
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if alpha > 0 or beta > 0:
@@ -291,7 +291,7 @@ def train(data: ClassificationProblem, model: torch.nn.Module, epochs, batch_siz
     data_loader = torch.utils.data.DataLoader(BatchedData(train_data, batch_size=batch_size), batch_size=1,
                                               shuffle=True, pin_memory=True, collate_fn=lambda b: b[0])
     if decay_lr:
-        lr_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(data_loader) * epochs)
+        lr_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(data_loader) * num_epochs)
 
         def step_lr():
             lr_sched.step()
@@ -299,8 +299,8 @@ def train(data: ClassificationProblem, model: torch.nn.Module, epochs, batch_siz
         def step_lr():
             pass
 
-    if early_stop_patience is None:
-        early_stop_patience = float('inf')
+    if patience is None:
+        patience = float('inf')
 
     criterion = torch.nn.NLLLoss(reduction='mean', ignore_index=-1)
     vat_loss = VATloss(epsilon=epsilon, xi=xi, it=vat_it)
@@ -326,8 +326,8 @@ def train(data: ClassificationProblem, model: torch.nn.Module, epochs, batch_siz
     x_val, y_val = data.validation_data()[:]
     x_val = x_val.to(device=device, dtype=torch.float32)
     y_val = y_val.to(device=device)
-    with EarlyStopping(early_stop_patience, delta=1e-4) as stop:
-        for e in range(epochs):
+    with EarlyStopping(patience, delta=1e-4) as stop:
+        for e in range(num_epochs):
             model.train()
             for x, y in data_loader:
                 x = x.to(device=device, dtype=torch.float32, non_blocking=True).view(-1, x.size(-1))
