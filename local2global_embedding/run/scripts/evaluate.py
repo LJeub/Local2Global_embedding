@@ -31,9 +31,13 @@ from .utils import ScopedTemporaryFile
 
 
 def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str, results_file: str, dist=False,
-             device: Optional[str]=None, num_epochs=10000, patience=20, lr=0.01, runs=50, batch_size=100000,
+             device: Optional[str]=None, runs=50, train_args={},
              mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False,
              model='logistic', model_args={}):
+    train_args_default = dict(num_epochs=10000, patience=20, lr=0.01, batch_size=100000, alpha=0, beta=0, weight_decay=0)
+    train_args_default.update(train_args)
+    train_args = train_args_default
+
     print(f'evaluating {embedding_file} with {runs} classification runs.')
     graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
                       restrict_lcc=restrict_lcc, load_features=False)
@@ -68,10 +72,10 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
         if random_split:
             cl_data.resplit()
         model = construct_model()
-        model = train(cl_data, model, num_epochs, batch_size, lr, early_stop_patience=patience, weight_decay=0.0,
-                      device=device, alpha=0, beta=0)
+        model = train(cl_data, model, **train_args,
+                      device=device)
         acc.append(accuracy(cl_data, model))
-        print(f'Model accuracy: {acc[-1]}')
+        print(f'Model accuracy: {acc[-1]}, max memory: {torch.cuda.max_memory_allocated()}, total available memory: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory}')
     acc_mean = mean(acc)
     if len(acc) == 1:
         acc_std = 0.
