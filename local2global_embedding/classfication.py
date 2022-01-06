@@ -457,9 +457,10 @@ def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lam
 
 
 def hyper_tune(data: ClassificationProblem, max_evals=100, min_hidden=128, max_hidden=512, max_layers=4,
-               num_epochs=10000, patience=20, n_tries=1, random_search=False,
+               num_epochs=10000, patience=20, batch_size=100000, n_tries=1, random_search=False,
                search_params=None, **kwargs):
-    objective = HyperTuneObjective(data, n_tries=n_tries, num_epochs=num_epochs, patience=patience, **kwargs)
+    objective = HyperTuneObjective(data, n_tries=n_tries, num_epochs=num_epochs, patience=patience,
+                                   batch_size=batch_size,**kwargs)
     trials = Trials()
     in_dim = data.num_features
     out_dim = data.num_labels
