@@ -586,7 +586,7 @@ class ScriptParser:
             args.extend(Argument()(val).value for val in pos_args[len(args):])
         else:
             if len(args) != len(pos_args):
-                raise RuntimeError('Too many positional arguments specified.')
+                raise RuntimeError(f'Too many positional arguments specified. {pos_args=}')
 
         for name, value in kwargs.items():
             kwargs[name] = value.value

@@ -41,8 +41,10 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
     print(f'evaluating {embedding_file} with {runs} classification runs.')
     graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
                       restrict_lcc=restrict_lcc, load_features=False)
+    print('graph data loaded')
     cl_data = load_classification_problem(name, graph_args={'mmap_edges': mmap_edges, 'mmap_features': mmap_features},
                                           root=data_root, restrict_lcc=restrict_lcc)
+    print('classification problem loaded')
     num_labels = cl_data.num_labels
     coords = np.load(embedding_file, mmap_mode=mmap_features)
     if use_tmp and mmap_features is not None:
@@ -50,10 +52,12 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
         coords_tmp = open_memmap(tmp_file, mode='w+', dtype=coords.dtype, shape=coords.shape)
         coords_tmp[:] = coords[:]
         coords = coords_tmp
+        print('features moved to tmp storage')
 
     cl_data.x = torch.as_tensor(coords, dtype=torch.float32)
     dim = coords.shape[1]
     auc = reconstruction_auc(coords, graph, dist=dist)
+    print(f'{embedding_file}: AUC={auc}')
     acc = []
     if model == 'logistic':
         def construct_model():
