@@ -59,6 +59,7 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
     auc = reconstruction_auc(coords, graph, dist=dist)
     print(f'{embedding_file}: AUC={auc}')
     acc = []
+    model_str = model
     if model == 'logistic':
         def construct_model():
             return Logistic(dim, num_labels, **model_args)
@@ -85,7 +86,8 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
     else:
         acc_std = stdev(acc)
     with ResultsDict(results_file, replace=True) as results:
-        results.update_dim(dim, auc=auc, acc_mean=acc_mean, acc_std=acc_std)
+        results.update_dim(dim, auc=auc, acc_mean=acc_mean, acc_std=acc_std, model=model_str, train_args=train_args,
+                           model_args=model_args)
 
 
 if __name__ == '__main__':
