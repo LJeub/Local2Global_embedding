@@ -342,7 +342,7 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
     x_val, y_val = data.validation_data()[:]
     x_val = x_val.to(device=device, dtype=torch.float32)
     y_val = y_val.to(device=device)
-    with EarlyStopping(patience, delta=1e-4) as stop:
+    with EarlyStopping(patience) as stop:
         with tqdm(total=num_epochs, desc='training epoch') as progress:
             for e in range(num_epochs):
                 model.train()
