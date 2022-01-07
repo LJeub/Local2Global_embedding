@@ -82,7 +82,7 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, train_args={}
             acc_list = results['acc_val']
             arg_list = results['model_args']
     else:
-        grid = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5)}
+        grid = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5), 'batch_norm': (True,)}
         grid.update(kwargs)
         prob = once_per_worker(lambda: load_data(name, data_root, embedding_file, mmap_features, use_tmp, **data_args))
         acc_list = []
