@@ -627,16 +627,19 @@ class ScriptParser:
             args = sys.argv[1:]
 
         if self.var_keyword:
-            _, unknown = self.parser.parse_known_args(args)
+            arg_res, unknown = self.parser.parse_known_args(args)
+            kwargs = vars(arg_res)
+            unknown_parser = argparse.ArgumentParser()
             for arg in unknown:
                 if arg.startswith("--"):
                     name = arg[2:]
                     new_arg = Argument(name)
-                    self.parser.add_argument(arg, type=new_arg, default=new_arg)
+                    unknown_parser.add_argument(arg, type=new_arg, default=new_arg)
                     self.arguments.append(new_arg)
+            kwargs.update(vars(unknown_parser.parse_args(unknown)))
+        else:
+            kwargs = vars(self.parser.parse_args(args))
 
-        arg_res = self.parser.parse_args(args)
-        kwargs = vars(arg_res)
         args = []
         pos_args = kwargs.pop('_pos')
         for arg, val in zip(self.arguments, pos_args):
