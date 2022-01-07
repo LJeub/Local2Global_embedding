@@ -549,7 +549,7 @@ class Argument:
             self._value = val
             return self
         else:
-            raise RuntimeError(f"Tried to set value for argument {self.name!r} multiple times.")
+            raise RuntimeError(f"Tried to set value for argument {self.name!r} multiple times, old value: {self._value}, new value: {input_str}")
 
     @property
     def value(self):
