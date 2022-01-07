@@ -49,7 +49,7 @@ def load_data(name, data_root, embedding_file, mmap_features=False, use_tmp=Fals
 @delayed
 def train_task(data, model_args, batch_size=100, **train_args):
     print(f'training MLP({model_args})')
-    model = MLP(**model_args)
+    model = MLP(input_dim=data.num_features, output_dim=data.num_labels, **model_args)
     model = train(data, model, batch_size=batch_size, **train_args)
     acc = validation_accuracy(data, model, batch_size)
     print(f'MLP({model_args}) achieved {acc=}')
