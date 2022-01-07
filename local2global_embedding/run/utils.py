@@ -29,11 +29,13 @@ import typing
 import time
 from ast import literal_eval
 from traceback import print_exception
+from runpy import run_path
 
 import torch
 from docstring_parser import parse as parse_doc
 from filelock import SoftFileLock
 from atomicwrites import atomic_write
+from dask.distributed import Client, get_client
 
 from local2global_embedding.classfication import ClassificationProblem
 
@@ -164,6 +166,69 @@ class NoLock:
 
     def release(self):
         pass
+
+
+class SyncDict:
+    """
+    Class for keeping json-backed dict with locking for sync
+    """
+    def load(self):
+        """
+        restore results from file
+
+        Returns:
+            populated ResultsDict
+
+        """
+        with self._lock:
+            with open(self.filename) as f:
+                self._data = json.load(f)
+
+    def save(self):
+        """
+        dump contents to json file
+
+        Args:
+            filename: output file path
+
+        """
+        with self._lock:
+            with atomic_write(self.filename, overwrite=True) as f:  # this should avoid any chance of loosing existing data
+                json.dump(self._data, f)
+
+    def __init__(self, filename, lock=True):
+        """
+        initialise empty ResultsDict
+        Args:
+            filename: file to use for storage
+            lock: set lock=False to avoid locking (use wisely)
+        """
+        self.filename = Path(filename)
+        if lock:
+            self._lock = SoftFileLock(self.filename.with_suffix('.lock'), timeout=10)
+        else:
+            self._lock = NoLock()  # implements lock interface without doing anything
+        with self._lock:
+            if not self.filename.is_file():
+                self._data = {}
+                self.save()
+            else:
+                self.load()
+
+    def __enter__(self):
+        self._lock.acquire()
+        self.load()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.save()
+        self._lock.release()
+
+    def __getattr__(self, attr):
+        """
+        Access underlying dict data
+        """
+        return getattr(self._data, attr)
 
 
 class ResultsDict:
@@ -575,6 +640,8 @@ class ScriptParser:
         args = []
         pos_args = kwargs.pop('_pos')
         for arg, val in zip(self.arguments, pos_args):
+            if val.startswith('--'):
+                raise RuntimeError(f'Unknown keyword argument {val}')
             if not arg.is_set:
                 arg = arg(val)
                 args.append(arg.value)
@@ -614,3 +681,18 @@ def watch_progress(tasks):
         else:
             print(f'{c} complete')
         del c
+
+
+def get_or_init_client(init_cluster=True):
+    try:
+        client = get_client()
+    except ValueError:
+        if init_cluster:
+            print('setting up cluster')
+            cluster_init_path = Path().home() / '.config' / 'dask' / 'cluster_init.py'
+            kwargs = run_path(cluster_init_path)
+            client = Client(kwargs['cluster'])
+        else:
+            print('launching default client')
+            client = Client()
+    return client

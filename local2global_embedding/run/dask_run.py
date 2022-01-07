@@ -77,12 +77,13 @@ def with_dependencies(f):
 
 
 def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
-        patience=20, runs=10, cl_runs=50, cl_batch_size=100000, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
+        patience=20, runs=10, cl_runs=50, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
         min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance', train_directed=False,
-        cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic', cl_train_args={}, cl_model_args={}, dist=False,
+        cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic',
+        cl_train_args={}, cl_model_args={}, dist=False,
         output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
         run_baseline=True, normalise=False, restrict_lcc=False, scale=False, mmap_edges=False, mmap_features=False,
-        random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0):
+        random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0, grid_search_params=True):
     """
     Run training example.
 
@@ -275,6 +276,19 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             with ResultsDict(baseline_loss_eval_file, replace=True, lock=False) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
                     coords_file = result_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
+                    if grid_search_params and model=='mlp':
+                        cl_model_args = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
+                                                      _depends_on=baseline_tasks,
+                                                      name=name,
+                                                      data_root=data_root,
+                                                      data_args={'restrict_lcc': restrict_lcc},
+                                                      embedding_file=coords_file,
+                                                      results_file=coords_file.with_name(coords_file.name.replace('_coords.npy', '_gridsearch.json')),
+                                                      train_args=cl_train_args,
+                                                      mmap_features=mmap_features,
+                                                      use_tmp=use_tmp,
+                                                      )
+                        all_tasks.add(cl_model_args)
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
@@ -299,6 +313,19 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             with ResultsDict(baseline_auc_eval_file, replace=True, lock=False) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
                     coords_file = result_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
+                    if grid_search_params and model=='mlp':
+                        cl_model_args = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
+                                                      _depends_on=baseline_tasks,
+                                                      name=name,
+                                                      data_root=data_root,
+                                                      data_args={'restrict_lcc': restrict_lcc},
+                                                      embedding_file=coords_file,
+                                                      results_file=coords_file.with_name(coords_file.name.replace('_coords.npy', '_gridsearch.json')),
+                                                      train_args=cl_train_args,
+                                                      mmap_features=mmap_features,
+                                                      use_tmp=use_tmp,
+                                                      )
+                        all_tasks.add(cl_model_args)
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
@@ -383,8 +410,22 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          resparsify=resparsify)
                 l2g_task.add_done_callback(progress_callback(align_progress))
                 all_tasks.add(l2g_task)
+
             with ResultsDict(l2g_eval_file, replace=True, lock=False) as l2g_eval:
                 if l2g_task or not l2g_eval.contains_dim(d):
+                    if grid_search_params and model=='mlp':
+                        cl_model_args = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
+                                                      _depends_on=l2g_task,
+                                                      name=name,
+                                                      data_root=data_root,
+                                                      data_args={'restrict_lcc': restrict_lcc},
+                                                      embedding_file=coords_file,
+                                                      results_file=coords_file.with_name(coords_file.name.replace('_coords.npy', '_gridsearch.json')),
+                                                      train_args=cl_train_args,
+                                                      mmap_features=mmap_features,
+                                                      use_tmp=use_tmp,
+                                                      )
+                        all_tasks.add(cl_model_args)
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=l2g_task,
                                          resources=gpu_req,
                                          name=name,
@@ -422,6 +463,19 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             with ResultsDict(nt_eval_file, replace=True, lock=False) as nt_eval:
                 if nt_task or not nt_eval.contains_dim(d):
+                    if grid_search_params and model=='mlp':
+                        cl_model_args = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
+                                                      _depends_on=nt_task,
+                                                      name=name,
+                                                      data_root=data_root,
+                                                      data_args={'restrict_lcc': restrict_lcc},
+                                                      embedding_file=coords_file,
+                                                      results_file=coords_file.with_name(coords_file.name.replace('_coords.npy', '_gridsearch.json')),
+                                                      train_args=cl_train_args,
+                                                      mmap_features=mmap_features,
+                                                      use_tmp=use_tmp,
+                                                      )
+                        all_tasks.add(cl_model_args)
                     task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=nt_task,
                                          resources=gpu_req,
                                          name=name,
