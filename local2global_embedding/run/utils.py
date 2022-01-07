@@ -634,7 +634,7 @@ class ScriptParser:
                 if arg.startswith("--"):
                     name = arg[2:].split('=', 1)[0]
                     new_arg = Argument(name)
-                    unknown_parser.add_argument(arg, type=new_arg, default=new_arg)
+                    unknown_parser.add_argument(f'--{name}', type=new_arg, default=new_arg)
                     self.arguments.append(new_arg)
             kwargs.update(vars(unknown_parser.parse_args(unknown)))
         else:
