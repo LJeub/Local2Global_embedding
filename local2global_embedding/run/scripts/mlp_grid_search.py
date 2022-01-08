@@ -23,27 +23,12 @@ from itertools import product
 
 from local2global_embedding.run.scripts.utils import ScopedTemporaryFile
 from local2global_embedding.classfication import MLP, train, validation_accuracy
-from local2global_embedding.run.utils import load_classification_problem, get_or_init_client, SyncDict, ScriptParser
+from local2global_embedding.run.utils import get_or_init_client, SyncDict, ScriptParser
 import numpy as np
 from dask import delayed, compute
 
 from local2global_embedding.run.once_per_worker import once_per_worker
-
-
-def load_data(name, data_root, embedding_file, mmap_features=False, use_tmp=False, **kwargs):
-    mode = 'r' if mmap_features else None
-    x = np.load(embedding_file, mmap_mode=mode)
-    prob = load_classification_problem(name, root=data_root, **kwargs)
-    if use_tmp and mmap_features:
-        tmp_file = ScopedTemporaryFile(prefix='coords_',
-                                       suffix='.npy')  # path of temporary file that is automatically cleaned up when garbage-collected
-        x_tmp = np.memmap(tmp_file, dtype=x.dtype, shape=x.shape)
-        x_tmp[:] = x[:]
-        x = x_tmp
-        print('features moved to tmp storage')
-        prob._tmp_file = tmp_file  # keep reference to tmp_file alive
-    prob.x = x
-    return prob
+from local2global_embedding.run.scripts.utils import load_cl_data
 
 
 @delayed
@@ -52,7 +37,7 @@ def train_task(data, model_args, batch_size=100, **train_args):
     model = MLP(input_dim=data.num_features, output_dim=data.num_labels, **model_args)
     model = train(data, model, batch_size=batch_size, **train_args)
     acc = validation_accuracy(data, model, batch_size)
-    print(f'MLP({model_args}) achieved {acc=}')
+    print(f'MLP({model_args}) with parameters {train_args} achieved {acc=}')
     return acc
 
 
@@ -66,7 +51,7 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=No
         data_root: Root folder for downloaded data
         embedding_file: File containing embedding coordinates (npy)
         results_file: File to store search results (json)
-        train_args: grid of training arguments default ({'batch_size': (100000,), 'num_epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)})
+        train_args: grid of training arguments default ({'batch_size': (100000,), 'num_epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.001, 0.0001)})
         mmap_features: if True use mmap to load features
         use_tmp: if True and using mmap, copy features to temporary storage
         model_args: grid of model parameters
@@ -87,10 +72,10 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=No
         model_grid = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5), 'batch_norm': (True,)}
         if model_args is not None:
             model_grid.update(model_args)
-        train_grid = {'batch_size': (100000,), 'num_epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)}
+        train_grid = {'batch_size': (100000,), 'num_epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.001, 0.0001)}
         if train_args is not None:
             train_grid.update(train_args)
-        prob = once_per_worker(lambda: load_data(name, data_root, embedding_file, mmap_features, use_tmp, **data_args))
+        prob = once_per_worker(lambda: load_cl_data(name, data_root, embedding_file, mmap_features, use_tmp, **data_args))
         acc_list = []
         marg_list = []
         targ_list = []
@@ -101,7 +86,7 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=No
                 acc_list.append(train_task(prob, args, **targs))
                 marg_list.append(args)
                 targ_list.append(targs)
-        acc_list = compute(acc_list)
+        acc_list = compute(*acc_list)
         with SyncDict(results_file, lock=True) as results:
             results['acc_val'] = acc_list
             results['model_args'] = marg_list

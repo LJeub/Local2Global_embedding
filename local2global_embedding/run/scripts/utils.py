@@ -39,6 +39,7 @@ from dask import delayed
 
 from local2global.patch import FilePatch, Patch, MeanAggregatorPatch
 from local2global.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
+from local2global_embedding.run.utils import load_classification_problem
 
 
 @delayed
@@ -269,3 +270,19 @@ def mmap_dask_array(filename, dtype=None, shape=None, blocksize=5):
         chunks.append(da.from_delayed(mmap_dask_chunk(filename, slice(index, index+chunk_size)),
                       shape=(chunk_size,)+shape[1:], dtype=data.dtype))
     return da.concatenate(chunks, axis=0)
+
+
+def load_cl_data(name, data_root, embedding_file, mmap_features=False, use_tmp=False, **kwargs):
+    mode = 'r' if mmap_features else None
+    x = np.load(embedding_file, mmap_mode=mode)
+    prob = load_classification_problem(name, root=data_root, **kwargs)
+    if use_tmp and mmap_features:
+        tmp_file = ScopedTemporaryFile(prefix='coords_',
+                                       suffix='.npy')  # path of temporary file that is automatically cleaned up when garbage-collected
+        x_tmp = np.memmap(tmp_file, dtype=x.dtype, shape=x.shape)
+        x_tmp[:] = x[:]
+        x = x_tmp
+        print('features moved to tmp storage')
+        prob._tmp_file = tmp_file  # keep reference to tmp_file alive
+    prob.x = x
+    return prob
