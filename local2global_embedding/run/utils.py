@@ -30,6 +30,7 @@ import time
 from ast import literal_eval
 from traceback import print_exception
 from runpy import run_path
+import operator
 
 import torch
 from docstring_parser import parse as parse_doc
@@ -693,3 +694,19 @@ def get_or_init_client(init_cluster=True):
             print('launching default client')
             client = Client()
     return client
+
+
+def dask_unpack(client, result_future, n):
+    """
+    Unpack dask future of iterable
+
+    Args:
+        client: dask client
+        result_future: future to unpack
+        n: number of items to unpack
+
+    Returns:
+        list of unpacked futures
+
+    """
+    return [client.submit(operator.getitem, result_future, i) for i in range(n)]

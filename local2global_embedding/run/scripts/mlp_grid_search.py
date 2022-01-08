@@ -56,8 +56,8 @@ def train_task(data, model_args, batch_size=100, **train_args):
     return acc
 
 
-def mlp_grid_search(name, data_root, embedding_file, results_file, train_args={}, mmap_features=False,
-                    use_tmp=False, data_args={}, **kwargs):
+def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=None, train_args=None,
+                    mmap_features=False, use_tmp=False, data_args={}):
     """
     Run grid search over MLP parameters
 
@@ -66,11 +66,12 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, train_args={}
         data_root: Root folder for downloaded data
         embedding_file: File containing embedding coordinates (npy)
         results_file: File to store search results (json)
-        train_args: dict of parameters to pass to training function for all searches
+        train_args: grid of training arguments default ({'batch_size': (100000,), 'epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)})
         mmap_features: if True use mmap to load features
         use_tmp: if True and using mmap, copy features to temporary storage
-        **kwargs: optionally override grid of parameters
-        (default: kwargs = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5)})
+        model_args: grid of model parameters
+        (default: kwargs = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5),
+                            'batch_norm': (True,)})
 
     Returns: dictionary of best model parameters
 
@@ -80,25 +81,34 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, train_args={}
     if results_file.is_file():
         with SyncDict(results_file, lock=False) as results:
             acc_list = results['acc_val']
-            arg_list = results['model_args']
+            marg_list = results['model_args']
+            targ_list = results['training_args']
     else:
-        grid = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5), 'batch_norm': (True,)}
-        grid.update(kwargs)
+        model_grid = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5), 'batch_norm': (True,)}
+        if model_args is not None:
+            model_grid.update(model_args)
+        train_grid = {'batch_size': (100000,), 'epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)}
+        if train_args is not None:
+            train_grid.update(train_args)
         prob = once_per_worker(lambda: load_data(name, data_root, embedding_file, mmap_features, use_tmp, **data_args))
         acc_list = []
-        arg_list = []
-
-        for vals in product(*grid.values()):
-            args = dict(zip(grid.keys(), vals))
-            acc_list.append(train_task(prob, args, **train_args))
-            arg_list.append(args)
+        marg_list = []
+        targ_list = []
+        for tvals in product(*train_grid.values()):
+            targs = dict(zip(train_grid.keys(), tvals))
+            for vals in product(*model_grid.values()):
+                args = dict(zip(model_grid.keys(), vals))
+                acc_list.append(train_task(prob, args, **targs))
+                marg_list.append(args)
+                targ_list.append(targs)
         acc_list = compute(acc_list)
         with SyncDict(results_file, lock=True) as results:
             results['acc_val'] = acc_list
-            results['model_args'] = arg_list
-    acc, args = max(zip(acc_list, arg_list), key=lambda x: x[0])
-    print(f'best model is MLP({args}) with {acc=}')
-    return args
+            results['model_args'] = marg_list
+            results['train_args'] = targ_list
+    acc, margs, targs = max(zip(acc_list, marg_list, targ_list), key=lambda x: x[0])
+    print(f'best model is MLP({margs}) trained with {targs}, {acc=}')
+    return margs, targs
 
 
 if __name__ == '__main__':
