@@ -22,7 +22,7 @@ from bisect import bisect_left
 from pathlib import Path
 import asyncio
 import sys
-from collections.abc import Iterable
+from collections import UserDict
 import argparse
 from inspect import signature
 import typing
@@ -168,7 +168,7 @@ class NoLock:
         pass
 
 
-class SyncDict:
+class SyncDict(UserDict):
     """
     Class for keeping json-backed dict with locking for sync
     """
@@ -182,7 +182,7 @@ class SyncDict:
         """
         with self._lock:
             with open(self.filename) as f:
-                self._data = json.load(f)
+                self.data = json.load(f)
 
     def save(self):
         """
@@ -194,7 +194,7 @@ class SyncDict:
         """
         with self._lock:
             with atomic_write(self.filename, overwrite=True) as f:  # this should avoid any chance of loosing existing data
-                json.dump(self._data, f)
+                json.dump(self.data, f)
 
     def __init__(self, filename, lock=True):
         """
@@ -203,6 +203,7 @@ class SyncDict:
             filename: file to use for storage
             lock: set lock=False to avoid locking (use wisely)
         """
+        super().__init__()
         self.filename = Path(filename)
         if lock:
             self._lock = SoftFileLock(self.filename.with_suffix('.lock'), timeout=10)
@@ -210,7 +211,6 @@ class SyncDict:
             self._lock = NoLock()  # implements lock interface without doing anything
         with self._lock:
             if not self.filename.is_file():
-                self._data = {}
                 self.save()
             else:
                 self.load()
@@ -223,12 +223,6 @@ class SyncDict:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.save()
         self._lock.release()
-
-    def __getattr__(self, attr):
-        """
-        Access underlying dict data
-        """
-        return getattr(self._data, attr)
 
 
 class ResultsDict:
