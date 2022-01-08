@@ -48,7 +48,7 @@ def load_data(name, data_root, embedding_file, mmap_features=False, use_tmp=Fals
 
 @delayed
 def train_task(data, model_args, batch_size=100, **train_args):
-    print(f'training MLP({model_args})')
+    print(f'training MLP({model_args}) with parameters {train_args}')
     model = MLP(input_dim=data.num_features, output_dim=data.num_labels, **model_args)
     model = train(data, model, batch_size=batch_size, **train_args)
     acc = validation_accuracy(data, model, batch_size)
@@ -66,7 +66,7 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=No
         data_root: Root folder for downloaded data
         embedding_file: File containing embedding coordinates (npy)
         results_file: File to store search results (json)
-        train_args: grid of training arguments default ({'batch_size': (100000,), 'epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)})
+        train_args: grid of training arguments default ({'batch_size': (100000,), 'num_epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)})
         mmap_features: if True use mmap to load features
         use_tmp: if True and using mmap, copy features to temporary storage
         model_args: grid of model parameters
@@ -87,7 +87,7 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=No
         model_grid = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 3, 4), 'dropout': (0, 0.25, 0.5), 'batch_norm': (True,)}
         if model_args is not None:
             model_grid.update(model_args)
-        train_grid = {'batch_size': (100000,), 'epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)}
+        train_grid = {'batch_size': (100000,), 'num_epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.005, 0.001)}
         if train_args is not None:
             train_grid.update(train_args)
         prob = once_per_worker(lambda: load_data(name, data_root, embedding_file, mmap_features, use_tmp, **data_args))
