@@ -20,6 +20,7 @@
 import torch
 from pathlib import Path
 from itertools import product
+from collections.abc import Iterable
 
 from local2global_embedding.run.scripts.utils import ScopedTemporaryFile
 from local2global_embedding.classfication import MLP, train, validation_accuracy
@@ -39,6 +40,16 @@ def train_task(data, model_args, batch_size=100, **train_args):
     acc = validation_accuracy(data, model, batch_size)
     print(f'MLP({model_args}) with parameters {train_args} achieved {acc=}')
     return acc
+
+
+def _make_grid(args):
+    grid = {}
+    for key, val in args:
+        if isinstance(val, Iterable):
+            grid[key] = val
+        else:
+            grid[key] = (val,)
+    return grid
 
 
 def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=None, train_args=None,
@@ -75,6 +86,8 @@ def mlp_grid_search(name, data_root, embedding_file, results_file, model_args=No
         train_grid = {'batch_size': (100000,), 'num_epochs': (1000,), 'patience': (20,), 'lr': (0.01, 0.001, 0.0001)}
         if train_args is not None:
             train_grid.update(train_args)
+        model_grid = _make_grid(model_grid)
+        train_grid = _make_grid(train_grid)
         prob = once_per_worker(lambda: load_cl_data(name, data_root, embedding_file, mmap_features, use_tmp, **data_args))
         acc_list = []
         marg_list = []
