@@ -94,7 +94,7 @@ def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=Fal
     """
     # TODO implement multiple runs with random split
     results_file = Path(results_file)
-    final_results_file = results_file.with_stem(results_file.stem + '_best')
+    final_results_file = results_file.with_name(results_file.stem + '_best.json')
     dim = np.load(embedding_file, mmap_mode='r').shape[1]
     if model != 'mlp':
         raise NotImplementedError('grid search only implemented for MLP')
