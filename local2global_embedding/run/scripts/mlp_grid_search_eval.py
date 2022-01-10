@@ -56,7 +56,7 @@ def compute_auc(name, data_root, restrict_lcc, mmap_edges, coords, dist):
 
 def _clean_grid_args(args):
     grid = {}
-    for key, val in args:
+    for key, val in args.items():
         if isinstance(val, Iterable):
             grid[key] = val
         else:
