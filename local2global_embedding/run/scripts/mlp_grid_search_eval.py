@@ -33,11 +33,11 @@ from local2global_embedding.run.scripts.utils import load_cl_data
 
 
 @delayed
-def train_task(data, model_args, results_file, batch_size=100, **train_args):
+def train_task(data, model_args, results_file, batch_size=100, device=None, **train_args):
     results_file = Path(results_file)
     print(f'training MLP({model_args}) with parameters {train_args}')
     model = MLP(input_dim=data.num_features, output_dim=data.num_labels, **model_args)
-    model = train(data, model, batch_size=batch_size, **train_args)
+    model = train(data, model, batch_size=batch_size, device=None, **train_args)
     val_acc = accuracy(data, model, batch_size=batch_size, mode='val')
     train_args['batch_size'] = batch_size
     with ResultsDict(results_file, lock=True) as results:
@@ -72,7 +72,8 @@ def _make_grid(model_args, train_args):
 
 
 def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=False, model_args=None, train_args=None,
-                         mmap_edges=None, mmap_features=None, random_split=False, use_tmp=False, model='mlp', restrict_lcc=False):
+                         mmap_edges=None, mmap_features=None, random_split=False, use_tmp=False, model='mlp',
+                         restrict_lcc=False, device=None, runs=None):
     """
     Run grid search over MLP parameters
 
@@ -91,6 +92,7 @@ def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=Fal
     Returns: dictionary of best model parameters
 
     """
+    # TODO implement multiple runs with random split
     results_file = Path(results_file)
     final_results_file = results_file.with_stem(results_file.stem + '_best')
     dim = np.load(embedding_file, mmap_mode='r').shape[1]
