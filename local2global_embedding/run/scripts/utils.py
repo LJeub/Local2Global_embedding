@@ -272,11 +272,10 @@ def mmap_dask_array(filename, dtype=None, shape=None, blocksize=5):
     return da.concatenate(chunks, axis=0)
 
 
-def load_cl_data(name, data_root, embedding_file, mmap_features=False, use_tmp=False, **kwargs):
-    mode = 'r' if mmap_features else None
-    x = np.load(embedding_file, mmap_mode=mode)
+def load_cl_data(name, data_root, embedding_file, mmap_features=None, use_tmp=False, **kwargs):
+    x = np.load(embedding_file, mmap_mode=mmap_features)
     prob = load_classification_problem(name, root=data_root, **kwargs)
-    if use_tmp and mmap_features:
+    if use_tmp and mmap_features is not None:
         tmp_file = ScopedTemporaryFile(prefix='coords_',
                                        suffix='.npy')  # path of temporary file that is automatically cleaned up when garbage-collected
         x_tmp = np.memmap(tmp_file, dtype=x.dtype, shape=x.shape)

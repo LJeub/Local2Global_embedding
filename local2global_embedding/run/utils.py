@@ -226,7 +226,7 @@ class SyncDict(UserDict):
         self._lock.release()
 
 
-class ResultsDict:
+class ResultsDict(UserDict):
     """
     Class for keeping track of results
     """
@@ -244,7 +244,7 @@ class ResultsDict:
         """
         with self._lock:
             with open(self.filename) as f:
-                self._data = json.load(f)
+                self.data = json.load(f)
 
     def save(self):
         """
@@ -256,7 +256,7 @@ class ResultsDict:
         """
         with self._lock:
             with atomic_write(self.filename, overwrite=True) as f:  # this should avoid any chance of loosing existing data
-                json.dump(self._data, f)
+                json.dump(self.data, f)
 
     def __init__(self, filename, replace=False, lock=True):
         """
@@ -264,6 +264,7 @@ class ResultsDict:
         Args:
             replace: set the replace attribute (default: ``False``)
         """
+        super().__init__()
         self.filename = Path(filename)
         if lock:
             self._lock = SoftFileLock(self.filename.with_suffix('.lock'), timeout=10)
@@ -271,7 +272,7 @@ class ResultsDict:
             self._lock = NoLock()  # implements lock interface without doing anything
         with self._lock:
             if not self.filename.is_file():
-                self._data = {'dims': [], 'runs': []}
+                self.data = {'dims': [], 'runs': []}
                 self.save()
             else:
                 self.load()
@@ -286,11 +287,7 @@ class ResultsDict:
         self.save()
         self._lock.release()
 
-    def __getitem__(self, item):
-        if self._data is not None:
-            return self._data[item]
-
-    def _update_index(self, index, **kwargs):
+    def _update_index(self, index, replace=False, **kwargs):
         """
         update data for a given index
 
@@ -302,12 +299,12 @@ class ResultsDict:
         """
         for key, val in kwargs.items():
             if key not in self:
-                self._data[key] = [[] for _ in self['dims']]
-            if self.replace:
+                self.data[key] = [[] for _ in self['dims']]
+            if replace or self.replace:
                 self[key][index] = [val]
             else:
                 self[key][index].append(val)
-        if not self.replace:
+        if not (replace or self.replace):
             self['runs'][index] += 1
 
     def _insert_index(self, index: int, dim: int, **kwargs):
@@ -321,15 +318,21 @@ class ResultsDict:
             args: new args data (optional)
         """
         self['dims'].insert(index, dim)
+        for key in self:
+            if key != 'dims':
+                self[key].insert(index, [])
         for key, val in kwargs.items():
             if key in self:
                 self[key].insert(index, [val])
             else:
-                self._data[key] = [[] for _ in self['dims']]
+                self.data[key] = [[] for _ in self['dims']]
                 self[key][index].append(val)
         self['runs'].insert(index, 1)
 
-    def update_dim(self, dim, **kwargs):
+    def _index(self, dim):
+        return bisect_left(self['dims'], dim)
+
+    def update_dim(self, dim, replace=False, **kwargs):
         """
         update data for given dimension
 
@@ -343,9 +346,9 @@ class ResultsDict:
         ``self.replace``
 
         """
-        index = bisect_left(self['dims'], dim)
+        index = self._index(dim)
         if index < len(self['dims']) and self['dims'][index] == dim:
-            self._update_index(index, **kwargs)
+            self._update_index(index, replace=replace, **kwargs)
         else:
             self._insert_index(index, dim, **kwargs)
 
@@ -387,11 +390,14 @@ class ResultsDict:
             else:
                 return float('inf')
 
-    def __contains__(self, item):
-        return item in self._data
-
-    def get(self, item, default=None):
-        return self[item] if item in self else default
+    def get(self, item, dim=None, default=None):
+        if item in self:
+            if dim is None:
+                return self[item]
+            elif self.contains_dim(dim):
+                index = self._index(dim)
+                return self[item][index]
+        return default
 
     def contains_dim(self, dim):
         """
@@ -409,9 +415,9 @@ class ResultsDict:
 
         """
         index = [i for i, d in enumerate(dims) if self.contains_dim(d)]
-        for key1 in self._data:
-            if isinstance(self._data[key1], list):
-                self._data[key1] = [self[key1][i] for i in index]
+        for key1 in self.data:
+            if isinstance(self.data[key1], list):
+                self.data[key1] = [self[key1][i] for i in index]
         return self
 
     def runs(self, dim=None):

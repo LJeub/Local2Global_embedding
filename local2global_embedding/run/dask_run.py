@@ -130,6 +130,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
               DLG-KDD’21. 2021. `arXiv:2107.12224 [cs.LG] <https://arxiv.org/abs/2107.12224>`_.
 
     """
+    grid_search_params = grid_search_params and cl_model == 'mlp'  # grid search only implemented for MLP
+    if grid_search_params:
+        eval_func = func.mlp_grid_search_eval
+    else:
+        eval_func = func.evaluate
+
     cl_train_args_input = cl_train_args  # keep reference to original values as these may be overriden if using grid-search
     cl_model_args_input = cl_model_args
 
@@ -206,9 +212,13 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         eval_basename += '_norm'
         train_basename += '_norm'
 
+    if grid_search_params:
+        eval_basename += '_gridsearch'
     eval_basename += f'_{cl_model}'
     if cl_model_args:
         eval_basename += f'({cl_model_args})'
+    if cl_train_args:
+        eval_basename += f'{cl_train_args}'
 
     l2g_name = 'l2g'
     if scale:
@@ -280,25 +290,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             with ResultsDict(baseline_loss_eval_file, replace=True, lock=False) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
                     coords_file = result_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
-                    if grid_search_params and model == 'mlp':
-                        grid_search_task = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
-                                                         _depends_on=baseline_tasks,
-                                                         name=name,
-                                                         data_root=data_root,
-                                                         data_args={'restrict_lcc': restrict_lcc},
-                                                         embedding_file=coords_file,
-                                                         results_file=coords_file.with_name(
-                                                             coords_file.name.replace('_coords.npy',
-                                                                                      '_gridsearch.json')),
-                                                         train_args=cl_train_args_input,
-                                                         model_args=cl_model_args_input,
-                                                         mmap_features=mmap_features,
-                                                         use_tmp=use_tmp,
-                                                         )
-                        all_tasks.add(grid_search_task)
-                        cl_model_args, cl_train_args = dask_unpack(client, grid_search_task, 2)
-                        del grid_search_task
-                    task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
+                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
                                          model=cl_model,
@@ -322,24 +314,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             with ResultsDict(baseline_auc_eval_file, replace=True, lock=False) as eval_results:
                 if baseline_tasks or not eval_results.contains_dim(d):
                     coords_file = result_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
-                    if grid_search_params and model == 'mlp':
-                        grid_search_task = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
-                                                      _depends_on=baseline_tasks,
-                                                      name=name,
-                                                      data_root=data_root,
-                                                      data_args={'restrict_lcc': restrict_lcc},
-                                                      embedding_file=coords_file,
-                                                      results_file=coords_file.with_name(
-                                                          coords_file.name.replace('_coords.npy', '_gridsearch.json')),
-                                                      train_args=cl_train_args_input,
-                                                         model_args=cl_model_args_input,
-                                                      mmap_features=mmap_features,
-                                                      use_tmp=use_tmp,
-                                                      )
-                        all_tasks.add(grid_search_task)
-                        cl_model_args, cl_train_args = dask_unpack(client, grid_search_task, 2)
-                        del grid_search_task
-                    task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=baseline_tasks,
+                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=baseline_tasks,
                                          resources=gpu_req,
                                          name=name,
                                          model=cl_model,
@@ -426,24 +401,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             with ResultsDict(l2g_eval_file, replace=True, lock=False) as l2g_eval:
                 if l2g_task or not l2g_eval.contains_dim(d):
-                    if grid_search_params and model == 'mlp':
-                        grid_search_task = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
-                                                      _depends_on=l2g_task,
-                                                      name=name,
-                                                      data_root=data_root,
-                                                      data_args={'restrict_lcc': restrict_lcc},
-                                                      embedding_file=coords_file,
-                                                      results_file=coords_file.with_name(
-                                                          coords_file.name.replace('_coords.npy', '_gridsearch.json')),
-                                                      train_args=cl_train_args_input,
-                                                         model_args=cl_model_args_input,
-                                                      mmap_features=mmap_features,
-                                                      use_tmp=use_tmp,
-                                                      )
-                        all_tasks.add(grid_search_task)
-                        cl_model_args, cl_train_args = dask_unpack(client, grid_search_task, 2)
-                        del grid_search_task
-                    task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=l2g_task,
+                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=l2g_task,
                                          resources=gpu_req,
                                          name=name,
                                          model=cl_model,
@@ -480,24 +438,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             with ResultsDict(nt_eval_file, replace=True, lock=False) as nt_eval:
                 if nt_task or not nt_eval.contains_dim(d):
-                    if grid_search_params and model == 'mlp':
-                        grid_search_task = client.submit(with_dependencies(func.mlp_grid_search), pure=False,
-                                                      _depends_on=nt_task,
-                                                      name=name,
-                                                      data_root=data_root,
-                                                      data_args={'restrict_lcc': restrict_lcc},
-                                                      embedding_file=coords_file,
-                                                      results_file=coords_file.with_name(
-                                                          coords_file.name.replace('_coords.npy', '_gridsearch.json')),
-                                                      train_args=cl_train_args_input,
-                                                      model_args=cl_model_args_input,
-                                                      mmap_features=mmap_features,
-                                                      use_tmp=use_tmp,
-                                                      )
-                        all_tasks.add(grid_search_task)
-                        cl_model_args, cl_train_args = dask_unpack(client, grid_search_task, 2)
-                        del grid_search_task
-                    task = client.submit(with_dependencies(func.evaluate), pure=False, _depends_on=nt_task,
+                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=nt_task,
                                          resources=gpu_req,
                                          name=name,
                                          model=cl_model,
