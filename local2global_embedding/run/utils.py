@@ -318,7 +318,7 @@ class ResultsDict(UserDict):
         """
         self['dims'].insert(index, dim)
         for key in self:
-            if key != 'dims':
+            if key not in {'dims', 'runs'}:  # these only store single values per dimension
                 self[key].insert(index, [])
         for key, val in kwargs.items():
             if key in self:
