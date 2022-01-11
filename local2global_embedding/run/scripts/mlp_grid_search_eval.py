@@ -131,7 +131,7 @@ def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=Fal
             i = np.argmax(val_list)
             best_model_args = results.get('model_args', dim=dim)[i]
             best_train_args = results.get('train_args', dim=dim)[i]
-            best_results.update_dim(dim, test_acc=test_acc, best_model_args=best_model_args,
+            best_results.update_dim(dim, auc=auc, test_acc=test_acc, best_model_args=best_model_args,
                                best_train_args=best_train_args)
             print(f'best model is MLP({best_model_args} trained with {best_train_args}, {test_acc=}')
 
