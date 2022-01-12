@@ -54,6 +54,11 @@ def compute_auc(name, data_root, restrict_lcc, mmap_edges, coords, dist):
     return reconstruction_auc(coords, graph, dist)
 
 
+@delayed
+def compute_test_acc(prob, model_file):
+    return accuracy(prob, torch.load(model_file), mode='test')
+
+
 def _clean_grid_args(args):
     grid = {}
     for key, val in args.items():
@@ -124,11 +129,10 @@ def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=Fal
             task_list.append(train_task(prob, margs, results_file, **targs))
     auc = compute_auc(name, data_root, restrict_lcc, mmap_edges, prob.x, dist)
     task_list, auc = compute(task_list, auc)
+    test_acc = compute_test_acc(prob, results_file.with_name(results_file.stem + f'_d{dim}_bestclassifier.pt'))
 
     with ResultsDict(results_file) as results:
         with ResultsDict(final_results_file, lock=True, replace=True) as best_results:
-            best_model = torch.load(results_file.with_name(results_file.stem + f'_d{dim}_bestclassifier.pt'))
-            test_acc = accuracy(prob.compute(), best_model, mode='test')
             val_list = results.get('val_acc', dim=dim)
             i = np.argmax(val_list)
             best_model_args = results.get('model_args', dim=dim)[i]
