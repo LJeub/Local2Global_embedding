@@ -114,7 +114,9 @@ def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=Fal
     if results_file.is_file():
         with ResultsDict(results_file, lock=False) as results:
             runs = results.runs(dim)
-            arg_grid = arg_grid[runs:]  # resume remaining experiments
+            if runs < len(arg_grid):
+                raise RuntimeError('Partial results already exist, resume not implemented, stopping.')
+
     prob = once_per_worker(lambda: load_cl_data(name, data_root, embedding_file, mmap_features, use_tmp,
                                                 restrict_lcc=restrict_lcc))
     task_list = []
