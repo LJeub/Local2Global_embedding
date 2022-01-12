@@ -121,6 +121,8 @@ def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=Fal
             runs = results.runs(dim)
             if runs < len(arg_grid):
                 raise RuntimeError('Partial results already exist, resume not implemented, stopping.')
+            else:
+                arg_grid = []
 
     prob = once_per_worker(lambda: load_cl_data(name, data_root, embedding_file, mmap_features, use_tmp,
                                                 restrict_lcc=restrict_lcc))
@@ -129,7 +131,7 @@ def mlp_grid_search_eval(name, data_root, embedding_file, results_file, dist=Fal
             task_list.append(train_task(prob, margs, results_file, **targs))
     auc = compute_auc(name, data_root, restrict_lcc, mmap_edges, prob.x, dist)
     task_list, auc = compute(task_list, auc)
-    test_acc = compute_test_acc(prob, results_file.with_name(results_file.stem + f'_d{dim}_bestclassifier.pt'))
+    test_acc = compute_test_acc(prob, results_file.with_name(results_file.stem + f'_d{dim}_bestclassifier.pt')).compute()
 
     with ResultsDict(results_file) as results:
         with ResultsDict(final_results_file, lock=True, replace=True) as best_results:
