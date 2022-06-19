@@ -67,7 +67,10 @@ class LANLdays:
 class LANL:
     num_source_nodes = 37177
     num_dest_nodes = 931655
-    timestep_labels = [f'day-{d:02}' for d in range(2, 91)]
+    timestep_labels = tuple(f'day-{d:02}' for d in range(2, 91))
+    redteam_active = (49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65,
+       66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 77, 78, 79, 80, 81, 82, 83,
+       84, 85, 86, 87, 88)
 
     def __init__(self, data_root, protocol='TCP', weight=None, weight_transform=None):
         self.data_root = Path(data_root)

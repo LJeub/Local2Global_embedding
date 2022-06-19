@@ -19,21 +19,53 @@
 #  SOFTWARE.
 
 import json
+
+import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from pathlib import Path
 from local2global_embedding.run.utils import ScriptParser, ResultsDict
 
 
+def _extract_error(data, key):
+    err = None
+    if key == 'acc_mean':
+        err = data.get('acc_std')
+    if err is not None:
+        err = np.asarray(err).flatten()
+    return err
+
+
 def plot(data, key, baseline_data=None, nt_data=None):
     fig = plt.figure()
+    bar_opts = dict(elinewidth=0.5, capthick=0.5, capsize=3)
     if baseline_data is not None and key in baseline_data:
-        plt.plot(baseline_data['dims'], baseline_data[key], label='full', marker='o', color='tab:blue')
+        _, cap, ebar = plt.errorbar(baseline_data['dims'], baseline_data[key],
+                     yerr=_extract_error(baseline_data, key),
+                     label='full', marker='o', color='tab:blue', **bar_opts)
+        if ebar:
+            cap[0].set_alpha(0.5)
+            cap[1].set_alpha(0.5)
+            ebar[0].set_alpha(0.5)
 
-    plt.plot(data['dims'], data[key], '--', label='l2g', marker='>', color='tab:blue')
+
+    _, cap, ebar = plt.errorbar(data['dims'], data[key], fmt='--', yerr=_extract_error(data, key),
+                 label='l2g', marker='>', color='tab:blue', **bar_opts)
+
+    if ebar:
+        cap[0].set_alpha(0.5)
+        cap[1].set_alpha(0.5)
+        ebar[0].set_alpha(0.5)
+        ebar[0].set_linestyle('--')
 
     if nt_data is not None and key in nt_data:
-        plt.plot(nt_data['dims'], nt_data[key], ':', label='no-trans', color='tab:blue', linewidth=1)
+        _, cap, ebar = plt.errorbar(nt_data['dims'], nt_data[key], fmt=':', yerr=_extract_error(nt_data, key),
+                     label='no-trans', color='tab:blue', linewidth=1, **bar_opts)
+        if ebar:
+            cap[0].set_alpha(0.5)
+            cap[1].set_alpha(0.5)
+            ebar[0].set_alpha(0.5)
+            ebar[0].set_linestyle(':')
 
     plt.xscale('log')
     plt.xticks(data['dims'], data['dims'])
@@ -55,7 +87,7 @@ def plot_all(folder=None):
     else:
         folder = Path(folder)
 
-    for file in folder.glob('**/*_l2g_*_eval.json'):
+    for file in folder.glob('**/**/*_l2g_*_eval.json'):
         print(file)
         with open(file) as f:
             data = json.load(f)
@@ -65,23 +97,23 @@ def plot_all(folder=None):
         else:
             base_name = base_name_parts[0]
 
-        baseline = folder / base_name.replace('_l2g_', '_full_')
+        baseline = folder / file.parent.name / base_name.replace('_l2g_', '_full_').replace('_scale', '')
         if baseline.is_file():
             baseline_data = ResultsDict(baseline)
             baseline_data.reduce_to_dims(data['dims'])
         else:
             baseline_data = None
 
-        nt = file.with_name(base_name.replace('_l2g_', '_nt_'))
+        nt = file.with_name(base_name.replace('_l2g_', '_nt_').replace('_scale', ''))
         if nt.is_file():
             with open(nt) as f:
                 nt_data = json.load(f)
         else:
             nt_data = None
         name = file.stem.split('_', 1)[0]
-        network_data = torch.load(file.parents[1] / f'{name}_data.pt')
+        network_data = torch.load(folder / f'{name}_data.pt')
         all_edges = network_data.num_edges
-        patch_files = list(file.parent.glob('patch*_data.pt'))
+        patch_files = list(file.parents[1].glob('patch*_data.pt'))
         patch_edges = sum(torch.load(patch_file, map_location='cpu').num_edges
                           for patch_file in patch_files)
         oversampling_ratio = patch_edges / all_edges

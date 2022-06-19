@@ -9,6 +9,7 @@ from math import log, log2, ceil
 from copy import deepcopy
 from itertools import count, chain, product, groupby
 from tqdm.auto import tqdm
+from collections.abc import Sequence
 
 
 from local2global_embedding.utils import EarlyStopping, get_device
@@ -456,46 +457,44 @@ def grid_search(data, param_grid, epochs=10, batch_size=100, param_transform=lam
     return objective.best_model, objective.best_parameters, pd.DataFrame.from_records(results)
 
 
-def hyper_tune(data: ClassificationProblem, max_evals=100, min_hidden=128, max_hidden=512, max_layers=4,
-               num_epochs=10000, patience=20, batch_size=100000, n_tries=1, random_search=False,
-               search_params=None, **kwargs):
-    objective = HyperTuneObjective(data, n_tries=n_tries, num_epochs=num_epochs, patience=patience,
-                                   batch_size=batch_size,**kwargs)
+def _make_space(args):
+    log_vars = {'epsilon', 'weight_decay', 'xi', 'alpha', 'beta', 'lr'}
+    int_vars = {'n_layers'}
+    uniform_vars = {'dropout'}
+    choice_vars = {'hidden', 'batch_norm'}
+    space = {}
+    fixed = {}
+    for key, val in args.items():
+        if isinstance(val, Sequence):
+            if key in log_vars:
+                space[key] = hp.loguniform(key, log(min(val)), log(max(val)))
+            if key in int_vars:
+                space[key] = hp.uniformint(key, min(val), max(val))
+            if key in uniform_vars:
+                space[key] = hp.uniform(key, min(val), max(val))
+            if key in choice_vars:
+                space[key] = hp.choice(key, val)
+        else:
+            space[key] = val
+    return space
+
+
+def hyper_tune(data: ClassificationProblem, max_evals=100, n_tries=1, random_search=False,
+               model_args=None, train_args=None):
+    _model_args = {'hidden_dim': (128, 256, 512, 1024), 'n_layers': (2, 4), 'dropout': (0, 1), 'batch_norm': (False, True)}
+    _train_args = {'batch_size': 100000, 'num_epochs': 1000, 'patience': 20, 'lr': (1e-4, 1e-1)}
+    model_space = _make_space(_model_args)
+    train_space = _make_space(_train_args)
+    objective = HyperTuneObjective(data, n_tries=n_tries)
     trials = Trials()
     in_dim = data.num_features
     out_dim = data.num_labels
-    log_min_hidden = int(ceil(log2(out_dim if min_hidden is None else min_hidden)))
-
-    params = {
-        # 'epsilon': hp.lognormal('epsilon', 0, 1),
-        'weight_decay': hp.loguniform('weight_decay', log(1e-8), 0),
-        # 'xi': hp.loguniform('xi', log(1e-16), log(1e-5)),
-        # 'alpha': hp.lognormal('alpha', 0, 1),
-        # 'beta': hp.lognormal('beta', 0, 1),
-        'lr': hp.loguniform('lr', log(1e-4), log(1e-1)),
-        # 'vat_it': hp.uniformint('vat_it', 1, 3),
-        'hidden': 2 ** hp.uniformint('hidden', log_min_hidden, int(np.log2(max_hidden))),
-        'n_layers': max_layers if max_layers <= 2 else hp.uniformint('n_layers', 2, max_layers),
-        'batch_norm': hp.choice('batch_norm', (True, False)),
-        'dropout': hp.uniform('dropout', 0, 1)
-    }
-    if search_params is not None:
-        params.update(search_params)
 
     search_space = {
-        # 'epsilon': params['epsilon'],
-        'weight_decay': params['weight_decay'],
-        # 'xi': params['xi'],
-        # 'alpha': params['alpha'],
-        # 'beta': params['beta'],
-        'lr': params['lr'],
-        # 'vat_it': params['vat_it'],
-        'model': scope.mlp_model(in_dim,
-                                 params['hidden'],
-                                 out_dim,
-                                 params['n_layers'],
-                                 batch_norm=params['batch_norm'],
-                                 dropout=params['dropout'],
+        **train_space,
+        'model': scope.mlp_model(in_dim=in_dim,
+                                 out_dim=out_dim,
+                                 **model_space,
                                  )
     }
 
@@ -506,15 +505,19 @@ def hyper_tune(data: ClassificationProblem, max_evals=100, min_hidden=128, max_h
         return value
 
     if random_search:
-        fmin(fn=objective, space=search_space, algo=rand.suggest, max_evals=max_evals, trials=trials)
+        args = fmin(fn=objective, space=search_space, algo=rand.suggest, max_evals=max_evals, trials=trials)
     else:
-        fmin(fn=objective, space=search_space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+        args = fmin(fn=objective, space=search_space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
 
+    params = {**train_space, **model_space}
     results = pd.DataFrame.from_records({key: transform(params[key], t['misc']['vals'])
                                          for key in t['misc']['vals']}
                                         for t in trials.trials)
     results['loss'] = trials.losses()
-    return results, objective
+    best_args = space_eval(params, args)
+    best_model_args = {key: best_args[key] for key in _model_args}
+    best_train_args = {key: best_args[key] for key in _train_args}
+    return best_model_args, best_train_args, results
 
 
 def plot_hyper_results(results, plot_kws=None, diag_kws=None, **kwargs):
