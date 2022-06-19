@@ -20,6 +20,7 @@
 import torch
 import torch.nn
 from tempfile import TemporaryFile
+from time import perf_counter
 
 
 def speye(n, dtype=torch.float):
@@ -105,3 +106,23 @@ class EarlyStopping:
             return True
         else:
             return False
+
+
+class Timer:
+    """
+    Context manager for accumulating execution time
+
+    Adds the time taken within block to a running total.
+
+    """
+    def __init__(self):
+        self.total = 0.0
+
+    def __enter__(self):
+        self.tic = perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.total += perf_counter() - self.tic
+
+

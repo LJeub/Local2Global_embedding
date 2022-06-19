@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Optional
 import os
 from collections.abc import Iterable
+from time import perf_counter
 
 import numpy as np
 import torch
@@ -108,12 +109,12 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
     updated_auc = False
     updated_loss = False
     for r in range(runs_done, runs):
+        tic = perf_counter()
         model.reset_parameters()
-
         ep_count = Count()
         model = training.train(data, model, loss_fun, num_epochs, patience, lr[r], verbose=verbose, logger=ep_count)
-
         coords = model.embed(data)
+        toc = perf_counter()
 
         auc = reconstruction_auc(coords, data, dist=dist)
         loss = float(loss_fun(model, data))
@@ -131,7 +132,7 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
                 torch.save(model.state_dict(), model_auc_file)
                 np.save(coords_auc_file, coords.cpu().numpy())
             results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr[r], 'num_epochs': num_epochs,
-                                                              'patience': patience, 'dist': dist})
+                                                              'patience': patience, 'dist': dist, 'time': toc-tic})
             runs_done = results.runs(dim)
 
     return coords_auc_file, updated_auc, coords_loss_file, updated_loss

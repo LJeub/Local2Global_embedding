@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Optional
 from shutil import copyfile
 from tempfile import NamedTemporaryFile, TemporaryFile
+from local2global_embedding.utils import Timer
 
 import torch
 import numpy as np
@@ -65,7 +66,9 @@ def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str
                 patch_list.append(Patch(nodes, coords))
 
         print('initialising alignment problem')
-        prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=verbose)
+        timer = Timer()
+        with timer:
+            prob = SVDAlignmentProblem(patch_list, patch_edges=patch_graph.edges(), copy_data=False, verbose=verbose)
         patched_embedding_file = patch_folder / f'{basename}_d{dim}_{criterion}_coords.npy'
         patched_embedding_file_nt = patch_folder / f'{basename}_d{dim}_{criterion}_ntcoords.npy'
         if mmap:
@@ -92,17 +95,22 @@ def l2g_align_patches(patch_folder: str, basename: str, dim: int, criterion: str
             if use_tmp:
                 with TemporaryFile() as f:
                     buffer = np.memmap(f, dtype=np.float32, shape=(prob.n_nodes, prob.dim))
-                    prob.align_patches().mean_embedding(buffer)
+                    with timer:
+                        prob.align_patches().mean_embedding(buffer)
                     np.save(patched_embedding_file, buffer)
             else:
                 out = open_memmap(patched_embedding_file, mode='w+', shape=(prob.n_nodes, prob.dim), dtype=np.float32)
-                prob.align_patches().mean_embedding(out)
+                with timer:
+                    prob.align_patches().mean_embedding(out)
                 out.flush()
         else:
             print('computing aligned coords')
             out = np.empty(shape=(prob.n_nodes, prob.dim), dtype=np.float32)
-            coords = prob.align_patches().mean_embedding(out)
+            with timer:
+                coords = prob.align_patches().mean_embedding(out)
             np.save(patched_embedding_file, coords)
+        with open(patched_embedding_file.with_name(patched_embedding_file.stem + "timing.txt")) as f:
+            f.write(timer.total)
 
 
 if __name__ == '__main__':

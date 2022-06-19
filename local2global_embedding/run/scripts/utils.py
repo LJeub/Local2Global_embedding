@@ -40,6 +40,7 @@ from dask import delayed
 from local2global.patch import FilePatch, Patch, MeanAggregatorPatch
 from local2global.lazy import LazyCoordinates, LazyMeanAggregatorCoordinates
 from local2global_embedding.run.utils import load_classification_problem
+from local2global_embedding.utils import Timer
 
 
 @delayed
@@ -220,35 +221,37 @@ def num_patches(patches):
     return len(patches)
 
 
-@delayed
+@delayed(nout=2)
 def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=False):
     if use_tmp:
         patches = [move_to_tmp(p) for p in patches]
     else:
         patches = [copy(p) for p in patches]
 
-    prob = SVDAlignmentProblem(patches, patch_graph.edges(), copy_data=False, verbose=verbose)
-    retry = True
-    tries = 0
-    max_tries = 3
-    while retry and tries < max_tries:
-        retry = False
-        tries += 1
-        try:
-            prob.align_patches(scale=scale)
-        except Exception as e:
-            print(e)
-            if tries >= max_tries:
-                raise e
-            else:
-                retry = True
+    timer = Timer()
+    with timer:
+        prob = SVDAlignmentProblem(patches, patch_graph.edges(), copy_data=False, verbose=verbose)
+        retry = True
+        tries = 0
+        max_tries = 3
+        while retry and tries < max_tries:
+            retry = False
+            tries += 1
+            try:
+                prob.align_patches(scale=scale)
+            except Exception as e:
+                print(e)
+                if tries >= max_tries:
+                    raise e
+                else:
+                    retry = True
 
     if use_tmp:
         patches = [restore_from_tmp(p) for p in prob.patches]
     else:
         patches = prob.patches
 
-    return MeanAggregatorPatch(patches)
+    return MeanAggregatorPatch(patches), timer.total
 
 
 @delayed

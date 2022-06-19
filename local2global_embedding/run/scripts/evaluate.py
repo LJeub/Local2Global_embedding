@@ -79,7 +79,8 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
         model = construct_model()
         model = train(cl_data, model, device=device, **train_args)
         acc.append(accuracy(cl_data, model))
-        print(f'Model accuracy: {acc[-1]}, max memory: {torch.cuda.max_memory_allocated()}, total available memory: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory}')
+        if torch.cuda.is_available():
+            print(f'Model accuracy: {acc[-1]}, max memory: {torch.cuda.max_memory_allocated()}, total available memory: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory}')
     acc_mean = mean(acc)
     if len(acc) == 1:
         acc_std = 0.
