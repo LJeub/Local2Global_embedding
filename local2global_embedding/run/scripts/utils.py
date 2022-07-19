@@ -19,13 +19,11 @@
 #  SOFTWARE.
 from copy import copy
 from shutil import copyfile, move
-from tempfile import gettempdir, NamedTemporaryFile
-from operator import add
+from tempfile import NamedTemporaryFile
 
 import dask.array as da
-from filelock import FileLock, SoftFileLock
+from filelock import SoftFileLock
 import os
-from threading import Lock
 from weakref import finalize
 
 import numpy as np
@@ -34,7 +32,6 @@ from pathlib import Path
 from local2global import SVDAlignmentProblem
 from numpy.lib.format import open_memmap
 from tqdm.auto import tqdm
-from dask.distributed import worker_client, as_completed, secede, rejoin
 from dask import delayed
 
 from local2global.patch import FilePatch, Patch, MeanAggregatorPatch
