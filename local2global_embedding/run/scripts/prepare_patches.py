@@ -34,6 +34,7 @@ from local2global_embedding.network import TGraph
 from local2global_embedding.run.utils import ScriptParser, patch_folder_name, cluster_file_name, load_data
 from local2global_embedding.clustering import louvain_clustering, metis_clustering, distributed_clustering, \
     fennel_clustering, hierarchical_aglomerative_clustering
+from local2global_embedding.utils import Timer
 
 
 def save_patch_data(graph, patch, filename):
@@ -141,19 +142,27 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                 if cluster_file.is_file():
                     clusters = torch.load(cluster_file, map_location='cpu')
                 else:
-                    clusters = cluster_fun(graph)
-                    if levels > 1:
-                        clusters = [merge_small_clusters(graph, clusters, min_overlap)]
-                        clusters.extend(hierarchical_aglomerative_clustering(graph.partition_graph(clusters[0]),
-                                                                             levels=levels-1))
+                    cl_timer = Timer()
+                    with cl_timer:
+                        clusters = cluster_fun(graph)
+                        if levels > 1:
+                            clusters = [merge_small_clusters(graph, clusters, min_overlap)]
+                            clusters.extend(hierarchical_aglomerative_clustering(graph.partition_graph(clusters[0]),
+                                                                                 levels=levels-1))
                     torch.save(clusters, cluster_file)
+                    with open(cluster_file.with_name(f"{cluster_file.stem}_timing.txt"), 'w') as f:
+                        f.write(cl_timer.total)
 
-                patches, patch_graph = create_patch_data(graph, clusters, min_overlap, target_overlap, min_patch_size,
-                                                         sparsify, target_patch_degree, gamma, verbose)
+                pc_timer = Timer()
+                with pc_timer:
+                    patches, patch_graph = create_patch_data(graph, clusters, min_overlap, target_overlap, min_patch_size,
+                                                             sparsify, target_patch_degree, gamma, verbose)
 
                 for i, patch in tqdm(enumerate(patches), total=len(patches), desc='saving patch index'):
                     np.save(patch_folder / f'patch{i}_index.npy', patch)
                 torch.save(patch_graph, patch_folder / 'patch_graph.pt')
+                with open(patch_folder / "patch_graph_creation_time.txt", "w") as f:
+                    f.write(pc_timer.total)
 
                 # with ThreadPoolExecutor() as executor:
                 #     executor.map(save_patch_data, repeat(graph), patches, (patch_folder / f'patch{i}_data.pt' for i in len(patches)))
