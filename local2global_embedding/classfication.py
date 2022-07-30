@@ -362,7 +362,7 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
                 model.eval()
                 vl = criterion(model(x_val), y_val)
                 progress.update()
-                progress.write(f'validation loss: {vl}')
+                # progress.write(f'validation loss: {vl}')
                 if stop(vl, model):
                     print(f'early stopping at epoch {e}')
                     break
