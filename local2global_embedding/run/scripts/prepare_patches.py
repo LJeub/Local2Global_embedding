@@ -151,7 +151,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                                                                                  levels=levels-1))
                     torch.save(clusters, cluster_file)
                     with open(cluster_file.with_name(f"{cluster_file.stem}_timing.txt"), 'w') as f:
-                        f.write(cl_timer.total)
+                        f.write(str(cl_timer.total))
 
                 pc_timer = Timer()
                 with pc_timer:
@@ -162,7 +162,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
                     np.save(patch_folder / f'patch{i}_index.npy', patch)
                 torch.save(patch_graph, patch_folder / 'patch_graph.pt')
                 with open(patch_folder / "patch_graph_creation_time.txt", "w") as f:
-                    f.write(pc_timer.total)
+                    f.write(str(pc_timer.total))
 
                 # with ThreadPoolExecutor() as executor:
                 #     executor.map(save_patch_data, repeat(graph), patches, (patch_folder / f'patch{i}_data.pt' for i in len(patches)))
