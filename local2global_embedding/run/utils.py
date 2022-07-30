@@ -322,7 +322,7 @@ class ResultsDict(UserDict):
                 self[key].insert(index, [])
         for key, val in kwargs.items():
             if key in self:
-                self[key].insert(index, [val])
+                self[key][index].append(val)
             else:
                 self.data[key] = [[] for _ in self['dims']]
                 self[key][index].append(val)
