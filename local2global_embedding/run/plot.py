@@ -36,11 +36,17 @@ def _extract_error(data, key):
     return err
 
 
+def _normalise_data(data):
+    data = np.asarray(data)
+    data = data.flatten()
+    return data
+
+
 def plot(data, key, baseline_data=None, nt_data=None):
     fig = plt.figure()
     bar_opts = dict(elinewidth=0.5, capthick=0.5, capsize=3)
     if baseline_data is not None and key in baseline_data:
-        _, cap, ebar = plt.errorbar(baseline_data['dims'], baseline_data[key],
+        _, cap, ebar = plt.errorbar(_normalise_data(baseline_data['dims']), _normalise_data(baseline_data[key]),
                      yerr=_extract_error(baseline_data, key),
                      label='full', marker='o', color='tab:blue', **bar_opts)
         if ebar:
@@ -49,7 +55,7 @@ def plot(data, key, baseline_data=None, nt_data=None):
             ebar[0].set_alpha(0.5)
 
 
-    _, cap, ebar = plt.errorbar(data['dims'], data[key], fmt='--', yerr=_extract_error(data, key),
+    _, cap, ebar = plt.errorbar(_normalise_data(data['dims']), _normalise_data(data[key]), fmt='--', yerr=_extract_error(data, key),
                  label='l2g', marker='>', color='tab:blue', **bar_opts)
 
     if ebar:
@@ -59,7 +65,7 @@ def plot(data, key, baseline_data=None, nt_data=None):
         ebar[0].set_linestyle('--')
 
     if nt_data is not None and key in nt_data:
-        _, cap, ebar = plt.errorbar(nt_data['dims'], nt_data[key], fmt=':', yerr=_extract_error(nt_data, key),
+        _, cap, ebar = plt.errorbar(_normalise_data(nt_data['dims']), _normalise_data(nt_data[key]), fmt=':', yerr=_extract_error(nt_data, key),
                      label='no-trans', color='tab:blue', linewidth=1, **bar_opts)
         if ebar:
             cap[0].set_alpha(0.5)
