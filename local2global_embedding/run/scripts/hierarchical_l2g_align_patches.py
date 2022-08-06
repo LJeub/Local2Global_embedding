@@ -31,6 +31,7 @@ from local2global_embedding.utils import Timer
 
 from .utils import mean_embedding, aligned_coords
 from local2global_embedding.run.utils import ScriptParser
+from filelock import SoftFileLock
 
 
 def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=False, resparsify=0, scale=False,
@@ -90,9 +91,11 @@ def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file: Pat
             aligned_f_name = f_name.with_name(f_name.name.replace('_coords', postfix))
             np.save(aligned_f_name, patch.coordinates)
 
-    with open(output_file.with_name(output_file.stem + "time.txt"), 'w') as f:
-        rtime = time.compute()
-        f.write(str(rtime))
+    timing_file = output_file.with_name(output_file.stem + "time.txt")
+    with SoftFileLock(timing_file.with_suffix(".lock")):
+        with open(timing_file, 'a') as f:
+            rtime = time.compute()
+            f.write(str(rtime) + "\n")
 
     return output_file
 
