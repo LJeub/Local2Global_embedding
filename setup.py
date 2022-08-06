@@ -30,5 +30,6 @@ setup(
         'atomicwrites >= 1.4',
         'dask >= 2021.9.1',
         'enlighten >= 1.10',
+        'hyperopt',
     ],
 )
