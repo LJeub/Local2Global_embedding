@@ -225,9 +225,10 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=Fals
     else:
         patches = [copy(p) for p in patches]
 
+    edges = patch_graph.edges()
     timer = Timer()
     with timer:
-        prob = SVDAlignmentProblem(patches, patch_graph.edges(), copy_data=False, verbose=verbose)
+        prob = SVDAlignmentProblem(patches, edges, copy_data=False, verbose=verbose)
         retry = True
         tries = 0
         max_tries = 3
