@@ -81,7 +81,11 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
         acc.append(accuracy(cl_data, model))
         if torch.cuda.is_available():
             print(f'Model accuracy: {acc[-1]}, max memory: {torch.cuda.max_memory_allocated()}, total available memory: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory}')
-    acc_mean = mean(acc)
+    if acc:
+        acc_mean = mean(acc)
+    else:
+        acc_mean = -1
+        
     if len(acc) == 1:
         acc_std = 0.
     else:
