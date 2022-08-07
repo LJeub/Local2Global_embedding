@@ -59,7 +59,7 @@ import dask.distributed
 from dask.distributed import as_completed, Client, get_worker
 
 print('importing log and progress modules')
-from tqdm.auto import tqdm
+from tqdm import tqdm
 import enlighten
 import logging
 
