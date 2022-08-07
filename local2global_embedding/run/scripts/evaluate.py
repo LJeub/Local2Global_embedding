@@ -85,8 +85,8 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
         acc_mean = mean(acc)
     else:
         acc_mean = -1
-        
-    if len(acc) == 1:
+
+    if len(acc) <= 1:
         acc_std = 0.
     else:
         acc_std = stdev(acc)
