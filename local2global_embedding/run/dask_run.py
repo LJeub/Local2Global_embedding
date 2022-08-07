@@ -67,7 +67,7 @@ print('importing needed functions')
 from local2global_embedding.run.utils import (ResultsDict, load_data, ScriptParser, patch_folder_name,
                                               cluster_file_name, watch_progress, dask_unpack)
 from local2global_embedding.run.scripts import functions as func
-
+from functools import partialmethod
 
 def with_dependencies(f):
     def f_d(*args, _depends_on=None, **kwargs):
@@ -84,7 +84,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         cl_train_args={}, cl_model_args={}, dist=False,
         output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
         run_baseline=True, normalise=False, restrict_lcc=False, scale=False, mmap_edges=False, mmap_features=False,
-        random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0, grid_search_params=True):
+        random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0, grid_search_params=True, progress_bars=True):
     """
     Run training example.
 
@@ -130,6 +130,9 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
               DLG-KDD’21. 2021. `arXiv:2107.12224 [cs.LG] <https://arxiv.org/abs/2107.12224>`_.
 
     """
+    if not progress_bars:
+        tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
+
     grid_search_params = grid_search_params and cl_model == 'mlp'  # grid search only implemented for MLP
     if grid_search_params:
         eval_func = func.mlp_grid_search_eval
