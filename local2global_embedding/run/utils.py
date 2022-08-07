@@ -512,7 +512,7 @@ class Argument:
     """
     Argument wrapper for ScriptParser
     """
-    def __init__(self, name='', parameter=None):
+    def __init__(self, name='', parameter=None, allow_reset=False):
         """
         Initialize Argument
 
@@ -521,6 +521,7 @@ class Argument:
             parameter: signature parameter (optional, used to get default value if specified)
         """
         self.name = name
+        self.allow_reset=allow_reset
         self.required = parameter is None or parameter.default is parameter.empty
         self.is_set = False
         if not self.required:
@@ -540,7 +541,7 @@ class Argument:
         Tries to parse `input_str` as python code using `ast.literal_eval`. If this fails, sets value to `input_str`.
 
         """
-        if not self.is_set:
+        if not self.is_set or self.allow_reset:
             self.is_set = True
             try:
                 val = literal_eval(input_str)
@@ -585,7 +586,7 @@ class ScriptParser:
     Can be used as a decorator if function should only be used as a script
 
     """
-    def __init__(self, func):
+    def __init__(self, func, allow_reset=False):
         """
         Wrap `func` as a command-line interface
 
@@ -594,6 +595,7 @@ class ScriptParser:
         """
         self.func = func
         self.parser = argparse.ArgumentParser(prog=func.__name__)
+        self.allow_reset = allow_reset
         self.var_pos = False
         self.var_keyword = False
         self.arguments = []
@@ -614,7 +616,7 @@ class ScriptParser:
                 else:
                     raise RuntimeError('Only expected a single **kwargs')
             else:
-                arg = Argument(name, parameter)
+                arg = Argument(name, parameter, allow_reset)
                 self.arguments.append(arg)
                 if arg.required:
                     self.parser.add_argument(f'--{name}', type=arg, default=arg, help=help.get(name, name))
@@ -633,7 +635,7 @@ class ScriptParser:
             for arg in unknown:
                 if arg.startswith("--"):
                     name = arg[2:].split('=', 1)[0]
-                    new_arg = Argument(name)
+                    new_arg = Argument(name, allow_reset=self.allow_reset)
                     unknown_parser.add_argument(f'--{name}', type=new_arg, default=new_arg)
                     self.arguments.append(new_arg)
             kwargs.update(vars(unknown_parser.parse_args(unknown)))

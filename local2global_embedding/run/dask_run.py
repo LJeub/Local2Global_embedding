@@ -476,4 +476,4 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 if __name__ == '__main__':
     print('launching main training script')
     # run main script
-    ScriptParser(run).run()
+    ScriptParser(run, True).run()
