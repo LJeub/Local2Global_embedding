@@ -95,12 +95,11 @@ def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file: Pat
     timing_file = output_file.with_name(output_file.stem + "time.txt")
     with SoftFileLock(timing_file.with_suffix(".lock")):
         with open(timing_file, 'a') as f:
-            rtime = time.compute()
-            f.write(str(rtime) + "\n")
+            f.write(str(time) + "\n")
     if mmap:
         return output_file
     else:
-        return coords
+        return np.asarray(coords, dtype=np.float32)
 
 
 if __name__ == '__main__':
