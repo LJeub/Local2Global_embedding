@@ -307,7 +307,7 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
                                  eps=adam_epsilon)
     # optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
     data_loader = torch.utils.data.DataLoader(BatchedData(train_data, batch_size=batch_size), batch_size=1,
-                                              shuffle=True, collate_fn=lambda b: b[0])
+                                              shuffle=True, collate_fn=lambda b: b[0], pin_memory=True)
     if decay_lr:
         lr_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(data_loader) * num_epochs)
 

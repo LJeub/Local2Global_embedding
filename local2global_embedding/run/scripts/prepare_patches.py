@@ -117,7 +117,7 @@ def prepare_patches(output_folder, name: str, min_overlap: int, target_overlap: 
             graph.x._mmap.madvise(mmap.MADV_RANDOM)
         return graph, buffer_x, buffer_e
 
-    with SoftFileLock(patch_folder.with_suffix('.lock'), timeout=10):
+    with SoftFileLock(patch_folder.with_suffix('.lock')):
         buffer_x = None
         buffer_e = None
         graph = None
