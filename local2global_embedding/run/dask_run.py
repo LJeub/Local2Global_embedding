@@ -208,8 +208,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     min_overlap = min_overlap if min_overlap is not None else max(dims) + 1
     target_overlap = target_overlap if target_overlap is not None else 2 * max(dims)
 
-    n_nodes = dask.delayed(load_data)(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
-                                      mmap_features=mmap_features).num_nodes.compute()
+
 
     if dist:
         eval_basename += '_dist'
@@ -337,8 +336,9 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         patch_graph_remote = None
 
     l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_eval.json'
+    n_nodes = None
     for d in dims:
-        shape = (n_nodes, d)
+
         with ResultsDict(l2g_eval_file, lock=False) as res:
             r_done = res.runs(d)
         for r in range(r_done, runs):
@@ -389,6 +389,11 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     l2g_task.add_done_callback(progress_callback(align_progress))
                     all_tasks.add(l2g_task)
             else:
+                if n_nodes is None:
+                    n_nodes = dask.delayed(load_data)(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
+                                                      mmap_features=mmap_features).num_nodes.compute()
+                shape = (n_nodes, d)
+
                 l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
                                      patch_graph=patch_graph_remote,
                                      shape=shape,
