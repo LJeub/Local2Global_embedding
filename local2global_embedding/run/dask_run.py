@@ -284,7 +284,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 r_done = baseline_data.runs(d)
 
             for r in range(r_done, runs):
-                baseline_info_file = result_folder / f'{train_basename}_r{r}_full_info.json'
+                baseline_info_file = result_folder / f'{train_basename}_d{d}_r{r}_full_info.json'
                 coords_task = client.submit(func.train, pure=False, resources=gpu_req,
                                             data=data_file, model=model,
                                             lr=lr[r], num_epochs=num_epochs,
@@ -337,7 +337,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 else:
                     patch_data_file = patch_folder / f'patch{pi}_data.pt'
                 patch_node_file = patch_folder / f'patch{pi}_index.npy'
-                patch_result_file = result_folder / f'{train_basename}_patch{pi}_r{r}_info.json'
+                patch_result_file = result_folder / f'{train_basename}_patch{pi}_d{d}_r{r}_info.json'
 
                 coords_task = client.submit(func.train, pure=False, resources=gpu_req,
                                             data=patch_data_file, model=model,
@@ -348,9 +348,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                             no_features=no_features, dist=dist,
                                             device=device, normalise_features=normalise, save_coords=mmap_features)
                 coords_task.add_done_callback(progress_callback(patch_progress))
-                patches.append(client.submit(build_patch, node_file=patch_node_file, coords=coords_task))
+                patch = client.submit(build_patch, node_file=patch_node_file, coords=coords_task)
+                patches.append(patch)
                 all_tasks.add(coords_task)
+                all_tasks.add(patch)
                 del coords_task
+                del patch
 
             l2g_coords_file = result_folder / f'{train_basename}_d{d}_r{r}_{l2g_name}_coords.npy'
             if l2g_coords_file.is_file():
