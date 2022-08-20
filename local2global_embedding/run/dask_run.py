@@ -339,20 +339,16 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 patch_node_file = patch_folder / f'patch{pi}_index.npy'
                 patch_result_file = result_folder / f'{train_basename}_patch{pi}_d{d}_r{r}_info.json'
 
-                coords_task = client.submit(func.train, pure=False, resources=gpu_req,
-                                            data=patch_data_file, model=model,
+                coords = dask.delayed(func.train)(data=patch_data_file, model=model,
                                             lr=lr[r], num_epochs=num_epochs,
                                             patience=patience, verbose=verbose_train,
                                             results_file=patch_result_file, dim=d,
                                             hidden_multiplier=hidden_multiplier,
                                             no_features=no_features, dist=dist,
                                             device=device, normalise_features=normalise, save_coords=mmap_features)
-                coords_task.add_done_callback(progress_callback(patch_progress))
-                patch = client.submit(build_patch, node_file=patch_node_file, coords=coords_task)
+                patch = dask.delayed(build_patch)(node_file=patch_node_file, coords=coords)
                 patches.append(patch)
-                all_tasks.add(coords_task)
-                all_tasks.add(patch)
-                del coords_task
+                del coords
                 del patch
 
             l2g_coords_file = result_folder / f'{train_basename}_d{d}_r{r}_{l2g_name}_coords.npy'

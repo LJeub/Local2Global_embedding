@@ -41,7 +41,7 @@ from local2global_embedding.run.utils import load_classification_problem
 from local2global_embedding.utils import Timer
 
 
-@delayed
+
 def load_patch(node_file, coords):
     nodes = np.load(node_file)
     if isinstance(coords, torch.Tensor):
@@ -49,13 +49,13 @@ def load_patch(node_file, coords):
     return Patch(nodes, LazyCoordinates(coords))
 
 
-@delayed
 def load_file_patch(node_file, coords_file: str):
     nodes = np.load(node_file)
     patch = FilePatch(nodes, coords_file)
     return patch
 
 
+@delayed
 def build_patch(node_file, coords):
     if isinstance(coords, str):
         return load_file_patch(node_file, coords)
