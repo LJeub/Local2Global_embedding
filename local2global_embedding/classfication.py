@@ -278,6 +278,7 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
           teacher_alpha=0, beta_1=0.9, beta_2=0.999, adam_epsilon=1e-8, patience=None):
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if alpha > 0 or beta > 0:
         train_data = data.training_data(include_unlabeled=True)
     else:
@@ -306,7 +307,7 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
                                  eps=adam_epsilon)
     # optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
     data_loader = torch.utils.data.DataLoader(BatchedData(train_data, batch_size=batch_size), batch_size=1,
-                                              shuffle=True, pin_memory=not train_data.x.is_cuda, collate_fn=lambda b: b[0])
+                                              shuffle=True, collate_fn=lambda b: b[0])
     if decay_lr:
         lr_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(data_loader) * num_epochs)
 
