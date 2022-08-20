@@ -22,6 +22,7 @@ from shutil import copyfile, move
 from tempfile import NamedTemporaryFile
 
 import dask.array as da
+import torch
 from filelock import SoftFileLock
 import os
 from weakref import finalize
@@ -43,6 +44,8 @@ from local2global_embedding.utils import Timer
 @delayed
 def load_patch(node_file, coords):
     nodes = np.load(node_file)
+    if isinstance(coords, torch.Tensor):
+        coords = coords.cpu().numpy()
     return Patch(nodes, LazyCoordinates(coords))
 
 
