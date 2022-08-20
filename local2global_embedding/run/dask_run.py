@@ -39,6 +39,8 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+from filelock import SoftFileLock
+
 print('importing build-in modules')
 import sys
 from pathlib import Path
@@ -248,21 +250,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     all_tasks = as_completed()
 
-    patch_graph_remote = client.submit(func.prepare_patches, pure=False,
-                                       output_folder=output_folder, name=name, data_root=data_root,
-                                       min_overlap=min_overlap, target_overlap=target_overlap,
-                                       cluster=cluster,
-                                       num_clusters=num_clusters, num_iters=num_iters, beta=beta, levels=levels,
-                                       sparsify=sparsify, target_patch_degree=target_patch_degree,
-                                       gamma=gamma,
-                                       verbose=False,
-                                       normalise=normalise,
-                                       directed=train_directed,
-                                       restrict_lcc=restrict_lcc, use_tmp=use_tmp,
-                                       mmap_edges=mmap_edges,
-                                       mmap_features=mmap_features)
-    patch_graph_remote.add_done_callback(progress_callback(patch_create_progress))
-    all_tasks.add(patch_graph_remote)
+
 
     if run_baseline:
         # compute baseline full model if necessary
@@ -323,13 +311,54 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     cluster_file = output_folder / cluster_file_name(name, cluster, num_clusters, num_iters, beta, levels)
     result_folder = patch_folder / result_folder_name
     result_folder.mkdir(exist_ok=True, parents=True)
-    num_patches = dask.delayed(patch_graph_remote).num_nodes.compute()
+
+    with SoftFileLock(patch_folder.with_suffix('.lock')):
+        pg_exists = (patch_folder / 'patch_graph.pt').is_file()
+
+    if not pg_exists:
+        patch_graph_remote = client.submit(func.prepare_patches, pure=False,
+                                           output_folder=output_folder, name=name, data_root=data_root,
+                                           min_overlap=min_overlap, target_overlap=target_overlap,
+                                           cluster=cluster,
+                                           num_clusters=num_clusters, num_iters=num_iters, beta=beta, levels=levels,
+                                           sparsify=sparsify, target_patch_degree=target_patch_degree,
+                                           gamma=gamma,
+                                           verbose=False,
+                                           normalise=normalise,
+                                           directed=train_directed,
+                                           restrict_lcc=restrict_lcc, use_tmp=use_tmp,
+                                           mmap_edges=mmap_edges,
+                                           mmap_features=mmap_features)
+        patch_graph_remote.add_done_callback(progress_callback(patch_create_progress))
+        all_tasks.add(patch_graph_remote)
+        num_patches = dask.delayed(patch_graph_remote).num_nodes.compute()
+    else:
+        num_patches = torch.load(patch_folder/ 'patch_graph.pt').num_nodes
+        patch_graph_remote = None
+
     l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_eval.json'
     for d in dims:
         shape = (n_nodes, d)
         with ResultsDict(l2g_eval_file, lock=False) as res:
             r_done = res.runs(d)
         for r in range(r_done, runs):
+            if patch_graph_remote is None:
+                patch_graph_remote = client.submit(func.prepare_patches, pure=False,
+                                                   output_folder=output_folder, name=name, data_root=data_root,
+                                                   min_overlap=min_overlap, target_overlap=target_overlap,
+                                                   cluster=cluster,
+                                                   num_clusters=num_clusters, num_iters=num_iters, beta=beta,
+                                                   levels=levels,
+                                                   sparsify=sparsify, target_patch_degree=target_patch_degree,
+                                                   gamma=gamma,
+                                                   verbose=False,
+                                                   normalise=normalise,
+                                                   directed=train_directed,
+                                                   restrict_lcc=restrict_lcc, use_tmp=use_tmp,
+                                                   mmap_edges=mmap_edges,
+                                                   mmap_features=mmap_features)
+                patch_graph_remote.add_done_callback(progress_callback(patch_create_progress))
+                all_tasks.add(patch_graph_remote)
             patches = []
             for pi in range(num_patches):
                 if train_directed:
