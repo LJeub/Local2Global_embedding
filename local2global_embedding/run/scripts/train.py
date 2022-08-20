@@ -17,6 +17,7 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+import json
 from pathlib import Path
 from typing import Optional
 import os
@@ -25,6 +26,7 @@ from time import perf_counter
 
 import numpy as np
 import torch
+from atomicwrites import atomic_write
 
 import local2global_embedding.embedding.gae as gae
 import local2global_embedding.embedding.dgi as dgi
@@ -62,7 +64,7 @@ class Count:
 
 def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, results_file: str,
           dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
-          device: Optional[str] = None, runs=1, normalise_features=False):
+          device: Optional[str] = None, runs=1, normalise_features=False, save_coords=False):
     """
     train model on data
 
@@ -80,12 +82,12 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
     device = set_device(device)
     data_str = data
     model_str = model
-    if not isinstance(lr, Iterable):
-        lr = [lr] * runs
 
-    print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailiable")} and device={device}')
+    print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailable")} and device={device}')
     data = torch.load(data).to(device)
     results_file = Path(results_file)
+    model_file = results_file.with_name(results_file.stem.replace("_info", "_model") + ".pt")
+    coords_file = results_file.with_name(results_file.stem.replace("_info", "_coords") + ".npy")
 
     if no_features:
         data.x = speye(data.num_nodes).to(device)
@@ -96,46 +98,51 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
             r_sum[r_sum == 0] = 1.0  # avoid division by zero
             data.x /= r_sum[:, None]
 
-    model_auc_file = results_file.with_name(results_file.name.replace('_info.json', f'_d{dim}_best_auc_model.pt'))
-    model_loss_file = model_auc_file.with_name(model_auc_file.name.replace('_auc_', '_loss_'))
-    coords_auc_file = model_auc_file.with_name(model_auc_file.name.replace('model.pt', 'coords.npy'))
-    coords_loss_file = model_auc_file.with_name(model_loss_file.name.replace('model.pt', 'coords.npy'))
     model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     loss_fun = select_loss(model)
-
-    with ResultsDict(results_file) as results:
-        runs_done = results.runs(dim)
-
-    updated_auc = False
-    updated_loss = False
-    for r in range(runs_done, runs):
+    if results_file.exists():
+        if coords_file.exists():
+            if save_coords:
+                return str(coords_file)
+            else:
+                return torch.from_numpy(np.load(coords_file))
+        else:
+            model.load_state_dict(torch.load(model_file))
+            model.eval()
+            coords = model.embed(data)
+            if save_coords:
+                np.save(coords_file, coords.cpu().numpy())
+                return str(coords_file)
+            else:
+                return coords
+    else:
         tic = perf_counter()
         model.reset_parameters()
         ep_count = Count()
-        model = training.train(data, model, loss_fun, num_epochs, patience, lr[r], verbose=verbose, logger=ep_count)
+        model = training.train(data, model, loss_fun, num_epochs, patience, lr, verbose=verbose, logger=ep_count)
+        model.eval()
         coords = model.embed(data)
         toc = perf_counter()
-
         auc = reconstruction_auc(coords, data, dist=dist)
         loss = float(loss_fun(model, data))
-
-        with ResultsDict(results_file) as results:
-            print(f'Training for run {results.runs(dim)+1} of {data_str} and model {model_str}_d{dim} stopped after {ep_count.count} epochs')
-            if results.runs(dim) >= runs:
-                break
-            if results.min('loss', dim) > loss:
-                updated_loss = True
-                torch.save(model.state_dict(), model_loss_file)
-                np.save(coords_loss_file, coords.cpu().numpy())
-            if results.max('auc', dim) < auc:
-                updated_auc = True
-                torch.save(model.state_dict(), model_auc_file)
-                np.save(coords_auc_file, coords.cpu().numpy())
-            results.update_dim(dim, auc=auc, loss=loss, args={'lr': lr[r], 'num_epochs': num_epochs,
-                                                              'patience': patience, 'dist': dist, 'time': toc-tic})
-            runs_done = results.runs(dim)
-
-    return coords_auc_file, updated_auc, coords_loss_file, updated_loss
+        torch.save(model.state_dict(), model_file)
+        if save_coords:
+            np.save(coords_file, coords.cpu().numpy())
+        with atomic_write(results_file, overwrite=True) as f:  # this should avoid any chance of loosing existing data
+            json.dump({"dim": dim,
+                       "loss": loss,
+                       "auc": auc,
+                       "train_time": toc-tic,
+                       "tain_epochs": ep_count.count,
+                       "args": {"lr": lr,
+                                "num_epochs": num_epochs,
+                                "patience": patience,
+                                "dist": dist}
+                       }, f)
+        if save_coords:
+            return str(coords_file)
+        else:
+            return coords
 
 
 if __name__ == '__main__':

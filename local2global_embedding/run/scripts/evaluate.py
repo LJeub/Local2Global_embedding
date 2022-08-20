@@ -30,15 +30,21 @@ from local2global_embedding.run.utils import ResultsDict, ScriptParser, load_cla
 from .utils import ScopedTemporaryFile
 
 
-def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str, results_file: str, dist=False,
+def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding, results_file: str, dist=False,
              device: Optional[str]=None, runs=50, train_args={},
-             mmap_edges: Optional[str] = None, mmap_features: Optional[str] = None, random_split=False, use_tmp=False,
+             mmap_edges=False, mmap_features=False, random_split=False, use_tmp=False,
              model='logistic', model_args={}):
     train_args_default = dict(num_epochs=10000, patience=20, lr=0.01, batch_size=100000, alpha=0, beta=0, weight_decay=0)
     train_args_default.update(train_args)
     train_args = train_args_default
 
-    print(f'evaluating {embedding_file} with {runs} classification runs.')
+    mmap_mode = 'r' if mmap_features else None
+
+    if isinstance(embedding, str):
+        coords = np.load(embedding, mmap_mode=mmap_mode)
+    else:
+        coords = embedding
+    print(f'evaluating with {runs} classification runs.')
     graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
                       restrict_lcc=restrict_lcc, load_features=False)
     print('graph data loaded')
@@ -46,8 +52,8 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
                                           root=data_root, restrict_lcc=restrict_lcc)
     print('classification problem loaded')
     num_labels = cl_data.num_labels
-    coords = np.load(embedding_file, mmap_mode=mmap_features)
-    if use_tmp and mmap_features is not None:
+
+    if use_tmp and mmap_features:
         tmp_file = ScopedTemporaryFile(prefix='coords_', suffix='.npy')  # path of temporary file that is automatically cleaned up when garbage-collected
         coords_tmp = open_memmap(tmp_file, mode='w+', dtype=coords.dtype, shape=coords.shape)
         coords_tmp[:] = coords[:]
@@ -57,7 +63,7 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
     cl_data.x = torch.as_tensor(coords, dtype=torch.float32)
     dim = coords.shape[1]
     auc = reconstruction_auc(coords, graph, dist=dist)
-    print(f'{embedding_file}: AUC={auc}')
+
     acc = []
     model_str = model
     if model == 'logistic':
@@ -81,17 +87,9 @@ def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding_file: str,
         acc.append(accuracy(cl_data, model))
         if torch.cuda.is_available():
             print(f'Model accuracy: {acc[-1]}, max memory: {torch.cuda.max_memory_allocated()}, total available memory: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory}')
-    if acc:
-        acc_mean = mean(acc)
-    else:
-        acc_mean = -1
 
-    if len(acc) <= 1:
-        acc_std = 0.
-    else:
-        acc_std = stdev(acc)
-    with ResultsDict(results_file, replace=True) as results:
-        results.update_dim(dim, auc=auc, acc_mean=acc_mean, acc_std=acc_std, model=model_str, train_args=train_args,
+    with ResultsDict(results_file, replace=False, lock=True) as results:
+        results.update_dim(dim, auc=auc, acc=acc, model=model_str, train_args=train_args,
                            model_args=model_args)
 
 

@@ -67,7 +67,9 @@ print('importing needed functions')
 from local2global_embedding.run.utils import (ResultsDict, load_data, ScriptParser, patch_folder_name,
                                               cluster_file_name, watch_progress, dask_unpack)
 from local2global_embedding.run.scripts import functions as func
+from local2global_embedding.run.scripts.utils import build_patch
 from functools import partialmethod
+
 
 def with_dependencies(f):
     def f_d(*args, _depends_on=None, **kwargs):
@@ -78,13 +80,15 @@ def with_dependencies(f):
 
 
 def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epochs=10000,
-        patience=20, runs=10, cl_runs=50, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
+        patience=20, runs=10, cl_runs=5, dims: List[int] = None, hidden_multiplier=2, target_patch_degree=4.0,
         min_overlap: int = None, target_overlap: int = None, gamma=0.0, sparsify='resistance', train_directed=False,
         cluster='metis', num_clusters=10, beta=0.1, num_iters: int = None, lr=0.001, cl_model='logistic',
         cl_train_args={}, cl_model_args={}, dist=False,
         output='.', device: str = None, verbose_train=False, verbose_l2g=False, levels=1, resparsify=0,
-        run_baseline=True, normalise=False, restrict_lcc=False, scale=False, mmap_edges=False, mmap_features=False,
-        random_split=False, use_tmp=False, cluster_init=False, use_gpu_frac=1.0, grid_search_params=True, progress_bars=True):
+        run_baseline=True, normalise=False, restrict_lcc=False, scale=False, rotate=True, translate=True,
+        mmap_edges=False, mmap_features=False,
+        random_split=True, use_tmp=False, cluster_init=False, use_gpu_frac=1.0, grid_search_params=True,
+        progress_bars=True):
     """
     Run training example.
 
@@ -190,8 +194,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
         return callback
 
-    mmap_edges = 'r' if mmap_edges else None
-    mmap_features = 'r' if mmap_features else None
+
 
     if train_directed:
         train_basename = f'{name}_dir_{model}'
@@ -226,6 +229,10 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     l2g_name = 'l2g'
     if scale:
         l2g_name += '_scale'
+    if not rotate:
+        l2g_name += "_norotate"
+    if not translate:
+        l2g_name += "_notranslate"
     if levels > 1:
         l2g_name += f'_hc{levels}'
 
@@ -236,6 +243,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 lr = np.logspace(np.log10(lr[0]), np.log10(lr[1]), runs)
             else:
                 raise ValueError(f'Number of learning rates {len(lr)} specified does not match number of runs {runs}.')
+    else:
+        lr = [lr for _ in range(runs)]
 
     all_tasks = as_completed()
 
@@ -259,10 +268,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         # compute baseline full model if necessary
         result_folder = output_folder / result_folder_name
         result_folder.mkdir(exist_ok=True)
-        baseline_info_file = result_folder / f'{train_basename}_full_info.json'
-        baseline_loss_eval_file = result_folder / f'{eval_basename}_full_loss_eval.json'
-        baseline_auc_eval_file = baseline_loss_eval_file.with_name(
-            baseline_loss_eval_file.name.replace('_loss_', '_auc_'))
+
+        baseline_eval_file = result_folder / f'{eval_basename}_full_eval.json'
         if train_directed:
             data_file = output_folder / f'{name}_dir_data.pt'
         else:
@@ -273,72 +280,42 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             torch.save(data, data_file)
         for d in dims:
             baseline_tasks = []
-            with ResultsDict(baseline_info_file, lock=False) as baseline_data:
-                r = baseline_data.runs(d)
+            with ResultsDict(baseline_eval_file, lock=False) as baseline_data:
+                r_done = baseline_data.runs(d)
 
-            if r < runs:
-                task = client.submit(func.train, pure=False, resources=gpu_req,
-                                     data=data_file, model=model,
-                                     lr=lr, num_epochs=num_epochs,
-                                     patience=patience, verbose=verbose_train,
-                                     results_file=baseline_info_file, dim=d,
-                                     hidden_multiplier=hidden_multiplier,
-                                     no_features=no_features, dist=dist,
-                                     device=device, runs=runs, normalise_features=normalise)
-                task.add_done_callback(progress_callback(baseline_progress))
-                baseline_tasks.append(task)
-                all_tasks.add(task)
-                del task
-
-            with ResultsDict(baseline_loss_eval_file, replace=True, lock=False) as eval_results:
-                if baseline_tasks or not eval_results.contains_dim(d):
-                    coords_file = result_folder / f'{train_basename}_full_d{d}_best_loss_coords.npy'
-                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=baseline_tasks,
-                                         resources=gpu_req,
-                                         name=name,
-                                         model=cl_model,
-                                         data_root=data_root,
-                                         restrict_lcc=restrict_lcc,
-                                         embedding_file=coords_file,
-                                         results_file=baseline_loss_eval_file,
-                                         dist=dist,
-                                         device=device,
-                                         train_args=cl_train_args,
-                                         model_args=cl_model_args,
-                                         runs=cl_runs,
-                                         random_split=random_split,
-                                         mmap_edges=mmap_edges,
-                                         mmap_features=mmap_features,
-                                         use_tmp=use_tmp)
-                    task.add_done_callback(progress_callback(eval_progress))
-                    all_tasks.add(task)
-                    del task
-
-            with ResultsDict(baseline_auc_eval_file, replace=True, lock=False) as eval_results:
-                if baseline_tasks or not eval_results.contains_dim(d):
-                    coords_file = result_folder / f'{train_basename}_full_d{d}_best_auc_coords.npy'
-                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=baseline_tasks,
-                                         resources=gpu_req,
-                                         name=name,
-                                         model=cl_model,
-                                         data_root=data_root,
-                                         restrict_lcc=restrict_lcc,
-                                         embedding_file=coords_file,
-                                         results_file=baseline_auc_eval_file,
-                                         dist=dist,
-                                         device=device,
-                                         train_args=cl_train_args,
-                                         model_args=cl_model_args,
-                                         runs=cl_runs,
-                                         random_split=random_split,
-                                         mmap_edges=mmap_edges,
-                                         mmap_features=mmap_features,
-                                         use_tmp=use_tmp
-                                         )
-                    task.add_done_callback(progress_callback(eval_progress))
-                    all_tasks.add(task)
-                    del task
-            del baseline_tasks
+            for r in range(r_done, runs):
+                baseline_info_file = result_folder / f'{train_basename}_r{r}_full_info.json'
+                coords_task = client.submit(func.train, pure=False, resources=gpu_req,
+                                            data=data_file, model=model,
+                                            lr=lr[r], num_epochs=num_epochs,
+                                            patience=patience, verbose=verbose_train,
+                                            results_file=baseline_info_file, dim=d,
+                                            hidden_multiplier=hidden_multiplier,
+                                            no_features=no_features, dist=dist,
+                                            device=device, normalise_features=normalise,
+                                            save_coords=mmap_features)
+                coords_task.add_done_callback(progress_callback(baseline_progress))
+                baseline_tasks.append(coords_task)
+                all_tasks.add(coords_task)
+                eval_task = client.submit(eval_func, pure=False, resources=gpu_req, name=name,
+                                          model=cl_model,
+                                          data_root=data_root,
+                                          restrict_lcc=restrict_lcc,
+                                          embedding=coords_task,
+                                          results_file=baseline_eval_file,
+                                          dist=dist,
+                                          device=device,
+                                          train_args=cl_train_args,
+                                          model_args=cl_model_args,
+                                          runs=cl_runs,
+                                          random_split=random_split,
+                                          mmap_edges=mmap_edges,
+                                          mmap_features=mmap_features,
+                                          use_tmp=use_tmp)
+                eval_task.add_done_callback(progress_callback(baseline_progress))
+                all_tasks.add(eval_task)
+                del eval_task
+                del coords_task
 
     patch_folder = output_folder / patch_folder_name(name, min_overlap, target_overlap, cluster, num_clusters,
                                                      num_iters, beta, levels, sparsify, target_patch_degree,
@@ -347,123 +324,82 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     result_folder = patch_folder / result_folder_name
     result_folder.mkdir(exist_ok=True, parents=True)
     num_patches = dask.delayed(patch_graph_remote).num_nodes.compute()
+    l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_eval.json'
     for d in dims:
-        patch_tasks = []
         shape = (n_nodes, d)
-        for pi in tqdm(range(num_patches), desc='submitting patch tasks'):
-            if train_directed:
-                patch_data_file = patch_folder / f'patch{pi}_dir_data.pt'
+        with ResultsDict(l2g_eval_file, lock=False) as res:
+            r_done = res.runs(d)
+        for r in range(r_done, runs):
+            patches = []
+            for pi in range(num_patches):
+                if train_directed:
+                    patch_data_file = patch_folder / f'patch{pi}_dir_data.pt'
+                else:
+                    patch_data_file = patch_folder / f'patch{pi}_data.pt'
+                patch_node_file = patch_folder / f'patch{pi}_index.npy'
+                patch_result_file = result_folder / f'{train_basename}_patch{pi}_r{r}_info.json'
+
+                coords_task = client.submit(func.train, pure=False, resources=gpu_req,
+                                            data=patch_data_file, model=model,
+                                            lr=lr[r], num_epochs=num_epochs,
+                                            patience=patience, verbose=verbose_train,
+                                            results_file=patch_result_file, dim=d,
+                                            hidden_multiplier=hidden_multiplier,
+                                            no_features=no_features, dist=dist,
+                                            device=device, normalise_features=normalise, save_coords=mmap_features)
+                coords_task.add_done_callback(progress_callback(patch_progress))
+                patches.append(client.submit(build_patch, node_file=patch_node_file, coords=coords_task))
+                all_tasks.add(coords_task)
+                del coords_task
+
+            l2g_coords_file = result_folder / f'{train_basename}_d{d}_r{r}_{l2g_name}_coords.npy'
+            if l2g_coords_file.is_file():
+                if mmap_features:
+                    l2g_task = l2g_coords_file
+                else:
+                    l2g_task = client.submit(np.load, file=l2g_coords_file)
+                    l2g_task.add_done_callback(progress_callback(align_progress))
+                    all_tasks.add(l2g_task)
             else:
-                patch_data_file = patch_folder / f'patch{pi}_data.pt'
-            patch_result_file = result_folder / f'{train_basename}_patch{pi}_info.json'
-            with ResultsDict(patch_result_file, lock=False) as patch_results:
-                r = patch_results.runs(d)
-            if r < runs:
-                task = client.submit(func.train, pure=False, resources=gpu_req,
-                                     data=patch_data_file, model=model,
-                                     lr=lr, num_epochs=num_epochs,
-                                     patience=patience, verbose=verbose_train,
-                                     results_file=patch_result_file, dim=d,
-                                     hidden_multiplier=hidden_multiplier,
-                                     no_features=no_features, dist=dist,
-                                     device=device, runs=runs, normalise_features=normalise)
-                task.add_done_callback(progress_callback(patch_progress))
-                patch_tasks.append(task)
-                all_tasks.add(task)
-                del task
-
-        for criterion in ('auc', 'loss'):
-            l2g_coords_file = result_folder / f'{train_basename}_d{d}_{l2g_name}_{criterion}_coords.npy'
-            l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_{criterion}_eval.json'
-            nt_coords_file = result_folder / f'{train_basename}_d{d}_nt_{criterion}_coords.npy'
-            nt_eval_file = result_folder / f'{eval_basename}_nt_{criterion}_eval.json'
-
-            if patch_tasks or not l2g_coords_file.is_file() or not nt_coords_file.is_file():
-                patches = client.submit(with_dependencies(func.load_patches), _depends_on=patch_tasks,
-                                        patch_graph=patch_graph_remote,
-                                        patch_folder=patch_folder,
-                                        result_folder=result_folder,
-                                        basename=train_basename,
-                                        dim=d,
-                                        criterion=criterion,
-                                        lazy=mmap_features is not None)
-
-            l2g_task = False
-            if patch_tasks or not l2g_coords_file.is_file():
                 l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
-                                         patch_graph=patch_graph_remote,
-                                         shape=shape,
-                                         scale=scale,
-                                         patches=patches,
-                                         mmap=mmap_features is not None, use_tmp=use_tmp, verbose=verbose_l2g,
-                                         output_file=l2g_coords_file,
-                                         cluster_file=cluster_file,
-                                         resparsify=resparsify)
+                                     patch_graph=patch_graph_remote,
+                                     shape=shape,
+                                     scale=scale,
+                                     rotate=rotate,
+                                     translate=translate,
+                                     patches=patches,
+                                     mmap=mmap_features,
+                                     use_tmp=use_tmp,
+                                     verbose=verbose_l2g,
+                                     output_file=l2g_coords_file,
+                                     cluster_file=cluster_file,
+                                     resparsify=resparsify
+                                     )
                 l2g_task.add_done_callback(progress_callback(align_progress))
                 all_tasks.add(l2g_task)
 
-            with ResultsDict(l2g_eval_file, replace=True, lock=False) as l2g_eval:
-                if l2g_task or not l2g_eval.contains_dim(d):
-                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=l2g_task,
-                                         resources=gpu_req,
-                                         name=name,
-                                         model=cl_model,
-                                         data_root=data_root,
-                                         restrict_lcc=restrict_lcc,
-                                         embedding_file=l2g_coords_file,
-                                         results_file=l2g_eval_file,
-                                         dist=dist,
-                                         device=device,
-                                         train_args=cl_train_args,
-                                         model_args=cl_model_args,
-                                         runs=cl_runs,
-                                         random_split=random_split,
-                                         mmap_edges=mmap_edges,
-                                         mmap_features=mmap_features,
-                                         use_tmp=use_tmp
-                                         )
-                    task.add_done_callback(progress_callback(eval_progress))
-                    all_tasks.add(task)
-                    del task
-            del l2g_task
-
-            nt_task = False
-            if patch_tasks or not nt_coords_file.is_file():
-                nt_task = client.submit(func.no_transform_embedding, pure=False,
-                                        patches=patches,
-                                        shape=shape,
-                                        output_file=nt_coords_file,
-                                        mmap=mmap_features is not None,
+            coords_task = client.submit(with_dependencies(eval_func), pure=False,
+                                        resources=gpu_req,
+                                        name=name,
+                                        model=cl_model,
+                                        data_root=data_root,
+                                        restrict_lcc=restrict_lcc,
+                                        embedding=l2g_task,
+                                        results_file=l2g_eval_file,
+                                        dist=dist,
+                                        device=device,
+                                        train_args=cl_train_args,
+                                        model_args=cl_model_args,
+                                        runs=cl_runs,
+                                        random_split=random_split,
+                                        mmap_edges=mmap_edges,
+                                        mmap_features=mmap_features,
                                         use_tmp=use_tmp
                                         )
-                nt_task.add_done_callback(progress_callback(align_progress))
-                all_tasks.add(nt_task)
-
-            with ResultsDict(nt_eval_file, replace=True, lock=False) as nt_eval:
-                if nt_task or not nt_eval.contains_dim(d):
-                    task = client.submit(with_dependencies(eval_func), pure=False, _depends_on=nt_task,
-                                         resources=gpu_req,
-                                         name=name,
-                                         model=cl_model,
-                                         data_root=data_root,
-                                         restrict_lcc=restrict_lcc,
-                                         embedding_file=nt_coords_file,
-                                         results_file=nt_eval_file,
-                                         dist=dist,
-                                         device=device,
-                                         train_args=cl_train_args,
-                                         model_args=cl_model_args,
-                                         runs=cl_runs,
-                                         random_split=random_split,
-                                         mmap_edges=mmap_edges,
-                                         mmap_features=mmap_features,
-                                         use_tmp=use_tmp
-                                         )
-                    task.add_done_callback(progress_callback(eval_progress))
-                    all_tasks.add(task)
-                    del task
-            del nt_task
-        del patch_tasks
+            coords_task.add_done_callback(progress_callback(eval_progress))
+            all_tasks.add(coords_task)
+            del coords_task
+            del l2g_task
 
     baseline_progress.refresh()
     patch_progress.refresh()

@@ -23,7 +23,7 @@ import torch
 from pathlib import Path
 
 from dask import delayed
-from dask.distributed import worker_client
+from dask.distributed import worker_client, Client
 
 from local2global_embedding.clustering import Partition
 from local2global_embedding.sparsify import resistance_sparsify
@@ -34,10 +34,10 @@ from local2global_embedding.run.utils import ScriptParser
 from filelock import SoftFileLock
 
 
-def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=False, resparsify=0, scale=False,
-                          time=0.0):
+def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=False, resparsify=0,
+                          scale=False, rotate=True, translate=True, time=0.0):
     if not clusters:
-        coords, ltime = aligned_coords(patches, patch_graph, verbose, use_tmp, scale)
+        coords, ltime = aligned_coords(patches, patch_graph, verbose, use_tmp, scale, rotate, translate)
         return coords, time + ltime
     else:
         cluster = clusters[0]
@@ -57,11 +57,12 @@ def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=
             reduced_patches.append(rpatch)
             time += rtime
         return get_aligned_embedding(reduced_patch_graph, reduced_patches, clusters[1:], verbose, use_tmp, resparsify,
-                                     scale, time)
+                                     scale, rotate, translate, time)
 
 
 def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file: Path, cluster_file=None, mmap=False,
-                                   verbose=False, use_tmp=False, resparsify=0, store_aligned_patches=False, scale=False):
+                                   verbose=False, use_tmp=False, resparsify=0, store_aligned_patches=False, scale=False,
+                                   rotate=True, translate=True):
     if cluster_file is not None:
         clusters = torch.load(cluster_file)
     else:
@@ -70,16 +71,16 @@ def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file: Pat
     if isinstance(clusters, list) and len(clusters) > 1:
         aligned, time = get_aligned_embedding(
                 patch_graph=patch_graph, patches=patches, clusters=clusters[1:], verbose=verbose, use_tmp=use_tmp,
-                resparsify=resparsify, scale=scale).persist()
+                resparsify=resparsify, scale=scale, rotate=rotate, translate=translate).compute()
     else:
-        aligned, time = aligned_coords(patches, patch_graph, verbose, use_tmp, scale).persist()
+        aligned, time = aligned_coords(patches, patch_graph, verbose, use_tmp, scale, rotate, translate).compute()
 
     coords = aligned.coordinates
-    patches = coords.patches.compute()
+    patches = coords.patches
     if mmap:
         mean_embedding(patches, shape, output_file, use_tmp)
     else:
-        np.save(output_file, np.asarray(coords.compute(), dtype=np.float32))
+        np.save(output_file, np.asarray(coords, dtype=np.float32))
 
     if store_aligned_patches:
         if scale:
@@ -96,9 +97,12 @@ def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file: Pat
         with open(timing_file, 'a') as f:
             rtime = time.compute()
             f.write(str(rtime) + "\n")
-
-    return output_file
+    if mmap:
+        return output_file
+    else:
+        return coords
 
 
 if __name__ == '__main__':
+    client = Client()
     ScriptParser(hierarchical_l2g_align_patches).run()

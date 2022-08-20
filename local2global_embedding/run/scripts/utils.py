@@ -41,17 +41,23 @@ from local2global_embedding.utils import Timer
 
 
 @delayed
-def load_patch(patch_folder, result_folder, i, basename, dim, criterion):
-    nodes = np.load(patch_folder / f'patch{i}_index.npy')
-    coords = np.load(result_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+def load_patch(node_file, coords):
+    nodes = np.load(node_file)
     return Patch(nodes, LazyCoordinates(coords))
 
 
 @delayed
-def load_file_patch(patch_folder, result_folder, i, basename, dim, criterion):
-    nodes = np.load(patch_folder / f'patch{i}_index.npy')
-    patch = FilePatch(nodes, result_folder / f'{basename}_patch{i}_d{dim}_best_{criterion}_coords.npy')
+def load_file_patch(node_file, coords_file: str):
+    nodes = np.load(node_file)
+    patch = FilePatch(nodes, coords_file)
     return patch
+
+
+def build_patch(node_file, coords):
+    if isinstance(coords, str):
+        return load_file_patch(node_file, coords)
+    else:
+        return load_patch(node_file, coords)
 
 
 def load_patches(patch_graph, patch_folder, result_folder, basename, dim, criterion, lazy=True, use_tmp=False):
@@ -219,7 +225,7 @@ def num_patches(patches):
 
 
 @delayed(nout=2)
-def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=False):
+def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=False, rotate=True, translate=True):
     if use_tmp:
         patches = [move_to_tmp(p) for p in patches]
     else:
@@ -236,7 +242,12 @@ def aligned_coords(patches, patch_graph, verbose=True, use_tmp=False, scale=Fals
             retry = False
             tries += 1
             try:
-                prob.align_patches(scale=scale)
+                if scale:
+                    prob.scale_patches()
+                if rotate:
+                    prob.rotate_patches()
+                if translate:
+                    prob.translate_patches()
             except Exception as e:
                 print(e)
                 if tries >= max_tries:

@@ -103,7 +103,9 @@ def _transform_mag240m(edge_index, undir_index, sort_index, num_nodes):
 
 
 @dataloader('MAG240M')
-def _load_mag240(root='.', mmap_features='r', mmap_edges='r', load_features=True, directed=False, **kwargs):
+def _load_mag240(root='.', mmap_features=True, mmap_edges=True, load_features=True, directed=False, **kwargs):
+    mmap_features = 'r' if mmap_features else None
+    mmap_edges = 'r' if mmap_edges else None
     root = Path(root)
     if directed:
         data_folder = root / 'mag240m_citations_dir'
