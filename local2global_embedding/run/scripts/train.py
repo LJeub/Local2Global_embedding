@@ -105,7 +105,7 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
             if save_coords:
                 return str(coords_file)
             else:
-                return torch.from_numpy(np.load(coords_file))
+                return np.load(coords_file)
         else:
             model.load_state_dict(torch.load(model_file))
             model.eval()
@@ -114,7 +114,7 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
                 np.save(coords_file, coords.cpu().numpy())
                 return str(coords_file)
             else:
-                return coords
+                return coords.cpu().numpy()
     else:
         tic = perf_counter()
         model.reset_parameters()
@@ -142,7 +142,7 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
         if save_coords:
             return str(coords_file)
         else:
-            return coords
+            return coords.cpu().numpy()
 
 
 if __name__ == '__main__':
