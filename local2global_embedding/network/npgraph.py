@@ -51,6 +51,8 @@ class NPGraph(Graph):
     def _convert_input(input):
         if input is None:
             return input
+        elif isinstance(input, torch.Tensor):
+            return np.asanyarray(input.cpu())
         else:
             return np.asanyarray(input)
 
