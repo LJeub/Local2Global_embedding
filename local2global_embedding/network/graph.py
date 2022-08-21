@@ -110,6 +110,9 @@ class Graph:
         else:
             return self._nodes
 
+    def has_node_labels(self):
+        return self._nodes is not None
+
     def adj(self, node: int):
         """
         list neighbours of node

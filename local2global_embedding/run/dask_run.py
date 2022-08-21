@@ -41,6 +41,10 @@
 #  SOFTWARE.
 from filelock import SoftFileLock
 
+from local2global_embedding.network import TGraph
+from local2global_embedding.run.once_per_worker import once_per_worker
+from weakref import finalize
+
 print('importing build-in modules')
 import sys
 from pathlib import Path
@@ -67,10 +71,42 @@ import logging
 
 print('importing needed functions')
 from local2global_embedding.run.utils import (ResultsDict, load_data, ScriptParser, patch_folder_name,
-                                              cluster_file_name, watch_progress, dask_unpack)
+                                              cluster_file_name, watch_progress, dask_unpack,
+                                              load_classification_problem)
 from local2global_embedding.run.scripts import functions as func
-from local2global_embedding.run.scripts.utils import build_patch
+from local2global_embedding.run.scripts.utils import build_patch, ScopedTemporaryFile
 from functools import partialmethod
+from tempfile import NamedTemporaryFile
+
+
+@dask.delayed(pure=True)
+def load_patch(patch_folder, data, i):
+    nodes = np.load(patch_folder / f'patch{i}_index.npy')
+    return data.subgraph(nodes, relabel=False).to(TGraph)
+
+
+def load_patch_data(patch_folder, data, n_patches):
+    return [load_patch(patch_folder, data, i).persist() for i in range(n_patches)]
+
+
+def load_and_copy_data(name, data_root, restrict_lcc, mmap_edges, mmap_features, directed, use_tmp=False):
+    data = load_data(name=name, data_root=data_root, restrict_lcc=restrict_lcc,
+                                         mmap_edges=mmap_edges, mmap_features=mmap_features, directed=directed)
+    if use_tmp:
+        if isinstance(data.edge_index, np.memmap):
+            e_file = ScopedTemporaryFile(suffix=".npy")
+            np.save(e_file.name, np.asarray(data.edge_index))
+            data.edge_index = np.load(e_file.name, mmap_mode='r')
+            data._e_file = e_file
+
+        if isinstance(data.x, np.memmap):
+            x_file = ScopedTemporaryFile(suffix=".npy")
+            np.save(x_file.name, np.asarray(data.x))
+            data.x = np.load(x_file.name, mmap_mode='r')
+            data._x_file = x_file
+    cl_data = load_classification_problem(name, data, root=data_root)
+    data.cl_data = cl_data
+    return data
 
 
 def with_dependencies(f):
@@ -179,7 +215,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         print('features will be normalised before training')
 
     manager = enlighten.get_manager(threaded=True)
-    patch_create_progress = manager.counter(desc='create patches', total=0, file=sys.stdout)
     baseline_progress = manager.counter(desc='baseline', total=0, file=sys.stdout)
     patch_progress = manager.counter(desc='patch', total=0, file=sys.stdout)
     align_progress = manager.counter(desc='align', total=0, file=sys.stdout)
@@ -196,8 +231,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
         return callback
 
-
-
     if train_directed:
         train_basename = f'{name}_dir_{model}'
         eval_basename = f'{name}_dir_{model}'
@@ -207,8 +240,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     min_overlap = min_overlap if min_overlap is not None else max(dims) + 1
     target_overlap = target_overlap if target_overlap is not None else 2 * max(dims)
-
-
 
     if dist:
         eval_basename += '_dist'
@@ -248,8 +279,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         lr = [lr for _ in range(runs)]
 
     all_tasks = as_completed()
-
-
+    data = once_per_worker(lambda: load_and_copy_data(name=name, data_root=data_root, restrict_lcc=restrict_lcc,
+                         mmap_edges=mmap_edges, mmap_features=mmap_features, directed=train_directed, use_tmp=True))
 
     if run_baseline:
         # compute baseline full model if necessary
@@ -261,10 +292,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             data_file = output_folder / f'{name}_dir_data.pt'
         else:
             data_file = output_folder / f'{name}_data.pt'
-        if not data_file.is_file():
-            data = load_data(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
-                             mmap_features=mmap_features, directed=train_directed)
-            torch.save(data, data_file)
+
         for d in dims:
             baseline_tasks = []
             with ResultsDict(baseline_eval_file, lock=False) as baseline_data:
@@ -272,8 +300,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
             for r in range(r_done, runs):
                 baseline_info_file = result_folder / f'{train_basename}_d{d}_r{r}_full_info.json'
-                coords_task = client.submit(func.train, pure=False, resources=gpu_req,
-                                            data=data_file, model=model,
+                coords_task = dask.delayed(func.train, pure=False)(
+                                            data=data, model=model,
                                             lr=lr[r], num_epochs=num_epochs,
                                             patience=patience, verbose=verbose_train,
                                             results_file=baseline_info_file, dim=d,
@@ -281,13 +309,9 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                             no_features=no_features, dist=dist,
                                             device=device, normalise_features=normalise,
                                             save_coords=mmap_features)
-                coords_task.add_done_callback(progress_callback(baseline_progress))
-                baseline_tasks.append(coords_task)
-                all_tasks.add(coords_task)
-                eval_task = client.submit(eval_func, pure=False, resources=gpu_req, name=name,
+                eval_task = client.compute(dask.delayed(eval_func, pure=False)(
                                           model=cl_model,
-                                          data_root=data_root,
-                                          restrict_lcc=restrict_lcc,
+                                          graph=data,
                                           embedding=coords_task,
                                           results_file=baseline_eval_file,
                                           dist=dist,
@@ -296,9 +320,8 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                           model_args=cl_model_args,
                                           runs=cl_runs,
                                           random_split=random_split,
-                                          mmap_edges=mmap_edges,
                                           mmap_features=mmap_features,
-                                          use_tmp=use_tmp)
+                                          use_tmp=use_tmp), resources=gpu_req)
                 eval_task.add_done_callback(progress_callback(baseline_progress))
                 all_tasks.add(eval_task)
                 del eval_task
@@ -314,61 +337,42 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     with SoftFileLock(patch_folder.with_suffix('.lock')):
         pg_exists = (patch_folder / 'patch_graph.pt').is_file()
 
+    patch_graph = dask.delayed(func.prepare_patches, pure=False)(
+        output_folder=output_folder, name=name, graph=data,
+        min_overlap=min_overlap, target_overlap=target_overlap,
+        cluster=cluster,
+        num_clusters=num_clusters, num_iters=num_iters, beta=beta, levels=levels,
+        sparsify=sparsify, target_patch_degree=target_patch_degree,
+        gamma=gamma,
+        verbose=False)
+
     if not pg_exists:
-        patch_graph_remote = client.submit(func.prepare_patches, pure=False,
-                                           output_folder=output_folder, name=name, data_root=data_root,
-                                           min_overlap=min_overlap, target_overlap=target_overlap,
-                                           cluster=cluster,
-                                           num_clusters=num_clusters, num_iters=num_iters, beta=beta, levels=levels,
-                                           sparsify=sparsify, target_patch_degree=target_patch_degree,
-                                           gamma=gamma,
-                                           verbose=False,
-                                           normalise=normalise,
-                                           directed=train_directed,
-                                           restrict_lcc=restrict_lcc, use_tmp=use_tmp,
-                                           mmap_edges=mmap_edges,
-                                           mmap_features=mmap_features)
-        patch_graph_remote.add_done_callback(progress_callback(patch_create_progress))
-        all_tasks.add(patch_graph_remote)
-        num_patches = dask.delayed(patch_graph_remote).num_nodes.compute()
+        patch_graph = patch_graph.persist()
+        patch_graph_initialised = True
+        num_patches = patch_graph.num_nodes.compute()
     else:
         num_patches = torch.load(patch_folder/ 'patch_graph.pt').num_nodes
-        patch_graph_remote = None
+        patch_graph_initialised = False
 
     l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_eval.json'
     n_nodes = None
+    patch_data = None
     for d in dims:
-
         with ResultsDict(l2g_eval_file, lock=False) as res:
             r_done = res.runs(d)
         for r in range(r_done, runs):
-            if patch_graph_remote is None:
-                patch_graph_remote = client.submit(func.prepare_patches, pure=False,
-                                                   output_folder=output_folder, name=name, data_root=data_root,
-                                                   min_overlap=min_overlap, target_overlap=target_overlap,
-                                                   cluster=cluster,
-                                                   num_clusters=num_clusters, num_iters=num_iters, beta=beta,
-                                                   levels=levels,
-                                                   sparsify=sparsify, target_patch_degree=target_patch_degree,
-                                                   gamma=gamma,
-                                                   verbose=False,
-                                                   normalise=normalise,
-                                                   directed=train_directed,
-                                                   restrict_lcc=restrict_lcc, use_tmp=use_tmp,
-                                                   mmap_edges=mmap_edges,
-                                                   mmap_features=mmap_features)
-                patch_graph_remote.add_done_callback(progress_callback(patch_create_progress))
-                all_tasks.add(patch_graph_remote)
+            if not patch_graph_initialised:
+                patch_graph = patch_graph.persist()
+
+            if patch_data is None:
+                patch_data = load_patch_data(patch_folder, data, num_patches)
+
             patches = []
             for pi in range(num_patches):
-                if train_directed:
-                    patch_data_file = patch_folder / f'patch{pi}_dir_data.pt'
-                else:
-                    patch_data_file = patch_folder / f'patch{pi}_data.pt'
                 patch_node_file = patch_folder / f'patch{pi}_index.npy'
                 patch_result_file = result_folder / f'{train_basename}_patch{pi}_d{d}_r{r}_info.json'
 
-                coords = dask.delayed(func.train)(data=patch_data_file, model=model,
+                coords = dask.delayed(func.train)(data=patch_data[pi], model=model,
                                             lr=lr[r], num_epochs=num_epochs,
                                             patience=patience, verbose=verbose_train,
                                             results_file=patch_result_file, dim=d,
@@ -385,17 +389,14 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 if mmap_features:
                     l2g_task = l2g_coords_file
                 else:
-                    l2g_task = client.submit(np.load, file=l2g_coords_file)
-                    l2g_task.add_done_callback(progress_callback(align_progress))
-                    all_tasks.add(l2g_task)
+                    l2g_task = dask.delayed(np.load)(file=l2g_coords_file)
             else:
                 if n_nodes is None:
-                    n_nodes = dask.delayed(load_data)(name, data_root, restrict_lcc=restrict_lcc, mmap_edges=mmap_edges,
-                                                      mmap_features=mmap_features).num_nodes.compute()
+                    n_nodes = data.num_nodes.compute()
                 shape = (n_nodes, d)
 
-                l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
-                                     patch_graph=patch_graph_remote,
+                l2g_task = dask.delayed(func.hierarchical_l2g_align_patches, pure=False)(
+                                     patch_graph=patch_graph,
                                      shape=shape,
                                      scale=scale,
                                      rotate=rotate,
@@ -408,15 +409,10 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                      cluster_file=cluster_file,
                                      resparsify=resparsify
                                      )
-                l2g_task.add_done_callback(progress_callback(align_progress))
-                all_tasks.add(l2g_task)
 
-            coords_task = client.submit(with_dependencies(eval_func), pure=False,
-                                        resources=gpu_req,
-                                        name=name,
+            coords_task = dask.delayed(eval_func, pure=False)(
                                         model=cl_model,
-                                        data_root=data_root,
-                                        restrict_lcc=restrict_lcc,
+                                        graph=data,
                                         embedding=l2g_task,
                                         results_file=l2g_eval_file,
                                         dist=dist,
@@ -425,10 +421,10 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                         model_args=cl_model_args,
                                         runs=cl_runs,
                                         random_split=random_split,
-                                        mmap_edges=mmap_edges,
                                         mmap_features=mmap_features,
                                         use_tmp=use_tmp
                                         )
+            coords_task = client.compute(coords_task, resources=gpu_req)
             coords_task.add_done_callback(progress_callback(eval_progress))
             all_tasks.add(coords_task)
             del coords_task

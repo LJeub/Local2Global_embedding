@@ -32,6 +32,7 @@ import local2global_embedding.embedding.gae as gae
 import local2global_embedding.embedding.dgi as dgi
 import local2global_embedding.embedding.train as training
 from local2global_embedding.embedding.eval import reconstruction_auc
+from local2global_embedding.network import TGraph
 from local2global_embedding.utils import speye, set_device
 from local2global_embedding.run.utils import ResultsDict, ScriptParser
 
@@ -80,11 +81,10 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
         device: device to use for training (e.g., 'cuda', 'cpu')
     """
     device = set_device(device)
-    data_str = data
     model_str = model
 
-    print(f'Launched training for {data} and model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailable")} and device={device}')
-    data = torch.load(data).to(device)
+    print(f'Launched training for model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailable")} and device={device}')
+    data = data.to(TGraph).to(device=device)
     results_file = Path(results_file)
     model_file = results_file.with_name(results_file.stem.replace("_info", "_model") + ".pt")
     coords_file = results_file.with_name(results_file.stem.replace("_info", "_coords") + ".npy")
@@ -92,7 +92,7 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
     if no_features:
         data.x = speye(data.num_nodes).to(device)
     else:
-        data.x = data.x.to(torch.float32)
+        data.x = torch.as_tensor(data.x, dtype=torch.float32)
         if normalise_features:
             r_sum = data.x.sum(dim=1)
             r_sum[r_sum == 0] = 1.0  # avoid division by zero

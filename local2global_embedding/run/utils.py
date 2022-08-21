@@ -95,12 +95,11 @@ def load_data(name, root='/tmp', restrict_lcc=False, **kwargs):
     return data
 
 
-def load_classification_problem(name, root='/tmp', restrict_lcc=False, graph_args={}, class_args={}):
+def load_classification_problem(name, graph, root='/tmp', **class_args):
     root = Path(root).expanduser()
     y, split = _classification_loader[name](root=root, **class_args)
-    if restrict_lcc:
-        graph = load_data(name, root, restrict_lcc=False, **graph_args)
-        index = graph.nodes_in_lcc()
+    if graph.has_node_labels():
+        index = graph.nodes
         index_map = torch.full(y.shape, -1, dtype=torch.long)
         index_map[index] = torch.arange(len(index), dtype=torch.long)
         y = y[index]

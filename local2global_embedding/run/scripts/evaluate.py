@@ -17,6 +17,7 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+from pathlib import Path
 from statistics import mean, stdev
 
 import torch
@@ -30,26 +31,22 @@ from local2global_embedding.run.utils import ResultsDict, ScriptParser, load_cla
 from .utils import ScopedTemporaryFile
 
 
-def evaluate(name: str, data_root: str, restrict_lcc: bool, embedding, results_file: str, dist=False,
-             device: Optional[str]=None, runs=50, train_args={},
-             mmap_edges=False, mmap_features=False, random_split=False, use_tmp=False,
-             model='logistic', model_args={}):
+def evaluate(graph, embedding, results_file: str, dist=False,
+             device: Optional[str]=None, runs=50, train_args={}, mmap_features=False, random_split=False,
+             model='logistic', model_args={}, use_tmp=False):
     train_args_default = dict(num_epochs=10000, patience=20, lr=0.01, batch_size=100000, alpha=0, beta=0, weight_decay=0)
     train_args_default.update(train_args)
     train_args = train_args_default
 
     mmap_mode = 'r' if mmap_features else None
 
-    if isinstance(embedding, str):
+    if isinstance(embedding, str) or isinstance(embedding, Path):
         coords = np.load(embedding, mmap_mode=mmap_mode)
     else:
         coords = embedding
     print(f'evaluating with {runs} classification runs.')
-    graph = load_data(name, root=data_root, mmap_edges=mmap_edges, mmap_features=mmap_features,
-                      restrict_lcc=restrict_lcc, load_features=False)
     print('graph data loaded')
-    cl_data = load_classification_problem(name, graph_args={'mmap_edges': mmap_edges, 'mmap_features': mmap_features},
-                                          root=data_root, restrict_lcc=restrict_lcc)
+    cl_data = graph.cl_data
     print('classification problem loaded')
     num_labels = cl_data.num_labels
 
