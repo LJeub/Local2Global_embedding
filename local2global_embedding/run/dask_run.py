@@ -279,8 +279,13 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         lr = [lr for _ in range(runs)]
 
     all_tasks = as_completed()
-    data = once_per_worker(lambda: load_and_copy_data(name=name, data_root=data_root, restrict_lcc=restrict_lcc,
-                         mmap_edges=mmap_edges, mmap_features=mmap_features, directed=train_directed, use_tmp=True))
+
+    data = None
+    def load_data():
+        nonlocal data
+        if data is None:
+            data = once_per_worker(lambda: load_and_copy_data(name=name, data_root=data_root, restrict_lcc=restrict_lcc,
+                                 mmap_edges=mmap_edges, mmap_features=mmap_features, directed=train_directed, use_tmp=True))
 
     if run_baseline:
         # compute baseline full model if necessary
@@ -299,6 +304,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 r_done = baseline_data.runs(d)
 
             for r in range(r_done, runs):
+                load_data()
                 baseline_info_file = result_folder / f'{train_basename}_d{d}_r{r}_full_info.json'
                 coords_task = dask.delayed(func.train, pure=False)(
                                             data=data, model=model,
@@ -337,21 +343,21 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     with SoftFileLock(patch_folder.with_suffix('.lock')):
         pg_exists = (patch_folder / 'patch_graph.pt').is_file()
 
-    patch_graph = dask.delayed(func.prepare_patches, pure=False)(
-        output_folder=output_folder, name=name, graph=data,
-        min_overlap=min_overlap, target_overlap=target_overlap,
-        cluster=cluster,
-        num_clusters=num_clusters, num_iters=num_iters, beta=beta, levels=levels,
-        sparsify=sparsify, target_patch_degree=target_patch_degree,
-        gamma=gamma,
-        verbose=False)
-
     if not pg_exists:
-        patch_graph = patch_graph.persist()
+        load_data()
+        patch_graph = dask.delayed(func.prepare_patches, pure=False)(
+            output_folder=output_folder, name=name, graph=data,
+            min_overlap=min_overlap, target_overlap=target_overlap,
+            cluster=cluster,
+            num_clusters=num_clusters, num_iters=num_iters, beta=beta, levels=levels,
+            sparsify=sparsify, target_patch_degree=target_patch_degree,
+            gamma=gamma,
+            verbose=False).persist()
         patch_graph_initialised = True
         num_patches = patch_graph.num_nodes.compute()
     else:
         num_patches = torch.load(patch_folder/ 'patch_graph.pt').num_nodes
+        patch_graph = dask.delayed(torch.load, pure=True)(patch_folder / 'patch_graph.pt')
         patch_graph_initialised = False
 
     l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_eval.json'
@@ -361,6 +367,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         with ResultsDict(l2g_eval_file, lock=False) as res:
             r_done = res.runs(d)
         for r in range(r_done, runs):
+            load_data()
             if not patch_graph_initialised:
                 patch_graph = patch_graph.persist()
 
