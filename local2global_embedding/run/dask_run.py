@@ -402,7 +402,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     n_nodes = data.num_nodes.compute()
                 shape = (n_nodes, d)
 
-                l2g_task = dask.delayed(func.hierarchical_l2g_align_patches, pure=False)(
+                l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
                                      patch_graph=patch_graph,
                                      shape=shape,
                                      scale=scale,
