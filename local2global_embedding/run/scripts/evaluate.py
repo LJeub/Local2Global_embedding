@@ -21,6 +21,7 @@ from pathlib import Path
 from statistics import mean, stdev
 
 import torch
+from copy import copy
 import numpy as np
 from numpy.lib.format import open_memmap
 from typing import Optional
@@ -48,7 +49,7 @@ def evaluate(graph, embedding, results_file: str, dist=False,
             coords = embedding
         print(f'evaluating with {runs} classification runs.')
         print('graph data loaded')
-        cl_data = graph.cl_data
+        cl_data = copy(graph.cl_data)
         print('classification problem loaded')
         num_labels = cl_data.num_labels
 
