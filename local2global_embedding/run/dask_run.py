@@ -90,7 +90,7 @@ def load_patch_data(patch_folder, data, n_patches):
 
 
 def load_and_copy_data(name, data_root, restrict_lcc, mmap_edges, mmap_features, directed, use_tmp=False):
-    data = load_data(name=name, data_root=data_root, restrict_lcc=restrict_lcc,
+    data = load_data(name=name, root=data_root, restrict_lcc=restrict_lcc,
                                          mmap_edges=mmap_edges, mmap_features=mmap_features, directed=directed)
     if use_tmp:
         if isinstance(data.edge_index, np.memmap):
