@@ -45,6 +45,8 @@ from local2global_embedding.network import TGraph
 from local2global_embedding.run.once_per_worker import once_per_worker
 from weakref import finalize
 
+from local2global_embedding.run.once_per_worker.once_per_worker import OncePerWorker
+
 print('importing build-in modules')
 import sys
 from pathlib import Path
@@ -52,6 +54,7 @@ from typing import List
 from runpy import run_path
 from traceback import print_exception
 from collections.abc import Iterable
+from copy import copy
 
 print('importing numpy')
 import numpy as np
@@ -71,42 +74,13 @@ import logging
 
 print('importing needed functions')
 from local2global_embedding.run.utils import (ResultsDict, load_data, ScriptParser, patch_folder_name,
-                                              cluster_file_name, watch_progress, dask_unpack,
+                                              cluster_file_name, watch_progress,
                                               load_classification_problem)
+from local2global_embedding.utils import speye, set_device
 from local2global_embedding.run.scripts import functions as func
 from local2global_embedding.run.scripts.utils import build_patch, ScopedTemporaryFile
 from functools import partialmethod
 from tempfile import NamedTemporaryFile
-
-
-@dask.delayed(pure=True)
-def load_patch(patch_folder, data, i):
-    nodes = np.load(patch_folder / f'patch{i}_index.npy')
-    return data.subgraph(nodes, relabel=False).to(TGraph)
-
-
-def load_patch_data(patch_folder, data, n_patches):
-    return [load_patch(patch_folder, data, i).persist() for i in range(n_patches)]
-
-
-def load_and_copy_data(name, data_root, restrict_lcc, mmap_edges, mmap_features, directed, use_tmp=False):
-    data = load_data(name=name, root=data_root, restrict_lcc=restrict_lcc,
-                                         mmap_edges=mmap_edges, mmap_features=mmap_features, directed=directed)
-    if use_tmp:
-        if isinstance(data.edge_index, np.memmap):
-            e_file = ScopedTemporaryFile(suffix=".npy")
-            np.save(e_file.name, np.asarray(data.edge_index))
-            data.edge_index = np.load(e_file.name, mmap_mode='r')
-            data._e_file = e_file
-
-        if isinstance(data.x, np.memmap):
-            x_file = ScopedTemporaryFile(suffix=".npy")
-            np.save(x_file.name, np.asarray(data.x))
-            data.x = np.load(x_file.name, mmap_mode='r')
-            data._x_file = x_file
-    cl_data = load_classification_problem(name, data, root=data_root)
-    data.cl_data = cl_data
-    return data
 
 
 def with_dependencies(f):
@@ -180,9 +154,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         eval_func = func.mlp_grid_search_eval
     else:
         eval_func = func.evaluate
-
-    cl_train_args_input = cl_train_args  # keep reference to original values as these may be overriden if using grid-search
-    cl_model_args_input = cl_model_args
 
     if verbose_train:
         logging.basicConfig(level=logging.DEBUG)
@@ -280,12 +251,66 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
 
     all_tasks = as_completed()
 
+    def build_training_data(data, device):
+        device = set_device(device)
+        data = data.to(TGraph).to(device=device)
+        if no_features:
+            data.x = speye(data.num_nodes).to(device)
+        else:
+            data.x = torch.as_tensor(data.x, dtype=torch.float32)
+            if normalise:
+                r_sum = data.x.sum(dim=1)
+                r_sum[r_sum == 0] = 1.0  # avoid division by zero
+                data.x /= r_sum[:, None]
+        return data
+
+    @dask.delayed(pure=True, traverse=False)
+    def load_patch(patch_folder, data, i):
+        data = data._get_value()
+        nodes = np.load(patch_folder / f'patch{i}_index.npy')
+        return OncePerWorker.instance_for_function(lambda: build_training_data(data.subgraph(nodes, relabel=False), device))
+
+    def load_patch_data(patch_folder, data, n_patches):
+        return [load_patch(patch_folder, data, i) for i in range(n_patches)]
+
+    def load_and_copy_data():
+        data = load_data(name=name, root=data_root, restrict_lcc=restrict_lcc,
+                         mmap_edges=mmap_edges, mmap_features=mmap_features, directed=train_directed)
+        if use_tmp:
+            if isinstance(data.edge_index, np.memmap):
+                e_file = ScopedTemporaryFile(suffix=".npy")
+                np.save(e_file.name, np.asarray(data.edge_index))
+                data.edge_index = np.load(e_file.name, mmap_mode='r')
+                data._e_file = e_file
+
+            if isinstance(data.x, np.memmap):
+                x_file = ScopedTemporaryFile(suffix=".npy")
+                np.save(x_file.name, np.asarray(data.x))
+                data.x = np.load(x_file.name, mmap_mode='r')
+                data._x_file = x_file
+
+        cl_data = load_classification_problem(name, data, root=data_root)
+        data.cl_data = cl_data
+        return data
+
     data = None
-    def load_data():
+    baseline_train_data = None
+
+    def _load_data():
         nonlocal data
         if data is None:
-            data = once_per_worker(lambda: load_and_copy_data(name=name, data_root=data_root, restrict_lcc=restrict_lcc,
-                                 mmap_edges=mmap_edges, mmap_features=mmap_features, directed=train_directed, use_tmp=True))
+            data = once_per_worker(load_and_copy_data)
+
+    @dask.delayed(pure=True, traverse=False)
+    def build_baseline_training_data(data):
+        data = copy(data._get_value())
+        return OncePerWorker.instance_for_function(lambda: build_training_data(data, device))
+
+    def _baseline_data():
+        nonlocal baseline_train_data
+        _load_data()
+        if baseline_train_data is None:
+            baseline_train_data = build_baseline_training_data(data)
 
     if run_baseline:
         # compute baseline full model if necessary
@@ -293,41 +318,36 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         result_folder.mkdir(exist_ok=True)
 
         baseline_eval_file = result_folder / f'{eval_basename}_full_eval.json'
-        if train_directed:
-            data_file = output_folder / f'{name}_dir_data.pt'
-        else:
-            data_file = output_folder / f'{name}_data.pt'
 
         for d in dims:
-            baseline_tasks = []
             with ResultsDict(baseline_eval_file, lock=False) as baseline_data:
                 r_done = baseline_data.runs(d)
 
             for r in range(r_done, runs):
-                load_data()
+                _load_data()
+                _baseline_data()
                 baseline_info_file = result_folder / f'{train_basename}_d{d}_r{r}_full_info.json'
                 coords_task = dask.delayed(func.train, pure=False)(
-                                            data=data, model=model,
-                                            lr=lr[r], num_epochs=num_epochs,
-                                            patience=patience, verbose=verbose_train,
-                                            results_file=baseline_info_file, dim=d,
-                                            hidden_multiplier=hidden_multiplier,
-                                            no_features=no_features, dist=dist,
-                                            device=device, normalise_features=normalise,
-                                            save_coords=mmap_features)
+                    data=baseline_train_data, model=model,
+                    lr=lr[r], num_epochs=num_epochs,
+                    patience=patience, verbose=verbose_train,
+                    results_file=baseline_info_file, dim=d,
+                    hidden_multiplier=hidden_multiplier,
+                    dist=dist,
+                    save_coords=mmap_features)
                 eval_task = client.compute(dask.delayed(eval_func, pure=False)(
-                                          model=cl_model,
-                                          graph=data,
-                                          embedding=coords_task,
-                                          results_file=baseline_eval_file,
-                                          dist=dist,
-                                          device=device,
-                                          train_args=cl_train_args,
-                                          model_args=cl_model_args,
-                                          runs=cl_runs,
-                                          random_split=random_split,
-                                          mmap_features=mmap_features,
-                                          use_tmp=use_tmp), resources=gpu_req)
+                    model=cl_model,
+                    graph=data,
+                    embedding=coords_task,
+                    results_file=baseline_eval_file,
+                    dist=dist,
+                    device=device,
+                    train_args=cl_train_args,
+                    model_args=cl_model_args,
+                    runs=cl_runs,
+                    random_split=random_split,
+                    mmap_features=mmap_features,
+                    use_tmp=use_tmp), resources=gpu_req)
                 eval_task.add_done_callback(progress_callback(baseline_progress))
                 all_tasks.add(eval_task)
                 del eval_task
@@ -344,7 +364,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         pg_exists = (patch_folder / 'patch_graph.pt').is_file()
 
     if not pg_exists:
-        load_data()
+        _load_data()
         patch_graph = dask.delayed(func.prepare_patches, pure=False)(
             output_folder=output_folder, name=name, graph=data,
             min_overlap=min_overlap, target_overlap=target_overlap,
@@ -356,7 +376,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         patch_graph_initialised = True
         num_patches = patch_graph.num_nodes.compute()
     else:
-        num_patches = torch.load(patch_folder/ 'patch_graph.pt').num_nodes
+        num_patches = torch.load(patch_folder / 'patch_graph.pt').num_nodes
         patch_graph = dask.delayed(torch.load, pure=True)(patch_folder / 'patch_graph.pt')
         patch_graph_initialised = False
 
@@ -367,7 +387,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         with ResultsDict(l2g_eval_file, lock=False) as res:
             r_done = res.runs(d)
         for r in range(r_done, runs):
-            load_data()
+            _load_data()
             if not patch_graph_initialised:
                 patch_graph = patch_graph.persist()
 
@@ -380,12 +400,11 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 patch_result_file = result_folder / f'{train_basename}_patch{pi}_d{d}_r{r}_info.json'
 
                 coords = dask.delayed(func.train)(data=patch_data[pi], model=model,
-                                            lr=lr[r], num_epochs=num_epochs,
-                                            patience=patience, verbose=verbose_train,
-                                            results_file=patch_result_file, dim=d,
-                                            hidden_multiplier=hidden_multiplier,
-                                            no_features=no_features, dist=dist,
-                                            device=device, normalise_features=normalise, save_coords=mmap_features)
+                                                  lr=lr[r], num_epochs=num_epochs,
+                                                  patience=patience, verbose=verbose_train,
+                                                  results_file=patch_result_file, dim=d,
+                                                  hidden_multiplier=hidden_multiplier, dist=dist,
+                                                  save_coords=mmap_features)
                 patch = dask.delayed(build_patch)(node_file=patch_node_file, coords=coords)
                 patches.append(patch)
                 del coords
@@ -403,34 +422,34 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 shape = (n_nodes, d)
 
                 l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
-                                     patch_graph=patch_graph,
-                                     shape=shape,
-                                     scale=scale,
-                                     rotate=rotate,
-                                     translate=translate,
-                                     patches=patches,
-                                     mmap=mmap_features,
-                                     use_tmp=use_tmp,
-                                     verbose=verbose_l2g,
-                                     output_file=l2g_coords_file,
-                                     cluster_file=cluster_file,
-                                     resparsify=resparsify
-                                     )
+                                         patch_graph=patch_graph,
+                                         shape=shape,
+                                         scale=scale,
+                                         rotate=rotate,
+                                         translate=translate,
+                                         patches=patches,
+                                         mmap=mmap_features,
+                                         use_tmp=use_tmp,
+                                         verbose=verbose_l2g,
+                                         output_file=l2g_coords_file,
+                                         cluster_file=cluster_file,
+                                         resparsify=resparsify
+                                         )
 
             coords_task = dask.delayed(eval_func, pure=False)(
-                                        model=cl_model,
-                                        graph=data,
-                                        embedding=l2g_task,
-                                        results_file=l2g_eval_file,
-                                        dist=dist,
-                                        device=device,
-                                        train_args=cl_train_args,
-                                        model_args=cl_model_args,
-                                        runs=cl_runs,
-                                        random_split=random_split,
-                                        mmap_features=mmap_features,
-                                        use_tmp=use_tmp
-                                        )
+                model=cl_model,
+                graph=data,
+                embedding=l2g_task,
+                results_file=l2g_eval_file,
+                dist=dist,
+                device=device,
+                train_args=cl_train_args,
+                model_args=cl_model_args,
+                runs=cl_runs,
+                random_split=random_split,
+                mmap_features=mmap_features,
+                use_tmp=use_tmp
+            )
             coords_task = client.compute(coords_task, resources=gpu_req)
             coords_task.add_done_callback(progress_callback(eval_progress))
             all_tasks.add(coords_task)

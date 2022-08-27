@@ -64,8 +64,7 @@ class Count:
 
 
 def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, results_file: str,
-          dim: int, hidden_multiplier: Optional[int] = None, no_features=False, dist=False,
-          device: Optional[str] = None, runs=1, normalise_features=False, save_coords=False):
+          dim: int, hidden_multiplier: Optional[int] = None, dist=False, save_coords=False):
     """
     train model on data
 
@@ -80,23 +79,12 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
         dist: use distance decoder for reconstruction
         device: device to use for training (e.g., 'cuda', 'cpu')
     """
-    device = set_device(device)
-    model_str = model
+    device = data.device
 
     print(f'Launched training for model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailable")} and device={device}')
-    data = data.to(TGraph).to(device=device)
     results_file = Path(results_file)
     model_file = results_file.with_name(results_file.stem.replace("_info", "_model") + ".pt")
     coords_file = results_file.with_name(results_file.stem.replace("_info", "_coords") + ".npy")
-
-    if no_features:
-        data.x = speye(data.num_nodes).to(device)
-    else:
-        data.x = torch.as_tensor(data.x, dtype=torch.float32)
-        if normalise_features:
-            r_sum = data.x.sum(dim=1)
-            r_sum[r_sum == 0] = 1.0  # avoid division by zero
-            data.x /= r_sum[:, None]
 
     model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     loss_fun = select_loss(model)
