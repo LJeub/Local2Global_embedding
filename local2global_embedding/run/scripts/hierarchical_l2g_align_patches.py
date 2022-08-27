@@ -68,14 +68,12 @@ def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file: Pat
         clusters = torch.load(cluster_file)
     else:
         clusters = None
-    secede()
     if isinstance(clusters, list) and len(clusters) > 1:
         aligned, time = get_aligned_embedding(
                 patch_graph=patch_graph, patches=patches, clusters=clusters[1:], verbose=verbose, use_tmp=use_tmp,
                 resparsify=resparsify, scale=scale, rotate=rotate, translate=translate).compute()
     else:
         aligned, time = aligned_coords(patches, patch_graph, verbose, use_tmp, scale, rotate, translate).compute()
-    rejoin()
     coords = aligned.coordinates
     patches = coords.patches
     if mmap:
