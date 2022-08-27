@@ -52,6 +52,7 @@ def evaluate(graph, embedding, results_file: str, dist=False,
         cl_data = copy(graph.cl_data)
         print('classification problem loaded')
         num_labels = cl_data.num_labels
+        print(f"{num_labels=}")
 
         if use_tmp and mmap_features:
             tmp_file = ScopedTemporaryFile(prefix='coords_', suffix='.npy')  # path of temporary file that is automatically cleaned up when garbage-collected
@@ -60,8 +61,11 @@ def evaluate(graph, embedding, results_file: str, dist=False,
             coords = coords_tmp
             print('features moved to tmp storage')
 
-        cl_data.x = torch.as_tensor(coords, dtype=torch.float32)
+        print("adding embedding")
+        cl_data.x = torch.tensor(coords, dtype=torch.float32)
+        print("embedding converted to tensor")
         dim = coords.shape[1]
+        print("computing auc")
         auc = reconstruction_auc(coords, graph, dist=dist)
 
         acc = []
@@ -81,9 +85,13 @@ def evaluate(graph, embedding, results_file: str, dist=False,
 
         for _ in range(runs):
             if random_split:
+                print("computing new train/test split")
                 cl_data.resplit()
+            print("constructing model")
             model = construct_model()
+            print("model constructed")
             model = train(cl_data, model, device=device, **train_args)
+            print("model trained")
             acc.append(accuracy(cl_data, model))
             if torch.cuda.is_available():
                 print(f'Model accuracy: {acc[-1]}, max memory: {torch.cuda.max_memory_allocated()}, total available memory: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory}')
