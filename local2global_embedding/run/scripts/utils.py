@@ -212,6 +212,7 @@ def mean_embedding(patches, shape, output_file, use_tmp=True):
         out /= count[:, None]
         out.flush()
         move(work_file, output_file)
+        return output_file
     except Exception as e:
         remove_file(work_file)
         raise e

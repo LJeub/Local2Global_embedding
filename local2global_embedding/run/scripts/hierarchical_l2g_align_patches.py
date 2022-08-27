@@ -61,44 +61,52 @@ def get_aligned_embedding(patch_graph, patches, clusters, verbose=True, use_tmp=
                                      scale, rotate, translate, time)
 
 
+
+
+
 def hierarchical_l2g_align_patches(patch_graph, shape, patches, output_file: Path, cluster_file=None, mmap=False,
                                    verbose=False, use_tmp=False, resparsify=0, store_aligned_patches=False, scale=False,
                                    rotate=True, translate=True):
+
+    if mmap:
+        def get_coords(aligned):
+            return mean_embedding(aligned.patches, shape, output_file, use_tmp)
+    else:
+        def get_coords(aligned):
+            coords = np.asarray(aligned.coordinates, dtype=np.float32)
+            np.save(output_file, np.asarray(coords, dtype=np.float32))
+            return coords
+    @delayed
+    def save_results(aligned, time):
+        coords = get_coords(aligned)
+        if store_aligned_patches:
+            if scale:
+                postfix = '_aligned_scaled_coords'
+            else:
+                postfix = '_aligned_coords'
+            for patch in aligned.patches:
+                f_name = patch.coordinates.filename
+                aligned_f_name = f_name.with_name(f_name.name.replace('_coords', postfix))
+                np.save(aligned_f_name, patch.coordinates)
+
+        timing_file = output_file.with_name(output_file.stem + "time.txt")
+        with SoftFileLock(timing_file.with_suffix(".lock")):
+            with open(timing_file, 'a') as f:
+                f.write(str(time) + "\n")
+        return coords
+
     if cluster_file is not None:
         clusters = torch.load(cluster_file)
     else:
         clusters = None
     if isinstance(clusters, list) and len(clusters) > 1:
+        clusters = delayed(torch.load)(cluster_file)
         aligned, time = get_aligned_embedding(
                 patch_graph=patch_graph, patches=patches, clusters=clusters[1:], verbose=verbose, use_tmp=use_tmp,
-                resparsify=resparsify, scale=scale, rotate=rotate, translate=translate).compute()
+                resparsify=resparsify, scale=scale, rotate=rotate, translate=translate)
     else:
-        aligned, time = aligned_coords(patches, patch_graph, verbose, use_tmp, scale, rotate, translate).compute()
-    coords = aligned.coordinates
-    patches = coords.patches
-    if mmap:
-        mean_embedding(patches, shape, output_file, use_tmp)
-    else:
-        np.save(output_file, np.asarray(coords, dtype=np.float32))
-
-    if store_aligned_patches:
-        if scale:
-            postfix = '_aligned_scaled_coords'
-        else:
-            postfix = '_aligned_coords'
-        for patch in patches:
-            f_name = patch.coordinates.filename
-            aligned_f_name = f_name.with_name(f_name.name.replace('_coords', postfix))
-            np.save(aligned_f_name, patch.coordinates)
-
-    timing_file = output_file.with_name(output_file.stem + "time.txt")
-    with SoftFileLock(timing_file.with_suffix(".lock")):
-        with open(timing_file, 'a') as f:
-            f.write(str(time) + "\n")
-    if mmap:
-        return output_file
-    else:
-        return np.asarray(coords, dtype=np.float32)
+        aligned, time = aligned_coords(patches, patch_graph, verbose, use_tmp, scale, rotate, translate)
+    return save_results(aligned, time)
 
 
 if __name__ == '__main__':

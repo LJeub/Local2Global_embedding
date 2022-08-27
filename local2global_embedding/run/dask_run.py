@@ -413,15 +413,15 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             l2g_coords_file = result_folder / f'{train_basename}_d{d}_r{r}_{l2g_name}_coords.npy'
             if l2g_coords_file.is_file():
                 if mmap_features:
-                    l2g_task = l2g_coords_file
+                    l2g_coords = l2g_coords_file
                 else:
-                    l2g_task = dask.delayed(np.load)(file=l2g_coords_file)
+                    l2g_coords = dask.delayed(np.load)(file=l2g_coords_file)
             else:
                 if n_nodes is None:
                     n_nodes = data.num_nodes.compute()
                 shape = (n_nodes, d)
 
-                l2g_task = client.submit(func.hierarchical_l2g_align_patches, pure=False,
+                l2g_coords = func.hierarchical_l2g_align_patches(
                                          patch_graph=patch_graph,
                                          shape=shape,
                                          scale=scale,
@@ -434,12 +434,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                                          output_file=l2g_coords_file,
                                          cluster_file=cluster_file,
                                          resparsify=resparsify
-                                         )
+                                        )
 
             coords_task = dask.delayed(eval_func, pure=False)(
                 model=cl_model,
                 graph=data,
-                embedding=l2g_task,
+                embedding=l2g_coords,
                 results_file=l2g_eval_file,
                 dist=dist,
                 device=device,
@@ -454,7 +454,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             coords_task.add_done_callback(progress_callback(eval_progress))
             all_tasks.add(coords_task)
             del coords_task
-            del l2g_task
+            del l2g_coords
 
     baseline_progress.refresh()
     patch_progress.refresh()
