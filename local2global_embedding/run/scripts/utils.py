@@ -46,7 +46,7 @@ def load_patch(node_file, coords):
     nodes = np.load(node_file)
     if isinstance(coords, torch.Tensor):
         coords = coords.cpu().numpy()
-    return Patch(nodes, LazyCoordinates(coords))
+    return Patch(nodes, coords)
 
 
 def load_file_patch(node_file, coords_file: str):

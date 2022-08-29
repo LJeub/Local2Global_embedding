@@ -46,7 +46,7 @@ def evaluate(graph, embedding, results_file: str, dist=False,
         if isinstance(embedding, str) or isinstance(embedding, Path):
             coords = np.load(embedding, mmap_mode=mmap_mode)
         else:
-            coords = embedding
+            coords = np.asarray(embedding)
         print(f'evaluating with {runs} classification runs.')
         print('graph data loaded')
         cl_data = copy(graph.cl_data)

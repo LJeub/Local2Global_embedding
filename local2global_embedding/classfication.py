@@ -305,9 +305,11 @@ def train(data: ClassificationProblem, model: torch.nn.Module, num_epochs, batch
     # optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, betas=(beta_1, beta_2),
                                  eps=adam_epsilon)
+    if batch_size < len(train_data):
+        train_data = train_data.to(device)
     # optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
     data_loader = torch.utils.data.DataLoader(BatchedData(train_data, batch_size=batch_size), batch_size=1,
-                                              shuffle=True, collate_fn=lambda b: b[0], pin_memory=True)
+                                              shuffle=True, collate_fn=lambda b: b[0], pin_memory=batch_size < len(train_data))
     if decay_lr:
         lr_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(data_loader) * num_epochs)
 

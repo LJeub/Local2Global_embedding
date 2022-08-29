@@ -350,6 +350,12 @@ class ResultsDict(UserDict):
         else:
             self._insert_index(index, dim, **kwargs)
 
+    def delete_dim(self, dim):
+        index = self._index(dim)
+        if index < len(self['dims']) and self['dims'][index] == dim:
+            for v in self.values():
+                del v[index]
+
     def max(self, field, dim=None):
         """
         return maximum auc values

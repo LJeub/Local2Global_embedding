@@ -35,6 +35,8 @@ from local2global_embedding.embedding.eval import reconstruction_auc
 from local2global_embedding.network import TGraph
 from local2global_embedding.utils import speye, set_device
 from local2global_embedding.run.utils import ResultsDict, ScriptParser
+from local2global import Patch
+from local2global.patch import FilePatch
 
 
 def select_loss(model):
@@ -89,20 +91,22 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
     model = create_model(model, dim, dim * hidden_multiplier, data.num_features, dist).to(device)
     loss_fun = select_loss(model)
     if results_file.exists():
+        with open(results_file) as f:
+            res = json.load(f)
         if coords_file.exists():
             if save_coords:
-                return str(coords_file)
+                return FilePatch(data.nodes, str(coords_file)), res['auc']
             else:
-                return np.load(coords_file)
+                return Patch(data.nodes, np.load(coords_file)), res['auc']
         else:
             model.load_state_dict(torch.load(model_file))
             model.eval()
             coords = model.embed(data)
             if save_coords:
                 np.save(coords_file, coords.cpu().numpy())
-                return str(coords_file)
+                return FilePatch(data.nodes, str(coords_file)), res['auc']
             else:
-                return coords.cpu().numpy()
+                return Patch(data.nodes, coords.cpu().numpy()), res['auc']
     else:
         tic = perf_counter()
         model.reset_parameters()
@@ -128,9 +132,9 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
                                 "dist": dist}
                        }, f)
         if save_coords:
-            return str(coords_file)
+            return FilePatch(data.nodes, str(coords_file)), auc
         else:
-            return coords.cpu().numpy()
+            return Patch(data.nodes, coords.cpu().numpy()), auc
 
 
 if __name__ == '__main__':
