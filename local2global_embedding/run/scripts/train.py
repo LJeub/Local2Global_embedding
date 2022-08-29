@@ -107,9 +107,9 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
             coords = model.embed(data)
             if save_coords:
                 np.save(coords_file, coords.cpu().numpy())
-                return FilePatch(data.nodes.cpu().numpy(), str(coords_file)), res['auc']
+                return FilePatch(nodes, str(coords_file)), res['auc']
             else:
-                return Patch(data.nodes.cpu().numpy(), coords.cpu().numpy()), res['auc']
+                return Patch(nodes, coords.cpu().numpy()), res['auc']
     else:
         tic = perf_counter()
         model.reset_parameters()
@@ -135,9 +135,9 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
                                 "dist": dist}
                        }, f)
         if save_coords:
-            return FilePatch(data.nodes.cpu().numpy(), str(coords_file)), auc
+            return FilePatch(nodes, str(coords_file)), auc
         else:
-            return Patch(data.nodes.cpu().numpy(), coords.cpu().numpy()), auc
+            return Patch(nodes, coords.cpu().numpy()), auc
 
 
 if __name__ == '__main__':
