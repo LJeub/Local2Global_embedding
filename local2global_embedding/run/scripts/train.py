@@ -82,6 +82,9 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
         device: device to use for training (e.g., 'cuda', 'cpu')
     """
     device = data.device
+    nodes = data.nodes
+    if isinstance(nodes, torch.Tensor):
+        nodes = nodes.cpu().numpy()
 
     print(f'Launched training for model {model}_d{dim} with cuda devices {os.environ.get("CUDA_VISIBLE_DEVICES", "unavailable")} and device={device}')
     results_file = Path(results_file)
@@ -95,9 +98,9 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
             res = json.load(f)
         if coords_file.exists():
             if save_coords:
-                return FilePatch(data.nodes.cpu().numpy(), str(coords_file)), res['auc']
+                return FilePatch(nodes, str(coords_file)), res['auc']
             else:
-                return Patch(data.nodes.cpu().numpy(), np.load(coords_file)), res['auc']
+                return Patch(nodes, np.load(coords_file)), res['auc']
         else:
             model.load_state_dict(torch.load(model_file))
             model.eval()
