@@ -19,12 +19,13 @@
 #  SOFTWARE.
 
 import json
+from statistics import mean, stdev
 
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 from pathlib import Path
-from local2global_embedding.run.utils import ScriptParser, ResultsDict
+from local2global_embedding.run.utils import ScriptParser, ResultsDict, load_data
+from local2global_embedding.utils import flatten
 
 
 def _extract_error(data, key):
@@ -42,36 +43,50 @@ def _normalise_data(data):
     return data
 
 
-def plot(data, key, baseline_data=None, nt_data=None):
-    fig = plt.figure()
-    bar_opts = dict(elinewidth=0.5, capthick=0.5, capsize=3)
-    if baseline_data is not None and key in baseline_data:
-        _, cap, ebar = plt.errorbar(_normalise_data(baseline_data['dims']), _normalise_data(baseline_data[key]),
-                     yerr=_extract_error(baseline_data, key),
-                     label='full', marker='o', color='tab:blue', **bar_opts)
-        if ebar:
-            cap[0].set_alpha(0.5)
-            cap[1].set_alpha(0.5)
-            ebar[0].set_alpha(0.5)
+def mean_and_deviation(data):
+    data = [flatten(v) for v in data]
+    data_mean = [mean(v) for v in data]
+    data_std = [stdev(v) for v in data]
+    return data_mean, data_std
 
 
-    _, cap, ebar = plt.errorbar(_normalise_data(data['dims']), _normalise_data(data[key]), fmt='--', yerr=_extract_error(data, key),
-                 label='l2g', marker='>', color='tab:blue', **bar_opts)
-
+def plot_with_errorbars(x, y_mean, y_err, fmt='-', **kwargs):
+    opts = dict(elinewidth=0.5, capthick=0.5, capsize=3)
+    opts["fmt"] = fmt
+    opts.update(kwargs)
+    _, cap, ebar = plt.errorbar(_normalise_data(x), _normalise_data(y_mean),
+                                yerr=_normalise_data(y_err), **opts)
     if ebar:
         cap[0].set_alpha(0.5)
         cap[1].set_alpha(0.5)
         ebar[0].set_alpha(0.5)
-        ebar[0].set_linestyle('--')
+        ebar[0].set_linestyle(fmt)
+
+
+def plot(data, key, baseline_data=None, nt_data=None, rotate_data=None, translate_data=None):
+    fig = plt.figure()
+    if baseline_data is not None and key in baseline_data:
+        d_mean, d_err = mean_and_deviation(baseline_data[key])
+        plot_with_errorbars(baseline_data['dims'], d_mean, d_err, label='full', marker='o', color='tab:blue', zorder=4)
+
+    d_mean, d_err = mean_and_deviation(data[key])
+    plot_with_errorbars(data['dims'], d_mean, d_err, fmt='-',
+                 label='l2g', marker='>', color='tab:red', zorder=5)
+
+    if rotate_data is not None and key in rotate_data:
+        d_mean, d_err = mean_and_deviation(rotate_data[key])
+        plot_with_errorbars(rotate_data['dims'], d_mean, d_err, fmt='--', marker='s', markersize=3,
+                     label='rotate-only', color='tab:orange', linewidth=0.5, zorder=3)
+
+    if translate_data is not None and key in translate_data:
+        d_mean, d_err = mean_and_deviation(translate_data[key])
+        plot_with_errorbars(translate_data['dims'], d_mean, d_err, fmt='-.', marker='d', markersize=3,
+                     label='translate-only', color='tab:purple', linewidth=0.5, zorder=2)
 
     if nt_data is not None and key in nt_data:
-        _, cap, ebar = plt.errorbar(_normalise_data(nt_data['dims']), _normalise_data(nt_data[key]), fmt=':', yerr=_extract_error(nt_data, key),
-                     label='no-trans', color='tab:blue', linewidth=1, **bar_opts)
-        if ebar:
-            cap[0].set_alpha(0.5)
-            cap[1].set_alpha(0.5)
-            ebar[0].set_alpha(0.5)
-            ebar[0].set_linestyle(':')
+        d_mean, d_err = mean_and_deviation(nt_data[key])
+        plot_with_errorbars(nt_data['dims'], d_mean, d_err, fmt=':',
+                            label='no-l2g', color='tab:pink', linewidth=0.5, zorder=1)
 
     plt.xscale('log')
     plt.xticks(data['dims'], data['dims'])
@@ -81,9 +96,9 @@ def plot(data, key, baseline_data=None, nt_data=None):
     plt.xlabel('embedding dimension')
     if key == 'auc':
         plt.ylabel('AUC')
-    elif key == 'acc_mean':
+    elif key == 'acc':
         plt.ylabel('classification accuracy')
-    plt.legend()
+    plt.legend(ncol=3, frameon=False)
     return fig
 
 
@@ -93,7 +108,7 @@ def plot_all(folder=None):
     else:
         folder = Path(folder)
 
-    for file in folder.glob('**/**/*_l2g_*_eval.json'):
+    for file in folder.glob('**/**/*_l2g_scale_eval.json'):
         print(file)
         with open(file) as f:
             data = json.load(f)
@@ -110,29 +125,45 @@ def plot_all(folder=None):
         else:
             baseline_data = None
 
-        nt = file.with_name(base_name.replace('_l2g_', '_nt_').replace('_scale', ''))
+        nt = file.with_name(base_name.replace('_scale_', '_norotate_notranslate_'))
         if nt.is_file():
             with open(nt) as f:
                 nt_data = json.load(f)
         else:
             nt_data = None
+
+        rotate = file.with_name(base_name.replace('_scale_', '_notranslate_'))
+        if rotate.is_file():
+            with open(rotate) as f:
+                rotate_data = json.load(f)
+        else:
+            rotate_data = None
+
+        translate = file.with_name(base_name.replace('_scale_', "_norotate_"))
+        if translate.is_file():
+            with open(translate) as f:
+                translate_data = json.load(f)
+        else:
+            translate_data = None
+
         name = file.stem.split('_', 1)[0]
-        network_data = torch.load(folder / f'{name}_data.pt')
+        network_data = load_data(name)
         all_edges = network_data.num_edges
-        patch_files = list(file.parents[1].glob('patch*_data.pt'))
-        patch_edges = sum(torch.load(patch_file, map_location='cpu').num_edges
+        patch_files = list(file.parents[1].glob('patch*_index.npy'))
+        patch_edges = sum(network_data.subgraph(np.load(patch_file)).num_edges
                           for patch_file in patch_files)
         oversampling_ratio = patch_edges / all_edges
         num_labels = network_data.y.max().item() + 1
         title = f"oversampling ratio: {oversampling_ratio:.2}, #patches: {len(patch_files)}"
         if 'auc' in data:
-            fig = plot(data, 'auc', baseline_data, nt_data)
+            fig = plot(data, 'auc', baseline_data, nt_data, rotate_data, translate_data)
             ax = fig.gca()
             ax.set_title(title)
+            ax.set_ylim(0.48, 1.02)
             fig.savefig(file.with_name(file.name.replace('.json', '_auc.pdf')))
 
-        if 'acc_mean' in data:
-            fig = plot(data, 'acc_mean', baseline_data, nt_data)
+        if 'acc' in data:
+            fig = plot(data, 'acc', baseline_data, nt_data, rotate_data, translate_data)
             ax = fig.gca()
             ax.set_title(title)
             ax.set_ylim(0.98/num_labels, 1.02)
