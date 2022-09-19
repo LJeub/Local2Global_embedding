@@ -282,13 +282,13 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             e_file = tmpdir / f"{name}_edges.npy"
             x_file = tmpdir / f"{name}_x.npy"
             if isinstance(data.edge_index, np.memmap):
-                with FileLock(tmpdir/f"{name}_edges.lock")
+                with FileLock(tmpdir/f"{name}_edges.lock"):
                     if not (e_file).is_file():
                         np.save(e_file, data.edge_index)
                     data.edge_index = np.load(e_file, mmap_mode='r')
 
             if isinstance(data.x, np.memmap):
-                with FileLock(tmpdir/f"{name}_x.lock")
+                with FileLock(tmpdir/f"{name}_x.lock"):
                     if not x_file.is_file():
                         np.save(x_file, data.x)
                     data.x = np.load(x_file, mmap_mode='r')
@@ -462,7 +462,7 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             del coords_task
             del l2g_coords
 
-        
+
 
     baseline_progress.refresh()
     patch_progress.refresh()
