@@ -98,18 +98,18 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
             res = json.load(f)
         if coords_file.exists():
             if save_coords:
-                return FilePatch(nodes, str(coords_file)), res['auc']
+                return FilePatch(nodes, str(coords_file))
             else:
-                return Patch(nodes, np.load(coords_file)), res['auc']
+                return Patch(nodes, np.load(coords_file))
         else:
             model.load_state_dict(torch.load(model_file))
             model.eval()
             coords = model.embed(data)
             if save_coords:
                 np.save(coords_file, coords.cpu().numpy())
-                return FilePatch(nodes, str(coords_file)), res['auc']
+                return FilePatch(nodes, str(coords_file))
             else:
-                return Patch(nodes, coords.cpu().numpy()), res['auc']
+                return Patch(nodes, coords.cpu().numpy())
     else:
         tic = perf_counter()
         model.reset_parameters()
@@ -135,9 +135,9 @@ def train(data, model, lr, num_epochs: int, patience: int, verbose: bool, result
                                 "dist": dist}
                        }, f)
         if save_coords:
-            return FilePatch(nodes, str(coords_file)), auc
+            return FilePatch(nodes, str(coords_file))
         else:
-            return Patch(nodes, coords.cpu().numpy()), auc
+            return Patch(nodes, coords.cpu().numpy())
 
 
 if __name__ == '__main__':

@@ -19,6 +19,7 @@
 #  SOFTWARE.
 
 """Training run script"""
+import os
 
 #  Copyright (c) 2021. Lucas G. S. Jeub
 #
@@ -277,26 +278,24 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         data = load_data(name=name, root=data_root, restrict_lcc=restrict_lcc,
                          mmap_edges=mmap_edges, mmap_features=mmap_features, directed=train_directed)
         if use_tmp:
+            tmpdir = Path(os.getenv("TMPDIR", "/tmp"))
+            e_file = tmpdir / f"{name}_edges.npy"
+            x_file = tmpdir / f"{name}_x.npy"
             if isinstance(data.edge_index, np.memmap):
-                e_file = ScopedTemporaryFile(suffix=".npy")
-                np.save(e_file.name, np.asarray(data.edge_index))
-                data.edge_index = np.load(e_file.name, mmap_mode='r')
-                data._e_file = e_file
+                with FileLock(tmpdir/f"{name}_edges.lock")
+                    if not (e_file).is_file():
+                        np.save(e_file, data.edge_index)
+                    data.edge_index = np.load(e_file, mmap_mode='r')
 
             if isinstance(data.x, np.memmap):
-                x_file = ScopedTemporaryFile(suffix=".npy")
-                np.save(x_file.name, np.asarray(data.x))
-                data.x = np.load(x_file.name, mmap_mode='r')
-                data._x_file = x_file
+                with FileLock(tmpdir/f"{name}_x.lock")
+                    if not x_file.is_file():
+                        np.save(x_file, data.x)
+                    data.x = np.load(x_file, mmap_mode='r')
 
         cl_data = load_classification_problem(name, data, root=data_root)
         data.cl_data = cl_data
         return data
-
-    @dask.delayed
-    def max_auc_patch(patches, aucs):
-        i = max(range(len(aucs)), key=lambda i: aucs[i])
-        return patches[i]
 
     data = None
     baseline_train_data = None
@@ -323,26 +322,16 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         result_folder.mkdir(exist_ok=True)
 
         baseline_eval_file = result_folder / f'{eval_basename}_full_eval.json'
-        baseline_auc_eval_file = result_folder / f'{eval_basename}_full_auc_eval.json'
 
         for d in dims:
             with ResultsDict(baseline_eval_file, lock=False) as baseline_data:
-                r_done_b = baseline_data.runs(d)
-            with ResultsDict(baseline_auc_eval_file, lock=True) as baseline_data:
-                if r_done_b < runs:
-                    baseline_data.delete_dim(d)
-                r_done_auc = baseline_data.runs(d)
-            if r_done_auc < 1:
-                r_done = 0
-            else:
-                r_done = r_done_b
+                r_done = baseline_data.runs(d)
             coords = []
-            aucs = []
             for r in range(r_done, runs):
                 _load_data()
                 _baseline_data()
                 baseline_info_file = result_folder / f'{train_basename}_d{d}_r{r}_full_info.json'
-                coords_task, auc = dask.delayed(func.train, pure=False, nout=2)(
+                coords_task = dask.delayed(func.train, pure=False)(
                     data=baseline_train_data, model=model,
                     lr=lr[r], num_epochs=num_epochs,
                     patience=patience, verbose=verbose_train,
@@ -351,44 +340,24 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                     dist=dist,
                     save_coords=mmap_features)
                 coords.append(coords_task)
-                aucs.append(auc)
-                if r >= r_done_b:
-                    eval_task = client.compute(dask.delayed(eval_func, pure=False)(
-                        model=cl_model,
-                        graph=data,
-                        embedding=coords_task.coordinates,
-                        results_file=baseline_eval_file,
-                        dist=dist,
-                        device=device,
-                        train_args=cl_train_args,
-                        model_args=cl_model_args,
-                        runs=cl_runs,
-                        random_split=random_split,
-                        mmap_features=mmap_features,
-                        use_tmp=use_tmp), resources=gpu_req)
-                    eval_task.add_done_callback(progress_callback(baseline_progress))
-                    all_tasks.add(eval_task)
-                    del eval_task
-                    del coords_task
 
-            if r_done < 1:
-                best_auc_res = max_auc_patch(coords, aucs)
                 eval_task = client.compute(dask.delayed(eval_func, pure=False)(
                     model=cl_model,
                     graph=data,
-                    embedding=best_auc_res.coordinates,
+                    embedding=coords_task.coordinates,
                     results_file=baseline_eval_file,
                     dist=dist,
                     device=device,
                     train_args=cl_train_args,
                     model_args=cl_model_args,
-                    runs=cl_runs*runs,
+                    runs=cl_runs,
                     random_split=random_split,
                     mmap_features=mmap_features,
                     use_tmp=use_tmp), resources=gpu_req)
                 eval_task.add_done_callback(progress_callback(baseline_progress))
                 all_tasks.add(eval_task)
                 del eval_task
+                del coords_task
 
 
     patch_folder = output_folder / patch_folder_name(name, min_overlap, target_overlap, cluster, num_clusters,
@@ -419,22 +388,12 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
         patch_graph_initialised = False
 
     l2g_eval_file = result_folder / f'{eval_basename}_{l2g_name}_eval.json'
-    l2g_auc_eval_file = result_folder / f'{eval_basename}_{l2g_name}_auc_eval.json'
     n_nodes = None
     patch_data = None
     for d in dims:
         with ResultsDict(l2g_eval_file, lock=False) as res:
-            r_done_p = res.runs(d)
-        with ResultsDict(l2g_auc_eval_file, lock=True) as res:
-            if r_done_p < runs:
-                res.delete_dim(d)
-            r_done_auc = res.runs(d)
-        if r_done_auc < 1:
-            r_done = 0
-        else:
-            r_done = r_done_p
+            r_done = res.runs(d)
         patch_runs = [[] for _ in range(num_patches)]
-        aucs_runs = [[] for _ in range(num_patches)]
         for r in range(r_done, runs):
             _load_data()
             if not patch_graph_initialised:
@@ -448,101 +407,51 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
                 patch_node_file = patch_folder / f'patch{pi}_index.npy'
                 patch_result_file = result_folder / f'{train_basename}_patch{pi}_d{d}_r{r}_info.json'
 
-                patch, auc = dask.delayed(func.train, nout=2)(data=patch_data[pi], model=model,
+                patch = dask.delayed(func.train, nout=2)(data=patch_data[pi], model=model,
                                                   lr=lr[r], num_epochs=num_epochs,
                                                   patience=patience, verbose=verbose_train,
                                                   results_file=patch_result_file, dim=d,
                                                   hidden_multiplier=hidden_multiplier, dist=dist,
                                                   save_coords=mmap_features)
                 patches.append(patch)
-                patch_runs[pi].append(patch)
-                aucs_runs[pi].append(auc)
                 del patch
-                del auc
-            if r >= r_done_p:
-                l2g_coords_file = result_folder / f'{train_basename}_d{d}_r{r}_{l2g_name}_coords.npy'
-                if l2g_coords_file.is_file():
-                    if mmap_features:
-                        l2g_coords = l2g_coords_file
-                    else:
-                        l2g_coords = dask.delayed(np.load)(file=l2g_coords_file)
-                else:
-                    if n_nodes is None:
-                        n_nodes = data.num_nodes.compute()
-                    shape = (n_nodes, d)
 
-                    l2g_coords = func.hierarchical_l2g_align_patches(
-                                             patch_graph=patch_graph,
-                                             shape=shape,
-                                             scale=scale,
-                                             rotate=rotate,
-                                             translate=translate,
-                                             patches=patches,
-                                             mmap=mmap_features,
-                                             use_tmp=use_tmp,
-                                             verbose=verbose_l2g,
-                                             output_file=l2g_coords_file,
-                                             cluster_file=cluster_file,
-                                             resparsify=resparsify
-                                            )
-
-                coords_task = dask.delayed(eval_func, pure=False)(
-                    model=cl_model,
-                    graph=data,
-                    embedding=l2g_coords,
-                    results_file=l2g_eval_file,
-                    dist=dist,
-                    device=device,
-                    train_args=cl_train_args,
-                    model_args=cl_model_args,
-                    runs=cl_runs,
-                    random_split=random_split,
-                    mmap_features=mmap_features,
-                    use_tmp=use_tmp
-                )
-                coords_task = client.compute(coords_task, resources=gpu_req)
-                coords_task.add_done_callback(progress_callback(eval_progress))
-                all_tasks.add(coords_task)
-                del coords_task
-                del l2g_coords
-
-        if r_done_auc < 1:
-            l2g_coords_file = result_folder / f'{train_basename}_d{d}_{l2g_name}_auc_coords.npy'
+            l2g_coords_file = result_folder / f'{train_basename}_d{d}_r{r}_{l2g_name}_coords.npy'
             if l2g_coords_file.is_file():
                 if mmap_features:
-                    l2g_coords_auc = l2g_coords_file
+                    l2g_coords = l2g_coords_file
                 else:
-                    l2g_coords_auc = dask.delayed(np.load)(file=l2g_coords_file)
+                    l2g_coords = dask.delayed(np.load)(file=l2g_coords_file)
             else:
                 if n_nodes is None:
                     n_nodes = data.num_nodes.compute()
                 shape = (n_nodes, d)
-                auc_patches = [max_auc_patch(ps, a) for ps, a in zip(patch_runs, aucs_runs)]
 
-                l2g_coords_auc = func.hierarchical_l2g_align_patches(
-                    patch_graph=patch_graph,
-                    shape=shape,
-                    scale=scale,
-                    rotate=rotate,
-                    translate=translate,
-                    patches=auc_patches,
-                    mmap=mmap_features,
-                    use_tmp=use_tmp,
-                    verbose=verbose_l2g,
-                    output_file=l2g_coords_file,
-                    cluster_file=cluster_file,
-                    resparsify=resparsify
-                )
+                l2g_coords = func.hierarchical_l2g_align_patches(
+                                         patch_graph=patch_graph,
+                                         shape=shape,
+                                         scale=scale,
+                                         rotate=rotate,
+                                         translate=translate,
+                                         patches=patches,
+                                         mmap=mmap_features,
+                                         use_tmp=use_tmp,
+                                         verbose=verbose_l2g,
+                                         output_file=l2g_coords_file,
+                                         cluster_file=cluster_file,
+                                         resparsify=resparsify
+                                        )
+
             coords_task = dask.delayed(eval_func, pure=False)(
                 model=cl_model,
                 graph=data,
-                embedding=l2g_coords_auc,
-                results_file=l2g_auc_eval_file,
+                embedding=l2g_coords,
+                results_file=l2g_eval_file,
                 dist=dist,
                 device=device,
                 train_args=cl_train_args,
                 model_args=cl_model_args,
-                runs=cl_runs*runs,
+                runs=cl_runs,
                 random_split=random_split,
                 mmap_features=mmap_features,
                 use_tmp=use_tmp
@@ -551,7 +460,9 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
             coords_task.add_done_callback(progress_callback(eval_progress))
             all_tasks.add(coords_task)
             del coords_task
-            del l2g_coords_auc
+            del l2g_coords
+
+        
 
     baseline_progress.refresh()
     patch_progress.refresh()
