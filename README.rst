@@ -17,3 +17,8 @@ References
 .. [#l2g] L. G. S. Jeub, G. Colavizza, X. Dong, M. Bazzi, M. Cucuringu (2021).
           Local2Global: Scaling global representation learning on graphs via local training.
           DLG-KDD'21. `arXiv:2107.12224 [cs.LG] <https://arxiv.org/abs/2107.12224>`_
+
+.. [#l2g_full] L. G. S. Jeub, G. Colavizza, X. Dong, M. Bazzi, M. Cucuringu
+               Machine Learning 112, 1663–1692 (2023).
+               Local2Global: a distributed approach for scaling representation learning on graphs
+               https://link.springer.com/article/10.1007/s10994-022-06285-7
