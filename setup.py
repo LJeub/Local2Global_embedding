@@ -11,12 +11,11 @@ setup(
     author='Lucas G. S. Jeub',
     python_requires='>=3.5',
     packages=find_packages(),
-
     install_requires=[
         'matplotlib',
         'networkx',
         'python-louvain',
-        'torch',
+        'torch  >= 1.8',
         'torch-geometric >= 1.7',
         'torch-scatter',
         'torch-sparse',
@@ -25,5 +24,14 @@ setup(
         'scikit-learn',
         'pymetis',
         'local2global @ git+https://github.com/LJeub/Local2Global.git@master',
+        'filelock',
+        'docstring-parser',
+        'tqdm >= 4.62',
+        'atomicwrites >= 1.4',
+        'dask >= 2021.9.1',
+        'enlighten >= 1.10',
+        'hyperopt',
+        'numba',
+        'pandas'
     ],
 )

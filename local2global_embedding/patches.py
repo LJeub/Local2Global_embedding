@@ -1,13 +1,23 @@
 """Dividing input data into overlapping patches"""
+from random import choice
+from math import ceil
+from collections.abc import Iterable
+
 import torch
-import torch_geometric as tg
-import torch_scatter as ts
+import numpy as np
+from tqdm.auto import tqdm
 
-from local2global_embedding.network import TGraph, conductance, induced_subgraph
-from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree
+import numba
+
+from local2global_embedding.clustering import Partition
+from local2global_embedding.network import TGraph, NPGraph
+from local2global_embedding.network.npgraph import JitGraph
+from local2global_embedding.sparsify import resistance_sparsify, relaxed_spanning_tree, edge_sampling_sparsify, \
+    hierarchical_sparsify, nearest_neighbor_sparsify, conductance_weighted_graph
 
 
-def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_overlap):
+@numba.njit
+def geodesic_expand_overlap(subgraph, seed_mask, min_overlap, target_overlap, reseed_samples=10):
     """
     expand patch
 
@@ -21,27 +31,27 @@ def geodesic_expand_overlap(subgraph: TGraph, source_nodes, min_overlap, target_
     Returns:
         index tensor of new nodes to add to patch
     """
-    target_overlap = int(target_overlap)
-    if subgraph.num_nodes - len(source_nodes) < min_overlap:
-        print(f"Minimum overlap {min_overlap} > other nodes {subgraph.num_nodes - len(source_nodes)}")
-    mask = torch.ones(subgraph.num_nodes, dtype=torch.bool, device=subgraph.device)
-    mask[source_nodes] = False
-    new_nodes = torch.unique(torch.cat([subgraph.adj(node) for node in source_nodes]))
-    new_nodes = new_nodes[mask[new_nodes]]
-    mask[new_nodes] = False
+    if subgraph.num_nodes < min_overlap:
+        raise RuntimeError("Minimum overlap > number of nodes")
+    mask = ~seed_mask
+    new_nodes = np.flatnonzero(seed_mask)
     overlap = new_nodes
-    while overlap.numel() < min_overlap:
-        new_nodes = torch.unique(torch.cat([subgraph.adj(node) for node in new_nodes]))
+    if overlap.size > target_overlap:
+        overlap = np.random.choice(overlap, target_overlap, replace=False)
+    while overlap.size < min_overlap:
+        new_nodes = subgraph.neighbours(new_nodes)
         new_nodes = new_nodes[mask[new_nodes]]
-        if overlap.numel() + new_nodes.numel() > target_overlap:
-            new_nodes = new_nodes[
-                torch.multinomial(torch.ones(new_nodes.shape), target_overlap - overlap.numel(), replacement=False)]
-        if not new_nodes.numel():
-            print("Could not reach minimum overlap.")
-            break
+        if not new_nodes.size:
+            # no more connected nodes to add so add some remaining nodes by random sampling
+            new_nodes = np.flatnonzero(mask)
+            if new_nodes.size > reseed_samples:
+                new_nodes = np.random.choice(new_nodes, reseed_samples, replace=False)
+        if overlap.size + new_nodes.size > target_overlap:
+            new_nodes = np.random.choice(new_nodes, target_overlap - overlap.size, replace=False)
+        if not new_nodes.size:
+            raise RuntimeError("Could not reach minimum overlap.")
         mask[new_nodes] = False
-        overlap = torch.cat((overlap, new_nodes))
-
+        overlap = np.concatenate((overlap, new_nodes))
     return overlap
 
 
@@ -60,23 +70,23 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
     Returns:
         new partition tensor where small clusters are merged.
     """
-    num_parts = torch.max(partition_tensor) + 1
-    parts = [[] for _ in range(num_parts)]
-    for i, c in enumerate(partition_tensor):
-        parts[c].append(i)
-    parts = [torch.tensor(p, dtype=torch.long) for p in parts]
+    parts = [torch.as_tensor(p, device=graph.device) for p in Partition(partition_tensor)]
+    num_parts = len(parts)
     part_degs = torch.tensor([graph.degree[p].sum() for p in parts], device=graph.device)
-    sizes = torch.tensor([p.numel() for p in parts], dtype=torch.long)
+    sizes = torch.tensor([len(p) for p in parts], dtype=torch.long)
     smallest_id = torch.argmin(sizes)
     while sizes[smallest_id] < min_size:
         out_neighbour_fraction = torch.zeros(num_parts, device=graph.device)
         p = parts[smallest_id]
         for node in p:
             other = partition_tensor[graph.adj(node)]
-            out_neighbour_fraction.scatter_add_(0, other, torch.ones(other.shape, device=graph.device))
-        out_neighbour_fraction /= part_degs  # encourage merging with smaller clusters
-        out_neighbour_fraction[smallest_id] = 0
-        merge = torch.argmax(out_neighbour_fraction)
+            out_neighbour_fraction.scatter_add_(0, other, torch.ones(1, device=graph.device).expand(other.shape))
+        if out_neighbour_fraction.sum() == 0:
+            merge = torch.argsort(sizes)[1]
+        else:
+            out_neighbour_fraction /= part_degs  # encourage merging with smaller clusters
+            out_neighbour_fraction[smallest_id] = 0
+            merge = torch.argmax(out_neighbour_fraction)
         if merge > smallest_id:
             new_id = smallest_id
             other = merge
@@ -101,44 +111,7 @@ def merge_small_clusters(graph: TGraph, partition_tensor: torch.LongTensor, min_
     return partition_tensor
 
 
-def cluster_graph(graph: TGraph, partition_tensor: torch.LongTensor):
-    """
-    Find the cluster graph of a partition of the nodes of an input graph
-
-    Args:
-        graph: input graph
-        partition_tensor: partition of input graph
-
-    Returns:
-        graph where nodes are the clusters of partition and a pair of clusters is connected by
-        an edge if there is a node in the first cluster that is connected to a node in the
-        second cluster in the input graph
-
-    """
-    edges = []
-    weights = []
-    partition_tensor = partition_tensor.to(graph.device)
-    num_parts = torch.max(partition_tensor) + 1
-    partition_index = torch.argsort(partition_tensor)
-    part_index = torch.zeros(num_parts + 1, dtype=torch.long, device=graph.device)
-    ts.scatter(torch.ones(1, dtype=torch.long, device=graph.device).expand_as(partition_tensor),
-               partition_tensor, out=part_index[1:])
-    part_index.cumsum_(0)
-    for i in range(num_parts):
-        part = partition_index[part_index[i]:part_index[i + 1]]
-        others = torch.unique(torch.cat([partition_tensor[graph.adj(node)]
-                                         for node in part]))
-        for o in others:
-            if o != i:
-                o_part = partition_index[part_index[o]:part_index[o + 1]]
-                edges.append(torch.tensor((i, o), dtype=torch.long))
-                weights.append(conductance(graph, part, o_part))
-    edge_index = torch.stack(edges, dim=1)
-    edge_attr = torch.tensor(weights)
-    return TGraph(edge_index=edge_index, edge_attr=edge_attr, num_nodes=num_parts, ensure_sorted=False, undir=True)
-
-
-def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor, patch_graph: TGraph, min_overlap,
+def create_overlapping_patches(graph, partition_tensor: torch.LongTensor, patch_graph, min_overlap,
                                target_overlap):
     """
     Create overlapping patches from a hard partition of an input graph
@@ -156,35 +129,65 @@ def create_overlapping_patches(graph: TGraph, partition_tensor: torch.LongTensor
         list of node-index tensors for patches
 
     """
-    partition_tensor = partition_tensor.to(graph.device)
-    num_parts = torch.max(partition_tensor) + 1
-    partition_index = torch.argsort(partition_tensor)
-    part_index = torch.zeros(num_parts + 1, dtype=torch.long, device=graph.device)
-    ts.scatter(torch.ones(1, dtype=torch.long, device=graph.device).expand_as(partition_tensor),
-               partition_tensor, out=part_index[1:])
-    part_index.cumsum_(0)
-    patches = [partition_index[part_index[i]:part_index[i + 1]] for i in range(num_parts)]
-    for (i, j) in patch_graph.edges():
-        part_i = partition_index[part_index[i]:part_index[i + 1]]
-        part_j = partition_index[part_index[j]:part_index[j + 1]]
-        nodes = torch.cat((part_i, part_j))
-        subgraph = graph.subgraph(nodes)
-        patches[i] = torch.cat((patches[i],
-                                nodes[geodesic_expand_overlap(
-                                          subgraph,
-                                          source_nodes=torch.arange(len(part_i), device=subgraph.device),
-                                          min_overlap=min_overlap / 2,
-                                          target_overlap=target_overlap / 2)]))
+    if isinstance(partition_tensor, torch.Tensor):
+        partition_tensor = partition_tensor.cpu()
+    graph = graph.to(NPGraph)._jitgraph
+    patch_graph = patch_graph.to(NPGraph)._jitgraph
+    parts = Partition(partition_tensor)
+    partition_tensor = partition_tensor.numpy()
+    patches = numba.typed.List(np.asanyarray(p) for p in parts)
+    for i in tqdm(range(patch_graph.num_nodes), desc='enlarging patch overlaps'):
+        part_i = parts[i].numpy()
+        part_i.sort()
+        patches = _patch_overlaps(i, part_i, partition_tensor, patches, graph, patch_graph, ceil(min_overlap / 2),
+                                  int(target_overlap / 2))
+
     return patches
 
 
-def create_patch_data(data: tg.data.Data, partition_tensor, min_overlap, target_overlap,
+@numba.njit
+def _patch_overlaps(i, part, partition, patches, graph, patch_graph, min_overlap, target_overlap):
+    max_edges = graph.degree[part].sum()
+    edge_index = np.empty((2, max_edges), dtype=np.int64)
+    adj_index = np.zeros((len(part)+1,), dtype=np.int64)
+    part_index = np.full((graph.num_nodes,), -1, dtype=np.int64)
+    part_index[part] = np.arange(len(part))
+
+    patch_index = np.full((patch_graph.num_nodes,), -1, dtype=np.int64)
+    patch_index[patch_graph.adj(i)] = np.arange(patch_graph.degree[i])
+    source_mask = np.zeros((part.size, patch_graph.degree[i]), dtype=np.bool_)  # track source nodes for different patches
+    edge_count = 0
+    for index in range(len(part)):
+        targets = graph.adj(part[index])
+        for t in part_index[targets]:
+            if t >= 0:
+                edge_index[0, edge_count] = index
+                edge_index[1, edge_count] = t
+                edge_count += 1
+        adj_index[index+1] = edge_count
+        pi = patch_index[partition[targets]]
+        pi = pi[pi >= 0]
+        source_mask[index][pi] = True
+    edge_index = edge_index[:, :edge_count]
+    subgraph = JitGraph(edge_index, len(part), adj_index, None)
+
+    for it, j in enumerate(patch_graph.adj(i)):
+        patches[j] = np.concatenate((patches[j],
+                                     part[geodesic_expand_overlap(
+                                         subgraph,
+                                         seed_mask=source_mask[:, it],
+                                         min_overlap=min_overlap,
+                                         target_overlap=target_overlap)]))
+    return patches
+
+
+def create_patch_data(graph: TGraph, partition_tensor, min_overlap, target_overlap,
                       min_patch_size=None, sparsify_method='resistance', target_patch_degree=4, gamma=0, verbose=False):
     """
     Divide data into overlapping patches
 
     Args:
-        data: input data
+        graph: input data
         partition_tensor: starting partition for creating patches
         min_overlap: minimum patch overlap for connected patches
         target_overlap: maximum patch overlap during expansion of an edge of the patch graph
@@ -198,18 +201,59 @@ def create_patch_data(data: tg.data.Data, partition_tensor, min_overlap, target_
         list of patch data, patch graph
 
     """
-    graph = TGraph(data.edge_index, data.edge_attr, data.num_nodes)
     if min_patch_size is None:
         min_patch_size = min_overlap
 
-    partition_tensor = merge_small_clusters(graph, partition_tensor, min_patch_size)
+    if isinstance(partition_tensor, list):
+        partition_tensor_0 = partition_tensor[0]
+    else:
+        partition_tensor = merge_small_clusters(graph, partition_tensor, min_patch_size)
+        partition_tensor_0 = partition_tensor
+
     if verbose:
-        print(f"number of patches: {partition_tensor.max().item() + 1}")
-    pg = cluster_graph(graph, partition_tensor)
+        print(f"number of patches: {partition_tensor_0.max().item() + 1}")
+    pg = graph.partition_graph(partition_tensor_0, self_loops=False).to(TGraph)
+
+    components = pg.connected_component_ids()
+    num_components = components.max()+1
+    if num_components > 1:
+        # connect all components
+        edges = torch.empty((2, num_components*(num_components-1)/2), dtype=torch.long)
+        comp_lists = [[] for _ in range(num_components)]
+        for i, c in enumerate(components):
+            comp_lists[c].append(i)
+        i = 0
+        for c1 in range(num_components):
+            for c2 in range(c1+1, num_components):
+                p1 = choice(comp_lists[c1])
+                p2 = choice(comp_lists[c2])
+                edges[:, i] = (p1, p2)
+                i += 1
+
+        edge_index = torch.cat((pg.edge_index, edges, edges[::-1, :]))
+        weights = torch.cat((pg.edge_attr, torch.ones(2*edges.shape[1], dtype=torch.long)))
+        pg = TGraph(edge_index=edge_index, edge_attr=weights, ensure_sorted=True, num_nodes=pg.num_nodes,
+                    undir=pg.undir)
+        pg = conductance_weighted_graph(pg)
+
     if sparsify_method == 'resistance':
-        pg = resistance_sparsify(pg, target_mean_degree=target_patch_degree)
+        if isinstance(partition_tensor, list):
+            pg = hierarchical_sparsify(pg, partition_tensor[1:], target_patch_degree, sparsifier=resistance_sparsify)
+        else:
+            pg = resistance_sparsify(pg, target_mean_degree=target_patch_degree)
     elif sparsify_method == 'rmst':
         pg = relaxed_spanning_tree(pg, maximise=True, gamma=gamma)
+    elif sparsify_method == 'sample':
+        if isinstance(partition_tensor, list):
+            pg = hierarchical_sparsify(pg, partition_tensor[1:], target_patch_degree, sparsifier=edge_sampling_sparsify)
+        else:
+            pg = edge_sampling_sparsify(pg, target_patch_degree)
+    elif sparsify_method == 'neighbors':
+        if isinstance(partition_tensor, list):
+            pg = hierarchical_sparsify(pg, partition_tensor[1:], target_patch_degree,
+                                       sparsifier=nearest_neighbor_sparsify)
+        else:
+            pg = nearest_neighbor_sparsify(pg, target_patch_degree)
     elif sparsify_method == 'none':
         pass
     else:
@@ -218,6 +262,30 @@ def create_patch_data(data: tg.data.Data, partition_tensor, min_overlap, target_
 
     if verbose:
         print(f"average patch degree: {pg.num_edges / pg.num_nodes}")
-    patches = create_overlapping_patches(graph, partition_tensor, pg, min_overlap, target_overlap)
-    patch_data = [induced_subgraph(data, patch) for patch in patches]
-    return patch_data, pg
+
+    patches = create_overlapping_patches(graph, partition_tensor_0, pg, min_overlap, target_overlap)
+    return patches, pg
+
+
+def rolling_window_graph(n_patches, w):
+    """
+    Generate patch edges for a rolling window
+
+    Args:
+        n_patches: Number of patches
+        w: window width (patches connected to the w nearest neighbours on either side)
+
+    """
+    if not isinstance(w, Iterable):
+        w = range(1, w)
+    edges = []
+    for i in range(n_patches):
+        for wi in w:
+            j = i-wi
+            if j >= 0 and i != j:
+                edges.append((i, j))
+        for wi in w:
+            j = i + wi
+            if j < n_patches and i != j:
+                edges.append((i, j))
+    return TGraph(edge_index=torch.tensor(edges).T, num_nodes=n_patches, undir=True)
