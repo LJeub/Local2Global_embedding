@@ -103,6 +103,12 @@ def plot(data, key, baseline_data=None, nt_data=None, rotate_data=None, translat
 
 
 def plot_all(folder=None):
+    """
+    Plot results
+
+    Args:
+        folder: results folder (default: CWD)
+    """
     if folder is None:
         folder = Path.cwd()
     else:

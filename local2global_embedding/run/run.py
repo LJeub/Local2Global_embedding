@@ -88,8 +88,6 @@ def run(name='Cora', data_root='/tmp', no_features=False, model='VGAE', num_epoc
     By default this function writes results to the current working directory. To override this use the ``output``
     argument.
 
-    This function reproduces figure 1(a) of [#l2g]_ if called as ``run(dims=[2**i for i in range(1, 8)], plot=True)``.
-
     Args:
         name: Name of data set to load (one of {``'Cora'``, ``'PubMed'``, ``'AMZ_computers'``, ``'AMZ_photo'``})
         data_root: Directory to use for downloaded data

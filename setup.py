@@ -32,6 +32,10 @@ setup(
         'enlighten >= 1.10',
         'hyperopt',
         'numba',
-        'pandas'
+        'pandas',
+        'datashader',
+        'umap',
+        'seaborn',
+
     ],
 )
