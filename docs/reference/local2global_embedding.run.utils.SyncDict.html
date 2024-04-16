@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SyncDict &mdash; local2global_embedding 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Throttler" href="local2global_embedding.run.utils.Throttler.html" />
+    <link rel="prev" title="ScriptParser" href="local2global_embedding.run.utils.ScriptParser.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            local2global_embedding
+          </a>
+              <div class="version">
+                1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+    
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="local2global_embedding.html">local2global_embedding</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.classfication.html">classfication</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.clustering.html">clustering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.datasets.html">datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.embedding.html">embedding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.network.html">network</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.outliers.html">outliers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.patches.html">patches</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.plot.html">plot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.progress.html">progress</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="local2global_embedding.run.html">run</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.loaders.html">loaders</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.once_per_worker.html">once_per_worker</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.plot.html">plot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.plot_patches.html">plot_patches</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.run.html">run</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.run_temporal.html">run_temporal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.scripts.html">scripts</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.umap_plot.html">umap_plot</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="local2global_embedding.run.utils.html">utils</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.sparsify.html">sparsify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.utils.html">utils</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+<p class="caption" role="heading"><span class="caption-text">Index</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+  
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">local2global_embedding</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Reference</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.html">local2global_embedding</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.run.html">run</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.run.utils.html">utils</a></li>
+      <li class="breadcrumb-item active">SyncDict</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/reference/local2global_embedding.run.utils.SyncDict.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="syncdict">
+<h1>SyncDict<a class="headerlink" href="#syncdict" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="local2global_embedding.run.utils.SyncDict">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SyncDict</span></span><a class="reference internal" href="../_modules/local2global_embedding/run/utils.html#SyncDict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.run.utils.SyncDict" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">UserDict</span></code></p>
+<p>Class for keeping json-backed dict with locking for sync</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.run.utils.SyncDict.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lock</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/run/utils.html#SyncDict.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.run.utils.SyncDict.__init__" title="Link to this definition"></a></dt>
+<dd><p>initialise empty ResultsDict
+:param filename: file to use for storage
+:param lock: set lock=False to avoid locking (use wisely)</p>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.run.utils.SyncDict.__init__" title="local2global_embedding.run.utils.SyncDict.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a></p></td>
+<td><p>initialise empty ResultsDict :param filename: file to use for storage :param lock: set lock=False to avoid locking (use wisely)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">fromkeys</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">items</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">keys</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#local2global_embedding.run.utils.SyncDict.load" title="local2global_embedding.run.utils.SyncDict.load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load</span></code></a></p></td>
+<td><p>restore results from file</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">pop</span></code></p></td>
+<td><p>If key is not found, d is returned if given, otherwise KeyError is raised.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">popitem</span></code></p></td>
+<td><p>as a 2-tuple; but raise KeyError if D is empty.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#local2global_embedding.run.utils.SyncDict.save" title="local2global_embedding.run.utils.SyncDict.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a></p></td>
+<td><p>dump contents to json file</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">setdefault</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">update</span></code></p></td>
+<td><p>If E present and has a .keys() method, does:     for k in E: D[k] = E[k] If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v In either case, this is followed by: for k, v in F.items(): D[k] = v</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">values</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.run.utils.SyncDict.load">
+<span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/run/utils.html#SyncDict.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.run.utils.SyncDict.load" title="Link to this definition"></a></dt>
+<dd><p>restore results from file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>populated ResultsDict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="local2global_embedding.run.utils.SyncDict.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/run/utils.html#SyncDict.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.run.utils.SyncDict.save" title="Link to this definition"></a></dt>
+<dd><p>dump contents to json file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>filename</strong> – output file path</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="local2global_embedding.run.utils.ScriptParser.html" class="btn btn-neutral float-left" title="ScriptParser" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="local2global_embedding.run.utils.Throttler.html" class="btn btn-neutral float-right" title="Throttler" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Lucas G. S. Jeub.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

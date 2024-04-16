@@ -1,6 +1,0 @@
-GAE\_model
-==========
-
-.. currentmodule:: local2global_embedding.embedding
-
-.. autofunction:: GAE_model

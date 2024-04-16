@@ -1,6 +1,0 @@
-induced\_subgraph
-=================
-
-.. currentmodule:: local2global_embedding.network
-
-.. autofunction:: induced_subgraph

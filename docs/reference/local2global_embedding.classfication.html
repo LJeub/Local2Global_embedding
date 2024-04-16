@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>classfication &mdash; local2global_embedding 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="accuracy" href="local2global_embedding.classfication.accuracy.html" />
+    <link rel="prev" title="local2global_embedding" href="local2global_embedding.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            local2global_embedding
+          </a>
+              <div class="version">
+                1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+    
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="local2global_embedding.html">local2global_embedding</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">classfication</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.accuracy.html">accuracy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.grid_search.html">grid_search</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.hyper_tune.html">hyper_tune</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.linear_model.html">linear_model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.mlp_model.html">mlp_model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.plot_hyper_results.html">plot_hyper_results</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.predict.html">predict</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.random_split.html">random_split</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.snn_model.html">snn_model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.train.html">train</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.validation_accuracy.html">validation_accuracy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.BatchedData.html">BatchedData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.ClassificationProblem.html">ClassificationProblem</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.EntMin.html">EntMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.HyperTuneObjective.html">HyperTuneObjective</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.Logistic.html">Logistic</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.MLP.html">MLP</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.MMapData.html">MMapData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.SNN.html">SNN</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.VATloss.html">VATloss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.classfication.logger.html">logger</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.clustering.html">clustering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.datasets.html">datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.embedding.html">embedding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.network.html">network</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.outliers.html">outliers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.patches.html">patches</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.plot.html">plot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.progress.html">progress</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.run.html">run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.sparsify.html">sparsify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.utils.html">utils</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+<p class="caption" role="heading"><span class="caption-text">Index</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+  
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">local2global_embedding</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Reference</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.html">local2global_embedding</a></li>
+      <li class="breadcrumb-item active">classfication</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/reference/local2global_embedding.classfication.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-local2global_embedding.classfication">
+<span id="classfication"></span><h1>classfication<a class="headerlink" href="#module-local2global_embedding.classfication" title="Link to this heading"></a></h1>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.accuracy.html#local2global_embedding.classfication.accuracy" title="local2global_embedding.classfication.accuracy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">accuracy</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.grid_search.html#local2global_embedding.classfication.grid_search" title="local2global_embedding.classfication.grid_search"><code class="xref py py-obj docutils literal notranslate"><span class="pre">grid_search</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.hyper_tune.html#local2global_embedding.classfication.hyper_tune" title="local2global_embedding.classfication.hyper_tune"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hyper_tune</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.linear_model.html#local2global_embedding.classfication.linear_model" title="local2global_embedding.classfication.linear_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">linear_model</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.mlp_model.html#local2global_embedding.classfication.mlp_model" title="local2global_embedding.classfication.mlp_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mlp_model</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.plot_hyper_results.html#local2global_embedding.classfication.plot_hyper_results" title="local2global_embedding.classfication.plot_hyper_results"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_hyper_results</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.predict.html#local2global_embedding.classfication.predict" title="local2global_embedding.classfication.predict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">predict</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.random_split.html#local2global_embedding.classfication.random_split" title="local2global_embedding.classfication.random_split"><code class="xref py py-obj docutils literal notranslate"><span class="pre">random_split</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.snn_model.html#local2global_embedding.classfication.snn_model" title="local2global_embedding.classfication.snn_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">snn_model</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.train.html#local2global_embedding.classfication.train" title="local2global_embedding.classfication.train"><code class="xref py py-obj docutils literal notranslate"><span class="pre">train</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.validation_accuracy.html#local2global_embedding.classfication.validation_accuracy" title="local2global_embedding.classfication.validation_accuracy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validation_accuracy</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.BatchedData.html#local2global_embedding.classfication.BatchedData" title="local2global_embedding.classfication.BatchedData"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BatchedData</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.ClassificationProblem.html#local2global_embedding.classfication.ClassificationProblem" title="local2global_embedding.classfication.ClassificationProblem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ClassificationProblem</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.EntMin.html#local2global_embedding.classfication.EntMin" title="local2global_embedding.classfication.EntMin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">EntMin</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.HyperTuneObjective.html#local2global_embedding.classfication.HyperTuneObjective" title="local2global_embedding.classfication.HyperTuneObjective"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HyperTuneObjective</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.Logistic.html#local2global_embedding.classfication.Logistic" title="local2global_embedding.classfication.Logistic"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Logistic</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.MLP.html#local2global_embedding.classfication.MLP" title="local2global_embedding.classfication.MLP"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MLP</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.MMapData.html#local2global_embedding.classfication.MMapData" title="local2global_embedding.classfication.MMapData"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MMapData</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.SNN.html#local2global_embedding.classfication.SNN" title="local2global_embedding.classfication.SNN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SNN</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.classfication.VATloss.html#local2global_embedding.classfication.VATloss" title="local2global_embedding.classfication.VATloss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VATloss</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.classfication.logger.html#local2global_embedding.classfication.logger" title="local2global_embedding.classfication.logger"><code class="xref py py-obj docutils literal notranslate"><span class="pre">logger</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="local2global_embedding.html" class="btn btn-neutral float-left" title="local2global_embedding" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="local2global_embedding.classfication.accuracy.html" class="btn btn-neutral float-right" title="accuracy" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Lucas G. S. Jeub.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

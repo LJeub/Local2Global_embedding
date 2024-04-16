@@ -1,6 +1,0 @@
-dataloader
-==========
-
-.. currentmodule:: local2global_embedding.run
-
-.. autofunction:: dataloader

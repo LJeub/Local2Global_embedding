@@ -32,15 +32,13 @@ This package exposes a command-line interface. Use
 
 .. code-block:: bash
 
-   python -m local2global_embedding.run --help
+   python -m local2global_embedding.run.run --help
 
-to see the available options. For example, to reproduce Figure 1(a) of [#l2g]_, use
+to see the available options. For plotting the results, see
 
 .. code-block:: bash
 
-   mkdir Cora
-   cd Cora
-   python -m local2global_embedding.run --dims=2,4,8,16,32,64,128 --plot
+    python -m local2global_embedding.run.plot --help
 
 Note however that this will take a while to run.
 

@@ -1,6 +1,0 @@
-speye
-=====
-
-.. currentmodule:: local2global_embedding.embedding
-
-.. autofunction:: speye

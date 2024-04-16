@@ -1,6 +1,0 @@
-GAE\_loss
-=========
-
-.. currentmodule:: local2global_embedding.embedding
-
-.. autofunction:: GAE_loss

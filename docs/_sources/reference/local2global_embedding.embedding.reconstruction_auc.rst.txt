@@ -1,6 +1,0 @@
-reconstruction\_auc
-===================
-
-.. currentmodule:: local2global_embedding.embedding
-
-.. autofunction:: reconstruction_auc

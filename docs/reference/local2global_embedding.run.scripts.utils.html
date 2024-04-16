@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>utils &mdash; local2global_embedding 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="accumulate" href="local2global_embedding.run.scripts.utils.accumulate.html" />
+    <link rel="prev" title="Count" href="local2global_embedding.run.scripts.train.Count.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            local2global_embedding
+          </a>
+              <div class="version">
+                1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+    
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="local2global_embedding.html">local2global_embedding</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.classfication.html">classfication</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.clustering.html">clustering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.datasets.html">datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.embedding.html">embedding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.network.html">network</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.outliers.html">outliers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.patches.html">patches</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.plot.html">plot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.progress.html">progress</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="local2global_embedding.run.html">run</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.loaders.html">loaders</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.once_per_worker.html">once_per_worker</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.plot.html">plot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.plot_patches.html">plot_patches</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.run.html">run</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.run_temporal.html">run_temporal</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="local2global_embedding.run.scripts.html">scripts</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.umap_plot.html">umap_plot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.utils.html">utils</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.sparsify.html">sparsify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.utils.html">utils</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+<p class="caption" role="heading"><span class="caption-text">Index</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+  
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">local2global_embedding</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Reference</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.html">local2global_embedding</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.run.html">run</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.run.scripts.html">scripts</a></li>
+      <li class="breadcrumb-item active">utils</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/reference/local2global_embedding.run.scripts.utils.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-local2global_embedding.run.scripts.utils">
+<span id="utils"></span><h1>utils<a class="headerlink" href="#module-local2global_embedding.run.scripts.utils" title="Link to this heading"></a></h1>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.accumulate.html#local2global_embedding.run.scripts.utils.accumulate" title="local2global_embedding.run.scripts.utils.accumulate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">accumulate</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.apply_partition.html#local2global_embedding.run.scripts.utils.apply_partition" title="local2global_embedding.run.scripts.utils.apply_partition"><code class="xref py py-obj docutils literal notranslate"><span class="pre">apply_partition</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.compute.html#local2global_embedding.run.scripts.utils.compute" title="local2global_embedding.run.scripts.utils.compute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.count_chunk.html#local2global_embedding.run.scripts.utils.count_chunk" title="local2global_embedding.run.scripts.utils.count_chunk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">count_chunk</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.get_coordinate_chunk.html#local2global_embedding.run.scripts.utils.get_coordinate_chunk" title="local2global_embedding.run.scripts.utils.get_coordinate_chunk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_coordinate_chunk</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.load_cl_data.html#local2global_embedding.run.scripts.utils.load_cl_data" title="local2global_embedding.run.scripts.utils.load_cl_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_cl_data</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.load_file_patch.html#local2global_embedding.run.scripts.utils.load_file_patch" title="local2global_embedding.run.scripts.utils.load_file_patch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_file_patch</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.load_patch.html#local2global_embedding.run.scripts.utils.load_patch" title="local2global_embedding.run.scripts.utils.load_patch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_patch</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.load_patches.html#local2global_embedding.run.scripts.utils.load_patches" title="local2global_embedding.run.scripts.utils.load_patches"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_patches</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.max_ind.html#local2global_embedding.run.scripts.utils.max_ind" title="local2global_embedding.run.scripts.utils.max_ind"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max_ind</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.mean_embedding.html#local2global_embedding.run.scripts.utils.mean_embedding" title="local2global_embedding.run.scripts.utils.mean_embedding"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mean_embedding</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.mean_embedding_chunk.html#local2global_embedding.run.scripts.utils.mean_embedding_chunk" title="local2global_embedding.run.scripts.utils.mean_embedding_chunk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mean_embedding_chunk</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.mmap_dask_array.html#local2global_embedding.run.scripts.utils.mmap_dask_array" title="local2global_embedding.run.scripts.utils.mmap_dask_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mmap_dask_array</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.move_to_tmp.html#local2global_embedding.run.scripts.utils.move_to_tmp" title="local2global_embedding.run.scripts.utils.move_to_tmp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">move_to_tmp</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.remove_file.html#local2global_embedding.run.scripts.utils.remove_file" title="local2global_embedding.run.scripts.utils.remove_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_file</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.restore_from_tmp.html#local2global_embedding.run.scripts.utils.restore_from_tmp" title="local2global_embedding.run.scripts.utils.restore_from_tmp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">restore_from_tmp</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.FileDeleteFinalizer.html#local2global_embedding.run.scripts.utils.FileDeleteFinalizer" title="local2global_embedding.run.scripts.utils.FileDeleteFinalizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FileDeleteFinalizer</span></code></a></p></td>
+<td><p>class that deletes the named file when it is garbage-collected</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="local2global_embedding.run.scripts.utils.ScopedTemporaryFile.html#local2global_embedding.run.scripts.utils.ScopedTemporaryFile" title="local2global_embedding.run.scripts.utils.ScopedTemporaryFile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ScopedTemporaryFile</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="local2global_embedding.run.scripts.train.Count.html" class="btn btn-neutral float-left" title="Count" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="local2global_embedding.run.scripts.utils.accumulate.html" class="btn btn-neutral float-right" title="accumulate" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Lucas G. S. Jeub.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

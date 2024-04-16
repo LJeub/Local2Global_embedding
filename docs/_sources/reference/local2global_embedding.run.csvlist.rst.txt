@@ -1,6 +1,0 @@
-csvlist
-=======
-
-.. currentmodule:: local2global_embedding.run
-
-.. autofunction:: csvlist

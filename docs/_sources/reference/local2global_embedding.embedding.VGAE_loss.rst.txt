@@ -1,6 +1,0 @@
-VGAE\_loss
-==========
-
-.. currentmodule:: local2global_embedding.embedding
-
-.. autofunction:: VGAE_loss

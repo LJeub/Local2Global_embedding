@@ -1,6 +1,0 @@
-load\_data
-==========
-
-.. currentmodule:: local2global_embedding.run
-
-.. autofunction:: load_data

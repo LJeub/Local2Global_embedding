@@ -1,6 +1,0 @@
-cluster\_graph
-==============
-
-.. currentmodule:: local2global_embedding.patches
-
-.. autofunction:: cluster_graph

@@ -1,6 +1,0 @@
-connected\_components
-=====================
-
-.. currentmodule:: local2global_embedding.network
-
-.. autofunction:: connected_components

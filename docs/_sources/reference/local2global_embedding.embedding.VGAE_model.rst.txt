@@ -1,6 +1,0 @@
-VGAE\_model
-===========
-
-.. currentmodule:: local2global_embedding.embedding
-
-.. autofunction:: VGAE_model

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>run &mdash; local2global_embedding 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="with_dependencies" href="local2global_embedding.run.run.with_dependencies.html" />
+    <link rel="prev" title="run" href="local2global_embedding.run.run.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            local2global_embedding
+          </a>
+              <div class="version">
+                1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+    
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="local2global_embedding.html">local2global_embedding</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.classfication.html">classfication</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.clustering.html">clustering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.datasets.html">datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.embedding.html">embedding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.network.html">network</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.outliers.html">outliers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.patches.html">patches</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.plot.html">plot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.progress.html">progress</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="local2global_embedding.run.html">run</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.loaders.html">loaders</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.once_per_worker.html">once_per_worker</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.plot.html">plot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.plot_patches.html">plot_patches</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="local2global_embedding.run.run.html">run</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.run_temporal.html">run_temporal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.scripts.html">scripts</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.umap_plot.html">umap_plot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="local2global_embedding.run.utils.html">utils</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.sparsify.html">sparsify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="local2global_embedding.utils.html">utils</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+<p class="caption" role="heading"><span class="caption-text">Index</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+  
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">local2global_embedding</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../reference.html">Reference</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.html">local2global_embedding</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.run.html">run</a></li>
+          <li class="breadcrumb-item"><a href="local2global_embedding.run.run.html">run</a></li>
+      <li class="breadcrumb-item active">run</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/reference/local2global_embedding.run.run.run.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="run">
+<h1>run<a class="headerlink" href="#run" title="Link to this heading"></a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="local2global_embedding.run.run.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Cora'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_root</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'/tmp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'VGAE'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patience</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">runs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cl_runs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_multiplier</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_patch_degree</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_overlap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_overlap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sparsify</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'resistance'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_directed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'metis'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_clusters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cl_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'logistic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cl_train_args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cl_model_args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose_train</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose_l2g</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resparsify</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_baseline</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">restrict_lcc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">translate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mmap_edges</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mmap_features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tmp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_gpu_frac</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_search_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress_bars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/local2global_embedding/run/run.html#run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#local2global_embedding.run.run.run" title="Link to this definition"></a></dt>
+<dd><p>Run training example.</p>
+<p>By default this function writes results to the current working directory. To override this use the <code class="docutils literal notranslate"><span class="pre">output</span></code>
+argument.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – Name of data set to load (one of {<code class="docutils literal notranslate"><span class="pre">'Cora'</span></code>, <code class="docutils literal notranslate"><span class="pre">'PubMed'</span></code>, <code class="docutils literal notranslate"><span class="pre">'AMZ_computers'</span></code>, <code class="docutils literal notranslate"><span class="pre">'AMZ_photo'</span></code>})</p></li>
+<li><p><strong>data_root</strong> – Directory to use for downloaded data</p></li>
+<li><p><strong>no_features</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, discard features and use node identity.</p></li>
+<li><p><strong>model</strong> – embedding model type (one of {‘VGAE’, ‘GAE’, ‘DGI’})</p></li>
+<li><p><strong>num_epochs</strong> – Number of training epochs</p></li>
+<li><p><strong>patience</strong> – Patience for early stopping</p></li>
+<li><p><strong>runs</strong> – Number of training runs (keep best result)</p></li>
+<li><p><strong>dims</strong> – list of embedding dimensions (default: <code class="docutils literal notranslate"><span class="pre">[2]</span></code>)</p></li>
+<li><p><strong>hidden_multiplier</strong> – Hidden dimension is <code class="docutils literal notranslate"><span class="pre">hidden_multiplier</span> <span class="pre">*</span> <span class="pre">dim</span></code></p></li>
+<li><p><strong>target_patch_degree</strong> – Target patch degree for resistance sparsification.</p></li>
+<li><p><strong>min_overlap</strong> – Minimum target patch overlap (default: <code class="docutils literal notranslate"><span class="pre">max(dims)</span> <span class="pre">+</span> <span class="pre">1</span></code>)</p></li>
+<li><p><strong>target_overlap</strong> – Target patch overlap (default: <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">max(dims)</span></code>)</p></li>
+<li><p><strong>gamma</strong> – Value of ‘gamma’ for RMST sparsification</p></li>
+<li><p><strong>sparsify</strong> – Sparsification method to use (one of {<code class="docutils literal notranslate"><span class="pre">'resistance'</span></code>, <code class="docutils literal notranslate"><span class="pre">'none'</span></code>, <code class="docutils literal notranslate"><span class="pre">'rmst'</span></code>})</p></li>
+<li><p><strong>train_directed</strong> – Use the orignal directed network (only relevant for some loaders) (default: <code class="docutils literal notranslate"><span class="pre">False</span></code>)</p></li>
+<li><p><strong>cluster</strong> – Clustering method to use (one of {<code class="docutils literal notranslate"><span class="pre">'louvain'</span></code>, <code class="docutils literal notranslate"><span class="pre">'fennel'</span></code> , <code class="docutils literal notranslate"><span class="pre">'distributed'</span></code>, <code class="docutils literal notranslate"><span class="pre">'metis'</span></code>})</p></li>
+<li><p><strong>num_clusters</strong> – Target number of clusters for distributed, fennel, or metis.</p></li>
+<li><p><strong>beta</strong> – Parameter for the distributed clustering algorithm</p></li>
+<li><p><strong>num_iters</strong> – Maximum iterations for distributed or fennel</p></li>
+<li><p><strong>lr</strong> – Learning rate</p></li>
+<li><p><strong>cl_model</strong> – the classification model to use (one of “logistic” or “mlp”) (default: “logistic”)</p></li>
+<li><p><strong>cl_train_args</strong> – extra arguments to pass down to the classification training (default: {})</p></li>
+<li><p><strong>cl_model_args</strong> – extra arguments to pass to the classfication model constructor (default: {})</p></li>
+<li><p><strong>dist</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, use distance decoder instead of inner product decoder</p></li>
+<li><p><strong>verbose_l2g</strong> – Verbose output for the alignment step (default: <code class="docutils literal notranslate"><span class="pre">False</span></code>)</p></li>
+<li><p><strong>normalise</strong> – If True, normalise the dataset features (default: <code class="docutils literal notranslate"><span class="pre">False</span></code>)</p></li>
+<li><p><strong>restrict_lcc</strong> – If True, restrict the dataset to only consider largest connected component (default: <code class="docutils literal notranslate"><span class="pre">False</span></code>)</p></li>
+<li><p><strong>output</strong> – output folder</p></li>
+<li><p><strong>levels</strong> – number of hierarchical patch levels (default: 1)</p></li>
+<li><p><strong>resparsify</strong> – if &gt; 0, use resistance sparsification for all levels of th hierarchy (default: 0)</p></li>
+<li><p><strong>scale</strong> – apply scaling transformations during alignment (default: False)</p></li>
+<li><p><strong>rotate</strong> – apply rotations during alignment (default: True)</p></li>
+<li><p><strong>translate</strong> – apply translations during alignment (default: True)</p></li>
+<li><p><strong>mmap_edges</strong> – use memory mapping for edges (only supported by some loaders) (default: False)</p></li>
+<li><p><strong>mmap_features</strong> – use memory mapping for features (only supported by some loaders) (default: False)</p></li>
+<li><p><strong>random_split</strong> – use random train-test splits for evaluation (default: True)</p></li>
+<li><p><strong>use_tmp</strong> – copy data to tmp dir during load (default: False)</p></li>
+<li><p><strong>cluster_init</strong> – run the cluster initialisation script (default: False)</p></li>
+<li><p><strong>use_gpu_frac</strong> – fraction of gpu to use by each worker (default: 1.0)</p></li>
+<li><p><strong>grid_search_params</strong> – use grid search for classification parameters (only for cl_model=’mlp’)</p></li>
+<li><p><strong>device</strong> – Device used for training e.g., ‘cpu’, ‘cuda’ (defaults to ‘cuda’ if available else ‘cpu’)</p></li>
+<li><p><strong>verbose_train</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, show progress info</p></li>
+<li><p><strong>run_baseline</strong> – if <code class="docutils literal notranslate"><span class="pre">True</span></code>, run baseline full model</p></li>
+<li><p><strong>progress_bars</strong> – show progress bars (default: True)</p></li>
+</ul>
+</dd>
+</dl>
+<p>This function is also exposed as a command-line interface.</p>
+<p class="rubric">References</p>
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="l2g" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></span>
+<p>L. G. S. Jeub et al.
+“Local2Global: Scaling global representation learning on graphs via local training”.
+DLG-KDD’21. 2021. <a class="reference external" href="https://arxiv.org/abs/2107.12224">arXiv:2107.12224 [cs.LG]</a>.</p>
+</aside>
+</aside>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="local2global_embedding.run.run.html" class="btn btn-neutral float-left" title="run" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="local2global_embedding.run.run.with_dependencies.html" class="btn btn-neutral float-right" title="with_dependencies" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Lucas G. S. Jeub.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
