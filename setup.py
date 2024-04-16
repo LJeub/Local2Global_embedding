@@ -31,5 +31,7 @@ setup(
         'dask >= 2021.9.1',
         'enlighten >= 1.10',
         'hyperopt',
+        'numba',
+        'pandas'
     ],
 )

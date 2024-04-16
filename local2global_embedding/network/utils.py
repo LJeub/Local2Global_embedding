@@ -159,6 +159,7 @@ def spanning_tree_mask(graph: Graph, maximise=False):
         reverse_edge_index = reverse_edge_index[forward_edge_index]
     else:
         edges = graph.edge_index
+        forward_edge_index = np.arange(edges.shape[1])
         weights = graph.weights
         reverse_edge_index = None
 
@@ -166,7 +167,7 @@ def spanning_tree_mask(graph: Graph, maximise=False):
     if maximise:
         index = index[::-1]
 
-    edge_mask = np.zeros(graph.num_edges, dtype=np.bool)
+    edge_mask = np.zeros(graph.num_edges, dtype=bool)
     edge_mask = _spanning_tree_mask(edge_mask, edges, index, graph.num_nodes, forward_edge_index, reverse_edge_index)
     if convert_to_tensor:
         edge_mask = torch.as_tensor(edge_mask)
